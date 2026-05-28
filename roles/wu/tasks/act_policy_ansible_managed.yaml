@@ -1,5 +1,5 @@
 ---
-- name: ansible_managed policy is no longer supported
+- name: Policy ansible_managed is no longer supported
   ansible.builtin.fail:
     msg: >-
       The 'policy_ansible_managed' action has been removed.

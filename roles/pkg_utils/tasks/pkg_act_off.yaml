@@ -239,7 +239,7 @@
     - win_workman_schema.package.uninstall_via_helper is not defined or win_workman_schema.package.uninstall_via_helper is false
   register: win_workman_uninstall_result
 
-- name: "Silently uninstall '{{ win_workman_schema.name }}' via helper"
+- name: "Silently uninstall via helper: {{ win_workman_schema.name }}"
   ansible.windows.win_powershell:
     script: |
       param(

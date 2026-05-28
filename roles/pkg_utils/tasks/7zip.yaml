@@ -6,7 +6,7 @@
     win_workman_7z_extra_url: >-
       https://github.com/ip7z/7zip/releases/download/26.00/7z2600-extra.7z
 
-- name: 7zip | stage 7zr.exe on controller
+- name: Stage 7zr.exe on controller
   ansible.builtin.get_url:
     url: "{{ win_workman_7zr_url | default('https://7-zip.org/a/7zr.exe') }}"
     dest: "{{ win_workman_storage_path }}/7zr.exe"
@@ -15,7 +15,7 @@
   delegate_to: localhost
   run_once: true
 
-- name: 7zip | stage 7z2600-extra.7z on controller
+- name: Stage 7z2600-extra.7z on controller
   ansible.builtin.get_url:
     url: "{{ win_workman_7z_extra_url }}"
     dest: "{{ win_workman_storage_path }}/{{ win_workman_7z_extra_filename }}"
@@ -24,21 +24,19 @@
   delegate_to: localhost
   run_once: true
 
-- name: 7zip | copy 7zr.exe to Windows temporary directory
+- name: Copy 7zr.exe to Windows temporary directory
   ansible.windows.win_copy:
     src: "{{ win_workman_storage_path }}/7zr.exe"
     dest: "{{ win_workman_remote_tmp }}\\7zr.exe"
   changed_when: false
 
-- name: >-
-    7zip | copy {{ win_workman_7z_extra_filename }} to Windows temporary
-    directory
+- name: "Copy extra archive to Windows temporary directory: {{ win_workman_7z_extra_filename }}"
   ansible.windows.win_copy:
     src: "{{ win_workman_storage_path }}/{{ win_workman_7z_extra_filename }}"
     dest: "{{ win_workman_remote_tmp }}\\{{ win_workman_7z_extra_filename }}"
   changed_when: false
 
-- name: 7zip | ensure 7za.exe is available
+- name: Ensure 7za.exe is available
   ansible.windows.win_powershell:
     script: |
       param(
@@ -104,7 +102,7 @@
       ExtraDir: "{{ win_workman_7z_extra_dir }}"
       ExtraFilename: "{{ win_workman_7z_extra_filename }}"
 
-- name: 7zip | add or extract archive
+- name: Add or extract archive via 7zip
   ansible.windows.win_powershell:
     script: |
       param(

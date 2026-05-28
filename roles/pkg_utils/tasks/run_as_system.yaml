@@ -148,8 +148,8 @@
         message              = $failureMsg
       }
     parameters:
-      ExePath:    "{{ win_workman_system_task_exe }}"
-      ExeArgs:    "{{ win_workman_system_task_args | default('') }}"
-      TaskName:   "{{ win_workman_system_task_name }}"
+      ExePath: "{{ win_workman_system_task_exe }}"
+      ExeArgs: "{{ win_workman_system_task_args | default('') }}"
+      TaskName: "{{ win_workman_system_task_name }}"
       TimeoutSec: "{{ win_workman_system_task_timeout | default(180) | int }}"
   register: win_workman_run_as_system_result

@@ -1,10 +1,11 @@
+---
 display_name: Windows Update
 custom_actions:
   - name: run
     description: Search, download and install available Windows updates
-  - name: on
+  - name: "on"
     description: Resume Windows Update (alias for resume)
-  - name: off
+  - name: "off"
     description: Pause Windows Update at max duration (alias for pause at max)
   - name: pause
     description: Pause Windows Update for win_workman_wu_pause_days days
