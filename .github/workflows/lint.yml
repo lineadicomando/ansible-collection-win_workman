@@ -1,0 +1,43 @@
+---
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ansible-lint:
+    name: ansible-lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ansible-core and ansible-lint
+        run: pip install ansible-core ansible-lint
+
+      - name: Install collection dependencies
+        run: >
+          ansible-galaxy collection install
+          ansible.windows
+          community.windows
+          community.general
+
+      # ansible-lint requires the collection to live at the canonical namespace
+      # path; a symlink avoids duplicating the checkout.
+      - name: Expose collection at namespace path
+        run: |
+          mkdir -p ~/.ansible/collections/ansible_collections/lineadicomando
+          ln -s "$GITHUB_WORKSPACE" \
+            ~/.ansible/collections/ansible_collections/lineadicomando/win_workman
+
+      - name: Run ansible-lint
+        run: ansible-lint --profile production

@@ -1,0 +1,29 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Adobe Acrobat Reader DC
+#      - Homepage:    https://www.adobe.com/acrobat/pdf-reader.html
+#      - Download:    https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/
+# ==============================================================================
+---
+win_workman_adobe_reader_dc_schema:
+  name: Adobe Acrobat Reader DC
+  package:
+    setup_file: AcroRdrDCx642600121367_MUI.exe
+    searchName: "Adobe Acrobat (64-bit)"
+    version: "26.001.21367"
+    install_args:
+      - /sAll
+      - /rs
+      - /msi
+      - EULA_ACCEPT=YES
+    uninstall_args:
+      - /qn
+      - /norestart
+  files:
+    - filename: AcroRdrDCx642600121367_MUI.exe
+      url: https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600121367/AcroRdrDCx642600121367_MUI.exe
+      checksum: sha256:36fccda153466fd8d528b10ce7b453649ef5c2dddd2fb231045fe656a4a926db
+  shortcuts: []
+
+win_workman_schema_role_name: lineadicomando.win_workman.adobe_reader_dc
+win_workman_schema_dir: adobe_reader_dc

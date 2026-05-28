@@ -1,0 +1,76 @@
+---
+- name: Read saved SeInteractiveLogonRight
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Ansible\\WinMaint"
+    win_workman_winreg_name: "SeInteractiveLogonRight"
+
+- name: Set restore flags for SeInteractiveLogonRight
+  ansible.builtin.set_fact:
+    win_workman_restore_exists: "{{ win_workman_registry_read.result.exists | bool }}"
+    win_workman_restore_value: >-
+      {{
+        (win_workman_registry_read.result.value) if (
+          win_workman_registry_read.result.exists | bool
+        ) else []
+      }}
+  when:
+    - win_workman_registry_read is not none
+
+- name: Get current value (SeInteractiveLogonRight)
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: se_read
+  vars:
+    win_workman_se_read_right: SeInteractiveLogonRight
+
+- name: Set current value for SeInteractiveLogonRight
+  ansible.builtin.set_fact:
+    win_workman_current_value: >-
+      {{
+        (win_workman_se_read.result) if (
+          win_workman_se_read.result is not none
+        ) else []
+      }}
+  when:
+    - win_workman_se_read is not none
+
+- name: Set recovery value
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: SeInteractiveLogonRight
+    data: "{{ win_workman_current_value }}"
+    type: multistring
+    state: present
+  when:
+    - win_workman_mode_state == 'present'
+    - not (win_workman_restore_exists | bool)
+    - win_workman_current_value is not none
+
+- name: Set SeInteractiveLogonRight
+  ansible.windows.win_user_right:
+    name: SeInteractiveLogonRight
+    users: "{{ win_workman_mode_interactive_logon_users }}"
+    action: set
+  when:
+    - win_workman_mode_state == 'present'
+
+- name: Restore SeInteractiveLogonRight
+  ansible.windows.win_user_right:
+    name: SeInteractiveLogonRight
+    users: "{{ win_workman_restore_value }}"
+    action: set
+  when:
+    - win_workman_restore_exists | bool
+    - win_workman_mode_state == 'absent'
+
+- name: Remove recovery value
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: SeInteractiveLogonRight
+    state: absent
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_restore_exists | bool

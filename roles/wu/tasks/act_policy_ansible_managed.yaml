@@ -1,0 +1,7 @@
+---
+- name: ansible_managed policy is no longer supported
+  ansible.builtin.fail:
+    msg: >-
+      The 'policy_ansible_managed' action has been removed.
+      Use 'pause' or 'pause_max' to prevent automatic Windows Update.
+      To restore default WU policy run 'policy_standard'.

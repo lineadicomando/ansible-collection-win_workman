@@ -1,0 +1,36 @@
+---
+- name: Read Windows Update pause status
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UpdatePolicy\Settings'
+    win_workman_winreg_name: "PausedQualityStatus"
+
+- name: Set pause status fact
+  ansible.builtin.set_fact:
+    win_workman_wu_is_paused: "{{ win_workman_registry_read.result.value | default(0) | int == 1 }}"
+
+- name: Read Windows Update pause expiry time
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
+    win_workman_winreg_name: "PauseUpdatesExpiryTime"
+  when: win_workman_wu_is_paused | bool
+
+- name: Set expiry time fact
+  ansible.builtin.set_fact:
+    win_workman_wu_pause_expiry: "{{ win_workman_registry_read.result.value | default('') }}"
+  when: win_workman_wu_is_paused | bool
+
+- name: Report update pause status (paused)
+  ansible.builtin.debug:
+    msg: "Windows Update is paused until {{ win_workman_wu_pause_expiry }}"
+  when: win_workman_wu_is_paused | bool
+
+- name: Report update pause status (active)
+  ansible.builtin.debug:
+    msg: "Windows Update is not paused"
+  when: not (win_workman_wu_is_paused | bool)

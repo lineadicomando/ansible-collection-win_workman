@@ -1,0 +1,14 @@
+---
+- name: Validate edge-privacy argument
+  ansible.builtin.assert:
+    that:
+      - win_workman_task_argv[2] is defined
+      - win_workman_task_argv[2] in ['on', 'off']
+    fail_msg: "edge-privacy requires an argument. Supported: on, off"
+
+- name: Set edge privacy policy
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.edge
+    tasks_from: privacy_handler
+  vars:
+    win_workman_edge_policy_enabled: "{{ win_workman_task_argv[2] == 'on' }}"

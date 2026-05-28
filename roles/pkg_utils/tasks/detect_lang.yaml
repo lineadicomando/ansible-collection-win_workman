@@ -1,0 +1,65 @@
+---
+# Detect the Windows host locale and write win_workman_default_lang.
+#
+# Input variables (pass via vars: on the include_role call):
+#   win_workman_detect_lang_allowed  list of accepted lang codes (required)
+#   win_workman_detect_lang_map      dict BCP47 → lang code, for codes that
+#                                    don't follow the simple replace('-','_')
+#                                    convention (optional, default: {})
+#
+# Resolution order for each locale candidate from the host:
+#   1. lang_map[candidate]          explicit mapping wins
+#   2. candidate | replace('-','_') direct normalisation
+#   3. ISO 639-1 base code          e.g. "it-IT" → "it"
+# First candidate that produces a match in allowed_langs is used.
+# win_workman_default_lang is left unchanged when no match is found.
+
+- name: Detect default language from host locale
+  block:
+    - name: Read host locale
+      ansible.windows.win_powershell:
+        script: |
+          $Ansible.Result = @(
+              (Get-WinSystemLocale).Name,
+              (Get-SystemPreferredUILanguage),
+              (Get-UICulture).Name,
+              (Get-Culture).Name
+          ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+      register: _win_workman_detect_lang_raw
+
+    - name: Resolve detected language code
+      ansible.builtin.set_fact:
+        _win_workman_detect_lang: |-
+          {%- set candidates = (
+              _win_workman_detect_lang_raw.result
+              if (
+                _win_workman_detect_lang_raw.result is sequence
+                and _win_workman_detect_lang_raw.result is not string
+              )
+              else [_win_workman_detect_lang_raw.result | default('', true)]
+            )
+            | map('trim')
+            | reject('equalto', '')
+            | list
+          -%}
+          {%- set allowed = win_workman_detect_lang_allowed | default([]) -%}
+          {%- set lang_map = win_workman_detect_lang_map | default({}) -%}
+          {%- set ns = namespace(result='') -%}
+          {%- for item in candidates if not ns.result -%}
+            {%- set opts = (
+                [
+                  (lang_map[item] if item in lang_map else (item | replace('-', '_'))),
+                  (item | regex_replace('^([a-z]{2})[-_].*$', '\\1'))
+                ]
+                | reject('equalto', '')
+                | select('in', allowed)
+                | list
+              ) -%}
+            {%- if opts -%}{%- set ns.result = opts | first -%}{%- endif -%}
+          {%- endfor -%}
+          {{- ns.result -}}
+
+    - name: Apply detected locale as default language
+      ansible.builtin.set_fact:
+        win_workman_default_lang: "{{ _win_workman_detect_lang }}"
+      when: _win_workman_detect_lang | length > 0

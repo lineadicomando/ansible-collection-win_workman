@@ -1,0 +1,105 @@
+---
+- name: Set win copy files list
+  ansible.builtin.set_fact:
+    win_workman_remote_extract_path: "{{ win_workman_remote_tmp }}"
+    win_workman_remote_dest_path: "{{ win_workman_remote_tmp }}"
+    win_workman_win_copy_files: >-
+      {{
+        win_workman_schema.files
+        if (
+          win_workman_schema.files is defined
+          and win_workman_schema.files | length > 0
+        )
+        else [
+          {
+            "filename": win_workman_schema.package.setup_file
+          }
+        ]
+      }}
+
+- name: Set win_workman_remote_extract_path for portable provider
+  ansible.builtin.set_fact:
+    win_workman_remote_extract_path: "{{ win_workman_portable_path }}"
+    win_workman_remote_dest_path: "{{ win_workman_portable_path }}"
+  when:
+    - win_workman_schema.package.provider | default('') == 'portable'
+
+- name: Ensure Windows destination directory exists
+  ansible.windows.win_file:
+    path: "{{ win_workman_remote_extract_path }}"
+    state: directory
+
+- name: Ensure per-file Windows destination directory exists
+  ansible.windows.win_file:
+    path: "{{ win_workman_copy_remote_dest_dir }}"
+    state: directory
+  vars:
+    win_workman_copy_remote_dest_dir: >-
+      {{
+        win_workman_remote_tmp
+        if (
+          win_workman_win_copy_file.extract is defined
+          and win_workman_win_copy_file.extract == '7z'
+        )
+        else (
+          win_workman_remote_dest_path ~ '\\' ~ win_workman_win_copy_file.dest_dir
+          if (
+            win_workman_win_copy_file.dest_dir is defined
+            and win_workman_win_copy_file.dest_dir is not none
+            and (win_workman_win_copy_file.dest_dir | string | trim | length) > 0
+          )
+          else win_workman_remote_dest_path
+        )
+      }}
+  loop: "{{ win_workman_win_copy_files }}"
+  loop_control:
+    label: "{{ win_workman_win_copy_file.filename }}"
+    loop_var: win_workman_win_copy_file
+
+- name: Copy installer to Windows temporary directory
+  ansible.windows.win_copy:
+    src: "{{ win_workman_copy_local_src }}"
+    dest: "{{ win_workman_copy_remote_dest }}"
+  changed_when: false
+  vars:
+    win_workman_copy_local_src: >-
+      {{ win_workman_storage_path }}/{{ win_workman_win_copy_file.filename }}
+    win_workman_copy_remote_dest: >-
+      {{
+        win_workman_remote_tmp ~ '\\' ~ win_workman_win_copy_file.filename
+        if (
+          win_workman_win_copy_file.extract is defined
+          and win_workman_win_copy_file.extract == '7z'
+        )
+        else (
+          (
+            win_workman_remote_dest_path ~ '\\' ~ win_workman_win_copy_file.dest_dir
+            ~ '\\' ~ win_workman_win_copy_file.filename
+          )
+          if (
+            win_workman_win_copy_file.dest_dir is defined
+            and win_workman_win_copy_file.dest_dir is not none
+            and (win_workman_win_copy_file.dest_dir | string | trim | length) > 0
+          )
+          else (
+            win_workman_remote_dest_path ~ '\\' ~ win_workman_win_copy_file.filename
+          )
+        )
+      }}
+  loop: "{{ win_workman_win_copy_files }}"
+  loop_control:
+    label: "{{ win_workman_win_copy_file.filename }}"
+    loop_var: win_workman_win_copy_file
+
+- name: Extract archives
+  ansible.builtin.include_tasks:
+    file: win_extract.yaml
+  vars:
+    win_workman_extract_files: "{{ win_workman_win_copy_files }}"
+
+- name: After win copy Powershell script
+  ansible.windows.win_powershell:
+    script: "{{ win_workman_schema.package.after_copy_ps_script }}"
+  when:
+    - win_workman_schema.package.after_copy_ps_script is defined
+    - win_workman_schema.package.after_copy_ps_script is not none

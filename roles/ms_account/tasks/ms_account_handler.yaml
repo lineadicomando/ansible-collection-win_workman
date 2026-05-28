@@ -1,0 +1,40 @@
+---
+- name: Set policy paths
+  ansible.builtin.set_fact:
+    win_workman_ms_account_system_key: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    win_workman_ms_account_policy_key: HKLM:\SOFTWARE\Policies\Microsoft\MicrosoftAccount
+
+- name: Create the Microsoft Account policy key
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_ms_account_policy_key }}"
+    state: present
+  when: win_workman_ms_account_enabled | bool
+
+- name: Set Microsoft Account policy values
+  ansible.windows.win_regedit:
+    path: "{{ item.path }}"
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    - path: "{{ win_workman_ms_account_system_key }}"
+      name: NoConnectedUser
+      type: dword
+      data: 3
+    - path: "{{ win_workman_ms_account_policy_key }}"
+      name: DisableUserAuth
+      type: dword
+      data: 1
+  when: win_workman_ms_account_enabled | bool
+
+- name: Remove Microsoft Account policy values (restore)
+  ansible.windows.win_regedit:
+    path: "{{ item.path }}"
+    name: "{{ item.name }}"
+    state: absent
+  loop:
+    - path: "{{ win_workman_ms_account_system_key }}"
+      name: NoConnectedUser
+    - path: "{{ win_workman_ms_account_policy_key }}"
+      name: DisableUserAuth
+  when: not (win_workman_ms_account_enabled | bool)

@@ -1,0 +1,13 @@
+---
+- name: Validate firefox-rm argument
+  ansible.builtin.assert:
+    that:
+      - win_workman_task_argv[2] is defined
+      - win_workman_task_argv[2] in ['profile']
+    fail_msg: "firefox-rm requires a target argument. Supported: profile"
+
+- name: Remove Firefox profile data
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.firefox
+    tasks_from: rm_profile
+  when: win_workman_task_argv[2] == 'profile'

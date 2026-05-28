@@ -1,0 +1,14 @@
+---
+- name: Dispatch action config
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.veyon
+    tasks_from: act_config
+  when: win_workman_action == "config"
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_veyon_schema }}"
+  when: win_workman_action != "config"

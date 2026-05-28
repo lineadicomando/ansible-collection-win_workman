@@ -1,0 +1,41 @@
+---
+- name: Optimize volumes
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^[A-Z]$')]
+        [string]$DriveLetter,
+
+        [bool]$Defrag = $false
+      )
+
+      try {
+        $params = @{
+          DriveLetter  = $DriveLetter
+          ErrorAction  = 'Stop'
+        }
+
+        if ($Defrag) {
+          $params.Defrag = $true
+        }
+
+        $result = Optimize-Volume @params 4>&1
+
+        $Ansible.Changed = $true
+        $Ansible.Result  = $result
+      } catch {
+        $Ansible.Failed = "Optimize-Volume failed on drive ${DriveLetter}: $($_.Exception.Message)"
+        $Ansible.Changed = $false
+      }
+    parameters:
+      DriveLetter: "{{ win_workman_optimize_volume }}"
+      Defrag: "{{ win_workman_optimize_defrag | default(false) }}"
+  loop: "{{ win_workman_optimize_volumes | default([]) }}"
+  loop_control:
+    loop_var: win_workman_optimize_volume
+    label: "{{ win_workman_optimize_volume }}:"
+  register: win_workman_optimize_vol
+  when:
+    - win_workman_optimize_volumes is defined
+    - win_workman_optimize_volumes | length > 0

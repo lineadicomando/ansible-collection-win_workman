@@ -1,0 +1,24 @@
+---
+- name: Force close LibreOffice if active
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: kill
+  vars:
+    win_workman_kill_process_name: "soffice.bin"
+    win_workman_kill_force: true
+
+- name: Get SID and localpath of local users
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: profiles
+
+- name: Remove LibreOffice profile folder
+  ansible.windows.win_file:
+    path: "{{ win_workman_libreoffice_profile_data_path }}"
+    state: absent
+  loop: "{{ win_workman_profiles }}"
+  vars:
+    win_workman_libreoffice_profile_data_path: "{{ win_workman_libreoffice_profile_data.LocalPath }}\\AppData\\Roaming\\LibreOffice"
+  loop_control:
+    label: "{{ win_workman_libreoffice_profile_data_path }}"
+    loop_var: win_workman_libreoffice_profile_data

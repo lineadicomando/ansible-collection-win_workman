@@ -1,0 +1,39 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Laragon
+#      - Homepage:    https://laragon.org/
+#      - Download:    https://laragon.org/download
+# ==============================================================================
+---
+win_workman_laragon_short_version: "8.5.0"
+win_workman_laragon_version: "8.5.0.251006"
+
+win_workman_laragon_schema:
+  name: Laragon
+  package:
+    setup_file: "laragon-wamp-{{ win_workman_laragon_short_version }}.exe"
+    searchName: "Laragon {{ win_workman_laragon_short_version }}"
+    version: "{{ win_workman_laragon_version }}"
+    product_id: Laragon_is1
+    provider: registry
+    install_args:
+      - /VERYSILENT
+      - /NORESTART
+      - /SP-
+      - /MERGETASKS=desktopicon
+      - /ALLUSERS
+      - /NOCLOSEAPPLICATIONS
+      - /NOCANCEL
+      - /SUPPRESSMSGBOXES
+    uninstall_args:
+      - /VERYSILENT
+      - /NORESTART
+      - /SP-
+      - /SUPPRESSMSGBOXES
+  files:
+    - filename: "laragon-wamp-{{ win_workman_laragon_short_version }}.exe"
+      url: "https://github.com/leokhoa/laragon/releases/download/{{ win_workman_laragon_short_version }}/laragon-wamp.exe"
+      checksum: sha256:38941423b5dc544967ce5ae23a48eb9b695fbf690011f864a6281405a1704736
+
+win_workman_schema_role_name: lineadicomando.win_workman.laragon
+win_workman_schema_dir: laragon

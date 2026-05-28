@@ -1,0 +1,20 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Postman
+#      - Homepage:    https://github.com/gsass1/NTop
+#      - Download:    https://github.com/gsass1/NTop/releases
+# ==============================================================================
+---
+win_workman_ntop_schema:
+  name: NTop
+  package:
+    provider: portable
+    path_dirs:
+      - NTop
+  files:
+    - filename: NTop.exe
+      url: https://github.com/gsass1/NTop/releases/download/v0.3.21/NTop.exe
+      dest_dir: NTop
+
+win_workman_schema_role_name: lineadicomando.win_workman.ntop
+win_workman_schema_dir: ntop

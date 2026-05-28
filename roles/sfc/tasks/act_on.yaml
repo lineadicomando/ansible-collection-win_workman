@@ -1,0 +1,110 @@
+---
+- name: Check for pending reboot
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pending_restart
+  when:
+    - win_workman_restart | bool | default(true)
+
+- name: Run sfc /scannow
+  ansible.windows.win_powershell:
+    script: |
+      $logFile = Join-Path $env:windir 'Logs\sfc_log_file.log'
+      $cbsLog  = Join-Path $env:windir 'Logs\CBS\CBS.log'
+
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $Ansible.Result  = @{}
+
+      Remove-Item -Path $logFile -ErrorAction SilentlyContinue
+
+      $job = $null
+
+      try {
+        $job = Start-Job -ScriptBlock {
+          param($cbsLogPath, $logFilePath)
+          Get-Content -Path $cbsLogPath -Wait -Tail 0 |
+            Out-File -FilePath $logFilePath -Encoding UTF8
+        } -ArgumentList $cbsLog, $logFile
+
+        Start-Sleep -Seconds 1
+
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName               = 'sfc.exe'
+        $psi.Arguments              = '/scannow'
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError  = $true
+        $psi.UseShellExecute        = $false
+        $psi.CreateNoWindow         = $true
+        $psi.StandardOutputEncoding = [System.Text.Encoding]::Unicode
+        $psi.StandardErrorEncoding  = [System.Text.Encoding]::Unicode
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $psi
+
+        [void]$process.Start()
+
+        $stdOut   = $process.StandardOutput.ReadToEnd()
+        $stdErr   = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        $exitCode = $process.ExitCode
+
+        Start-Sleep -Seconds 2
+        if ($job) {
+          Stop-Job  -Job $job -ErrorAction SilentlyContinue | Out-Null
+          Remove-Job -Job $job -Force -ErrorAction SilentlyContinue | Out-Null
+          $job = $null
+        }
+
+        $repaired     = $false
+        $cannotRepair = $false
+        $repairFailed = $false
+
+        if (Test-Path -Path $logFile) {
+          $repaired = Select-String -Path $logFile `
+            -Pattern '.*Repaired file.*', '.*Repairing corrupted file.*' `
+            -Quiet -ErrorAction SilentlyContinue
+
+          $cannotRepair = Select-String -Path $logFile `
+            -Pattern '.*Cannot repair.*' `
+            -Quiet -ErrorAction SilentlyContinue
+
+          $repairFailed = Select-String -Path $logFile `
+            -Pattern '.*Repair failed.*' `
+            -Quiet -ErrorAction SilentlyContinue
+        }
+
+        $Ansible.Changed = [bool]$repaired
+        $Ansible.Failed  = [bool]($cannotRepair -or $repairFailed)
+
+        $lines = ($stdOut -replace "`0","") -split "(`r`n|`n)" |
+          ForEach-Object { $_.Trim() } |
+          Where-Object { $_ -and ($_ -notmatch '\d') }
+
+        $cleanStdOut = ($lines -join ' - ') -replace '\s{2,}', ' '
+
+        $Ansible.Result = @{
+          ExitCode      = $exitCode
+          StdOut        = $cleanStdOut
+          StdErr        = $stdErr
+          LogFile       = $logFile
+          Repaired      = $repaired
+          CannotRepair  = $cannotRepair
+          RepairFailed  = $repairFailed
+        }
+      }
+      catch {
+        if ($job) {
+          Stop-Job  -Job $job -ErrorAction SilentlyContinue | Out-Null
+          Remove-Job -Job $job -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          Error        = "$($_.Exception.Message)"
+          ExitCode     = -1
+          StdOut       = ''
+          StdErr       = ''
+        }
+      }
+  register: win_workman_sfc

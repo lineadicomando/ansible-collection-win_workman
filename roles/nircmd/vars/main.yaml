@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        NirCmd
+#      - Homepage:    https://www.nirsoft.net/
+#      - Download:    https://www.nirsoft.net/utils/nircmd.html
+# ==============================================================================
+---
+win_workman_nircmd_schema:
+  name: NirCmd
+  package:
+    provider: portable
+    path_dirs:
+      - NirCmd
+  files:
+    - filename: nircmd-x64.zip
+      url: https://www.nirsoft.net/utils/nircmd-x64.zip
+      dest_dir: NirCmd
+      extract: 7z
+
+win_workman_schema_role_name: lineadicomando.win_workman.nircmd
+win_workman_schema_dir: nircmd

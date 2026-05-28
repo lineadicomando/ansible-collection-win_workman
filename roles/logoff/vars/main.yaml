@@ -1,0 +1,6 @@
+---
+win_workman_logoff_schema:
+  name: Logoff
+
+win_workman_schema_role_name: lineadicomando.win_workman.logoff
+win_workman_schema_dir: logoff

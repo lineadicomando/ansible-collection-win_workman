@@ -1,0 +1,36 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        GIMP
+#      - Homepage:    https://www.gimp.org/
+#      - Download:    https://www.gimp.org/downloads/
+# ==============================================================================
+---
+win_workman_gimp_schema:
+  name: The Gimp 3.2.4
+  package:
+    setup_file: gimp-3.2.4-setup.exe
+    install_args:
+      - /VERYSILENT
+      - /NORESTART
+      - /SP-
+      - /MERGETASKS=desktopicon
+      - /ALLUSERS
+      - /NOCLOSEAPPLICATIONS
+      - /NOCANCEL
+      - /SUPPRESSMSGBOXES
+    uninstall_args:
+      - /VERYSILENT
+      - /NORESTART
+      - /SP-
+      - /SUPPRESSMSGBOXES
+    searchName: "*GIMP*"
+    version: "3.2.4.0"
+    product_id: GIMP-3_is1
+    provider: registry
+  files:
+    - filename: gimp-3.2.4-setup.exe
+      url: https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.4-setup.exe
+      checksum: sha256:ec31d757dd82831d201ffcf47ffeac4175df739e0c02d5122e89aeeadfb988cc
+
+win_workman_schema_role_name: lineadicomando.win_workman.gimp
+win_workman_schema_dir: gimp

@@ -1,0 +1,6 @@
+display_name: Visual Studio Code
+defaults:
+  - var: win_workman_vscode_shortcuts
+    type: bool
+    default: false
+    description: Create shortcuts on Desktop and Start Menu

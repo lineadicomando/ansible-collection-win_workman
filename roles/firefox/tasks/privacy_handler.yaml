@@ -1,0 +1,141 @@
+---
+- name: Set root key
+  ansible.builtin.set_fact:
+    win_workman_firefox_policy_path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox
+
+- name: Create the Firefox base policy key
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_firefox_policy_path }}"
+    state: present
+  when: win_workman_firefox_policy_enabled
+
+- name: Create subkeys for data clearing
+  ansible.windows.win_regedit:
+    path: "{{ item }}"
+    state: present
+  loop:
+    - "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+  when: win_workman_firefox_policy_enabled
+
+- name: Set Firefox policy values
+  ansible.windows.win_regedit:
+    path: "{{ item.path }}"
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    # Disable Firefox Accounts (sign-in + sync).
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: DisableFirefoxAccounts
+      type: dword
+      data: 1
+    # Disable profile import.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: DisableProfileImport
+      type: dword
+      data: 1
+    # Disable the first run experience by overriding the page.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: OverrideFirstRunPage
+      type: string
+      data: about:blank
+    # Disable password saving.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: OfferToSaveLogins
+      type: dword
+      data: 0
+    # Disable the password manager.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: PasswordManagerEnabled
+      type: dword
+      data: 0
+    # Disable address autofill.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: AutofillAddressEnabled
+      type: dword
+      data: 0
+    # Disable credit card autofill.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: AutofillCreditCardEnabled
+      type: dword
+      data: 0
+    # Disable telemetry.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: DisableTelemetry
+      type: dword
+      data: 1
+    # Block installation of all extensions.
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: ExtensionSettings
+      type: multistring
+      data:
+        - '{"*":{"installation_mode":"blocked"}}'
+    # Clear cookies on exit.
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: Cookies
+      type: dword
+      data: 1
+    # Clear cache on exit.
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: Cache
+      type: dword
+      data: 1
+    # Clear history on exit.
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: History
+      type: dword
+      data: 1
+    # Lock the sanitize on shutdown settings.
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: Locked
+      type: dword
+      data: 1
+  when: win_workman_firefox_policy_enabled
+
+- name: Remove Firefox policy values (restore)
+  ansible.windows.win_regedit:
+    path: "{{ item.path }}"
+    name: "{{ item.name }}"
+    state: absent
+  loop:
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: DisableFirefoxAccounts
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: DisableProfileImport
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: OverrideFirstRunPage
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: OfferToSaveLogins
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: PasswordManagerEnabled
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: AutofillAddressEnabled
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: AutofillCreditCardEnabled
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: DisableTelemetry
+    - path: "{{ win_workman_firefox_policy_path }}"
+      name: ExtensionSettings
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: Cookies
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: Cache
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: History
+    - path: "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+      name: Locked
+  when: not win_workman_firefox_policy_enabled
+
+- name: Remove Firefox policy subkeys (restore)
+  ansible.windows.win_regedit:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ win_workman_firefox_policy_path }}\\SanitizeOnShutdown"
+  when: not win_workman_firefox_policy_enabled
+
+- name: Remove the Firefox base policy key (restore)
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_firefox_policy_path }}"
+    state: absent
+  when: not win_workman_firefox_policy_enabled

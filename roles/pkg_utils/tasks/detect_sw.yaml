@@ -1,0 +1,259 @@
+---
+- name: Detect software (registry/MSI/Appx)
+  ansible.windows.win_powershell:
+    parameters:
+      NameLikeJson: >-
+        {{
+          (
+            win_workman_detect_sw_args.name_like
+            if (win_workman_detect_sw_args.name_like is sequence
+                and win_workman_detect_sw_args.name_like is not string)
+            else [win_workman_detect_sw_args.name_like]
+          ) | to_json
+        }}
+      VersionLike: "{{ win_workman_detect_sw_args.version_like | default('*', true) }}"
+      SearchAppx: "{{ (win_workman_detect_sw_args.search_appx | default(false, true) | bool) | ternary(1, 0) }}"
+    script: |
+      param(
+        [Parameter(Mandatory=$true)] [string]$NameLikeJson,
+        [string]$VersionLike = "*",
+        [int]$SearchAppx = 0
+      )
+
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+
+      $NameLikes = @(ConvertFrom-Json -InputObject $NameLikeJson)
+
+      function To-NullableString($v) {
+        if ($null -eq $v) { return $null }
+        $s = [string]$v
+        if ($s.Length -eq 0) { return $null }
+        return $s
+      }
+
+      function Try-ParseVersion([string]$v) {
+        try { return [version]$v } catch { return $null }
+      }
+
+      function Provider-Rank([string]$provider) {
+        switch (($provider | ForEach-Object { [string]$_ }).ToLowerInvariant()) {
+          'msi'      { return 0 }
+          'registry' { return 1 }
+          'appx'     { return 2 }
+          default    { return 999 }
+        }
+      }
+
+      function Scope-Rank([string]$scope) {
+        switch (($scope | ForEach-Object { [string]$_ }).ToLowerInvariant()) {
+          'machine'      { return 0 }
+          'user'         { return 1 }
+          'user/machine' { return 1 }
+          'n/a'          { return 2 }
+          default        { return 999 }
+        }
+      }
+
+      function Is-GuidId([string]$id) {
+        return $id -match '^\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}$'
+      }
+
+      function Compare-Match($a, $b) {
+        if ($null -eq $b) { return 1 }
+        $va = Try-ParseVersion $a.display_version
+        $vb = Try-ParseVersion $b.display_version
+        if ($null -ne $va -and $null -eq $vb) { return 1 }
+        if ($null -eq $va -and $null -ne $vb) { return -1 }
+        if ($null -ne $va -and $null -ne $vb) {
+          if ($va -gt $vb) { return 1 }
+          if ($va -lt $vb) { return -1 }
+        }
+        $dva = [string]$a.display_version
+        $dvb = [string]$b.display_version
+        if ($dva -gt $dvb) { return 1 }
+        if ($dva -lt $dvb) { return -1 }
+        $pra = Provider-Rank $a.provider
+        $prb = Provider-Rank $b.provider
+        if ($pra -lt $prb) { return 1 }
+        if ($pra -gt $prb) { return -1 }
+        $sca = Scope-Rank $a.scope
+        $scb = Scope-Rank $b.scope
+        if ($sca -lt $scb) { return 1 }
+        if ($sca -gt $scb) { return -1 }
+        $ga = Is-GuidId $a.id
+        $gb = Is-GuidId $b.id
+        if ($ga -and -not $gb) { return 1 }
+        if (-not $ga -and $gb) { return -1 }
+        return 0
+      }
+
+      function New-SafeMatch {
+        param(
+          [string]$Provider, [string]$Id, [string]$DisplayName,
+          [string]$DisplayVersion, [string]$InstallLocation,
+          [string]$UninstallString, [string]$Scope, [string]$Hive,
+          [string]$RegistryKey, [string]$WindowsInstaller, [string]$PSPath
+        )
+        return [pscustomobject]@{
+          provider         = To-NullableString $Provider
+          id               = To-NullableString $Id
+          display_name     = To-NullableString $DisplayName
+          display_version  = To-NullableString $DisplayVersion
+          install_location = To-NullableString $InstallLocation
+          uninstall_string = To-NullableString $UninstallString
+          scope            = To-NullableString $Scope
+          hive             = To-NullableString $Hive
+          registry_key     = To-NullableString $RegistryKey
+        }
+      }
+
+      $SearchAppxFlag = [bool]($SearchAppx -ne 0)
+      $allMatches = New-Object System.Collections.Generic.List[object]
+      $warnings   = New-Object System.Collections.Generic.List[string]
+
+      $machineHives = @(
+        'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+      )
+
+      foreach ($h in $machineHives) {
+        try {
+          $items = Get-ChildItem -Path $h -ErrorAction SilentlyContinue |
+            Get-ItemProperty -ErrorAction SilentlyContinue |
+            Where-Object {
+              $dn = $_.DisplayName
+              ($NameLikes | Where-Object { $dn -like $_ }) -and
+              ($_.DisplayVersion -like $VersionLike -or -not $_.PSObject.Properties['DisplayVersion'])
+            }
+          foreach ($i in $items) {
+            $isMsi = ($i.WindowsInstaller -eq 1) -or ([string]$i.UninstallString -match '(?i)msiexec')
+            $allMatches.Add((New-SafeMatch `
+              -Provider $(if ($isMsi) { 'msi' } else { 'registry' }) `
+              -Id ([string]$i.PSChildName) `
+              -DisplayName ([string]$i.DisplayName) `
+              -DisplayVersion (To-NullableString $i.DisplayVersion) `
+              -InstallLocation (To-NullableString $i.InstallLocation) `
+              -UninstallString (To-NullableString $i.UninstallString) `
+              -Scope 'Machine' -Hive 'HKLM' `
+              -RegistryKey ([string](Join-Path $h $i.PSChildName)) `
+              -WindowsInstaller (To-NullableString $i.WindowsInstaller) `
+              -PSPath (To-NullableString $i.PSPath)
+            ))
+          }
+        } catch {
+          $warnings.Add("detect_sw: error reading registry hive '$h': $($_.Exception.Message)")
+        }
+      }
+
+      try {
+        $items = Get-ChildItem -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+          Get-ItemProperty -ErrorAction SilentlyContinue |
+          Where-Object {
+            $dn = $_.DisplayName
+            ($NameLikes | Where-Object { $dn -like $_ }) -and
+            ($_.DisplayVersion -like $VersionLike -or -not $_.PSObject.Properties['DisplayVersion'])
+          }
+        foreach ($i in $items) {
+          $isMsi = ($i.WindowsInstaller -eq 1) -or ([string]$i.UninstallString -match '(?i)msiexec')
+          $allMatches.Add((New-SafeMatch `
+            -Provider $(if ($isMsi) { 'msi' } else { 'registry' }) `
+            -Id ([string]$i.PSChildName) `
+            -DisplayName ([string]$i.DisplayName) `
+            -DisplayVersion (To-NullableString $i.DisplayVersion) `
+            -InstallLocation (To-NullableString $i.InstallLocation) `
+            -UninstallString (To-NullableString $i.UninstallString) `
+            -Scope 'User' -Hive 'HKCU' `
+            -RegistryKey ([string](Join-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' $i.PSChildName)) `
+            -WindowsInstaller (To-NullableString $i.WindowsInstaller) `
+            -PSPath (To-NullableString $i.PSPath)
+          ))
+        }
+      } catch {
+        $warnings.Add("detect_sw: error reading HKCU uninstall registry: $($_.Exception.Message)")
+      }
+
+      $appxAvailable = [bool](Get-Command Get-AppxPackage -ErrorAction SilentlyContinue)
+      if ($SearchAppxFlag -and $appxAvailable) {
+        try {
+          $appx = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object {
+            $n = $_.Name; $pfn = $_.PackageFamilyName
+            ($NameLikes | Where-Object { $n -like $_ -or $pfn -like $_ })
+          })
+          if (-not $appx -or $appx.Count -eq 0) {
+            $appx = @(Get-AppxPackage -ErrorAction SilentlyContinue | Where-Object {
+              $n = $_.Name; $pfn = $_.PackageFamilyName
+              ($NameLikes | Where-Object { $n -like $_ -or $pfn -like $_ })
+            })
+          }
+          foreach ($a in $appx) {
+            if (([string]$a.Version) -like $VersionLike) {
+              $allMatches.Add((New-SafeMatch `
+                -Provider 'appx' `
+                -Id ([string]$a.PackageFullName) `
+                -DisplayName ([string]$a.Name) `
+                -DisplayVersion ([string]$a.Version) `
+                -InstallLocation (To-NullableString $a.InstallLocation) `
+                -UninstallString $null -Scope 'User/Machine' -Hive 'n/a' `
+                -RegistryKey $null -WindowsInstaller $null -PSPath $null
+              ))
+            }
+          }
+        } catch {
+          $warnings.Add("detect_sw: error querying AppX packages: $($_.Exception.Message)")
+        }
+      }
+
+      $seen = @{}
+      $dedupedMatches = New-Object System.Collections.Generic.List[object]
+      foreach ($m in $allMatches) {
+        $key = if ($m.registry_key) { $m.registry_key } else { "$($m.provider)|$($m.id)" }
+        if (-not $seen.ContainsKey($key)) {
+          $seen[$key] = $true
+          $dedupedMatches.Add($m)
+        }
+      }
+      $allMatches = $dedupedMatches
+
+      $best = $null
+      foreach ($m in $allMatches) {
+        if ((Compare-Match $m $best) -gt 0) { $best = $m }
+      }
+
+      $match_count = [int]$allMatches.Count
+
+      $result = [pscustomobject]@{
+        installed        = ($best -ne $null)
+        name_like        = @($NameLikes)
+        version_like     = [string]$VersionLike
+        search_appx      = [bool]$SearchAppxFlag
+        appx_available   = [bool]$appxAvailable
+        provider         = $(if ($best) { $best.provider } else { $null })
+        id               = $(if ($best) { $best.id } else { $null })
+        display_name     = $(if ($best) { $best.display_name } else { $null })
+        display_version  = $(if ($best) { $best.display_version } else { $null })
+        install_location = $(if ($best) { $best.install_location } else { $null })
+        uninstall_string = $(if ($best) { $best.uninstall_string } else { $null })
+        scope            = $(if ($best) { $best.scope } else { $null })
+        hive             = $(if ($best) { $best.hive } else { $null })
+        registry_key     = $(if ($best) { $best.registry_key } else { $null })
+        match_count      = $match_count
+        results          = @()
+        warnings         = @($warnings)
+      }
+
+      if ($match_count -gt 1) {
+        $result.results = @(
+          foreach ($m in $allMatches) {
+            [pscustomobject]@{
+              provider = $m.provider; id = $m.id; display_name = $m.display_name
+              display_version = $m.display_version; install_location = $m.install_location
+              uninstall_string = $m.uninstall_string; scope = $m.scope
+              hive = $m.hive; registry_key = $m.registry_key
+            }
+          }
+        )
+      }
+
+      $Ansible.Result = ($result | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+  register: win_workman_detect_sw

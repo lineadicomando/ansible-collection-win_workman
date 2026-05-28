@@ -1,0 +1,215 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        WinRAR
+#      - Homepage:    https://www.win-rar.com/
+#      - Download:    https://www.win-rar.com/download.html?&L=0
+# ==============================================================================
+---
+win_workman_winrar_version: "7.22"
+win_workman_winrar_url_version: "722"
+
+# WinRAR-specific language codes.
+# "en" is a sentinel for English (no suffix in the download URL).
+# Excluded: ro, srbcyr (still at v7.13 on the download page).
+win_workman_winrar_allowed_langs:
+  - "en"
+  - "ar"
+  - "am"
+  - "az"
+  - "by"
+  - "bg"
+  - "ca"
+  - "sc"
+  - "tc"
+  - "cro"
+  - "cz"
+  - "dk"
+  - "nl"
+  - "est"
+  - "eu"
+  - "fi"
+  - "fr"
+  - "gl"
+  - "ge"
+  - "d"
+  - "el"
+  - "he"
+  - "hu"
+  - "id"
+  - "it"
+  - "jp"
+  - "kr"
+  - "lt"
+  - "mk"
+  - "mn"
+  - "no"
+  - "prs"
+  - "pl"
+  - "pt"
+  - "br"
+  - "ru"
+  - "srblat"
+  - "si"
+  - "sk"
+  - "slv"
+  - "es"
+  - "sw"
+  - "th"
+  - "tr"
+  - "tkm"
+  - "ukr"
+  - "uz"
+  - "va"
+  - "vn"
+
+# Maps Windows BCP47 locale names to WinRAR lang codes.
+# Only languages where the WinRAR code differs from the ISO 639-1 base need explicit entries.
+win_workman_winrar_windows_lang_map:
+  en-US: en
+  en-GB: en
+  en-CA: en
+  en-AU: en
+  de-DE: d
+  de-AT: d
+  de-CH: d
+  zh-CN: sc
+  zh-SG: sc
+  zh-TW: tc
+  zh-HK: tc
+  zh-MO: tc
+  hr-HR: cro
+  hr-BA: cro
+  cs-CZ: cz
+  da-DK: dk
+  et-EE: est
+  eu-ES: eu
+  ka-GE: ge
+  ja-JP: jp
+  ko-KR: kr
+  mn-MN: mn
+  nb-NO: no
+  nn-NO: no
+  fa-IR: prs
+  pt-BR: br
+  pt-PT: pt
+  sr-Cyrl-RS: srbcyr
+  sr-Latn-RS: srblat
+  sl-SI: slv
+  sv-SE: sw
+  sv-FI: sw
+  tk-TM: tkm
+  uk-UA: ukr
+  vi-VN: vn
+  ca-ES-Valencia: va
+  be-BY: by
+
+win_workman_winrar_locale_candidates: >-
+  {{
+    (
+      win_workman_winrar_host_locale.result
+      if (
+        win_workman_winrar_host_locale.result is defined
+        and win_workman_winrar_host_locale.result is sequence
+        and win_workman_winrar_host_locale.result is not string
+      )
+      else [win_workman_winrar_host_locale.result | default('', true)]
+    )
+    | map('trim')
+    | reject('equalto', '')
+    | list
+  }}
+
+win_workman_winrar_detected_lang: |-
+  {%- set ns = namespace(result='') -%}
+  {%- for item in (win_workman_winrar_locale_candidates | default([])) if not ns.result -%}
+    {%- set opts = (
+        [
+          (win_workman_winrar_windows_lang_map[item] if item in win_workman_winrar_windows_lang_map
+           else (item | replace('-', '_'))),
+          (item | regex_replace('^([a-z]{2})[-_].*$', '\\1'))
+        ] | reject('equalto', '') | select('in', win_workman_winrar_allowed_langs) | list
+      ) -%}
+    {%- if opts -%}{%- set ns.result = opts | first -%}{%- endif -%}
+  {%- endfor -%}
+  {{- ns.result -}}
+
+win_workman_winrar_lang: >-
+  {{
+    (
+      (win_workman_task_argv | default([]))
+      | select('in', win_workman_winrar_allowed_langs)
+      | list
+      | first
+    ) | default(win_workman_winrar_detected_lang, true)
+    | default('en', true)
+  }}
+
+# "en" sentinel → empty string (no suffix in URL); all other codes appended verbatim.
+win_workman_winrar_lang_suffix: >-
+  {{ "" if win_workman_winrar_lang == "en" else win_workman_winrar_lang }}
+
+win_workman_winrar_setup_filename: >-
+  {{ "winrar-x64-" + win_workman_winrar_url_version + win_workman_winrar_lang_suffix + ".exe" }}
+
+win_workman_winrar_url: >-
+  {{ "https://www.win-rar.com/fileadmin/winrar-versions/winrar/" + win_workman_winrar_setup_filename }}
+
+# WinRAR does not create a standard Uninstall registry entry.
+# This script registers it manually so that pkg_utils can detect, version-check, and uninstall it.
+win_workman_winrar_after_install_ps_script: |
+  $exe = "$env:ProgramFiles\WinRAR\WinRAR.exe"
+  $ver = (Get-Item $exe).VersionInfo.ProductVersion
+  $key = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WinRAR archiver"
+  if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+  @{
+    DisplayName     = "WinRAR"
+    DisplayVersion  = $ver
+    Publisher       = "win.rar GmbH"
+    InstallLocation = "$env:ProgramFiles\WinRAR"
+    UninstallString = "$env:ProgramFiles\WinRAR\Uninstall.exe"
+  }.GetEnumerator() | ForEach-Object {
+    Set-ItemProperty -Path $key -Name $_.Key -Value $_.Value
+  }
+
+win_workman_schema_role_name: lineadicomando.win_workman.winrar
+win_workman_schema_dir: winrar
+
+_win_workman_winrar_shortcut_desktop:
+  description: "WinRAR"
+  src: "%ProgramFiles%\\WinRAR\\WinRAR.exe"
+  dest: "%Public%\\Desktop\\WinRAR.lnk"
+  icon: "%ProgramFiles%\\WinRAR\\WinRAR.exe,0"
+  directory: "%ProgramFiles%\\WinRAR\\"
+
+_win_workman_winrar_shortcut_startmenu:
+  description: "WinRAR"
+  src: "%ProgramFiles%\\WinRAR\\WinRAR.exe"
+  dest: "%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\WinRAR.lnk"
+  icon: "%ProgramFiles%\\WinRAR\\WinRAR.exe,0"
+  directory: "%ProgramFiles%\\WinRAR\\"
+
+win_workman_winrar_shortcuts_schema: >-
+  {{
+    (
+      [_win_workman_winrar_shortcut_desktop] if win_workman_winrar_shortcut_desktop | bool else []
+    ) + (
+      [_win_workman_winrar_shortcut_startmenu] if win_workman_winrar_shortcut_startmenu | bool else []
+    )
+  }}
+
+win_workman_winrar_schema:
+  name: "WinRAR"
+  package:
+    setup_file: "{{ win_workman_winrar_setup_filename }}"
+    version: "{{ win_workman_winrar_version }}"
+    searchName: "WinRAR"
+    provider: registry
+    install_args: /S
+    uninstall_args: /S
+    uninstall_via_helper: true
+    after_install_ps_script: "{{ win_workman_winrar_after_install_ps_script }}"
+    cleanup_registry_key: true
+  files:
+    - filename: "{{ win_workman_winrar_setup_filename }}"
+      url: "{{ win_workman_winrar_url }}"
+  shortcuts: "{{ win_workman_winrar_shortcuts_schema }}"

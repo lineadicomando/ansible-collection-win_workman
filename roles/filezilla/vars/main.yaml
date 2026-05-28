@@ -1,0 +1,23 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        FileZilla Client
+#      - Homepage:    https://filezilla-project.org/
+#      - Download:    https://filezilla-project.org/download.php?type=client
+# ==============================================================================
+---
+win_workman_filezilla_schema:
+  name: FileZilla Client
+  package:
+    setup_file: FileZilla_3.70.5_win64-setup.exe
+    searchName: "FileZilla*"
+    version: "3.70.5"
+    install_args: /S
+    uninstall_args: /S
+    uninstall_via_helper: true
+  files:
+    - filename: FileZilla_3.70.5_win64-setup.exe
+      url: "https://dl3.cdn.filezilla-project.org/client/FileZilla_3.70.5_win64-setup.exe?h=kBUoiPcYCsPE-Ha5_FCrrw&x=1779043046"
+      checksum: "sha256:8a0c4e23f4c2f130d9651afbc7c265e5a1ce6e106ac60f4d876763971a84b7f6"
+
+win_workman_schema_role_name: lineadicomando.win_workman.filezilla
+win_workman_schema_dir: filezilla

@@ -1,0 +1,7 @@
+display_name: Windows Widgets
+custom_actions:
+  - name: on
+    description: Enable Windows 11 Widgets panel
+  - name: off
+    description: Disable Windows 11 Widgets panel via policy
+notes: "Does not install software; manages policy/registry only."

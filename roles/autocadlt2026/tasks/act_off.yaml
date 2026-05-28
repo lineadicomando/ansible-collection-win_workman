@@ -1,0 +1,146 @@
+---
+# Wildcard detection finds any installed locale regardless of ODIS registry state.
+# The Italian bundle does not register its ODIS entry in the Windows uninstall hive,
+# so exact-name matching against locale display names is unreliable.
+- name: Detect installed AutoCAD LT 2026 variant
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_sw
+  vars:
+    win_workman_detect_sw_args:
+      name_like: "*AutoCAD LT 2026*"
+
+- name: Align uninstall locale to installed variant
+  ansible.builtin.set_fact:
+    win_workman_autocadlt2026_lang: >-
+      {{
+        (
+          win_workman_autocadlt2026_locale_data
+          | dict2items
+          | selectattr('value.search_name', 'equalto', win_workman_detect_sw.result.display_name | default(''))
+          | map(attribute='key')
+          | list
+          | first
+        ) | default(win_workman_autocadlt2026_lang)
+      }}
+  when: win_workman_detect_sw.result.installed | bool
+
+# The ODIS bundle may not be registered in the Windows uninstall hive (Italian locale),
+# so we use the known bundle_guid to locate the manifest directly.
+- name: Uninstall "{{ win_workman_autodesk_bundle_display_name }}"
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: start_process
+  vars:
+    win_workman_exec_success_exit_codes: [0, 1604]
+    win_workman_exec_path: "{{ win_workman_autodesk_installer_exe }}"
+    win_workman_exec_args: >-
+      -i uninstall -q --trigger_point system
+      -m {{ win_workman_autodesk_bundle_manifest_path }}
+      -x {{ win_workman_autodesk_bundle_xsd_path }}
+  when: win_workman_detect_sw.result.installed | bool
+
+- name: Kill Autodesk Access processes
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: kill
+  vars:
+    win_workman_kill_process_name:
+      - "AdskAccessServiceHost"
+      - "AdskAccessCore"
+      - "AdskAccessUIHost"
+      - "AdskIdentityManager"
+    win_workman_kill_force: true
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Stop "Autodesk Access Service Host"
+  ansible.windows.win_service:
+    name: "Autodesk Access Service Host"
+    state: stopped
+    start_mode: disabled
+  failed_when: false
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Stop "Autodesk Genuine Service"
+  ansible.windows.win_service:
+    name: "AGSService"
+    state: stopped
+    start_mode: disabled
+  failed_when: false
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Kill "Autodesk Genuine Service" process
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: kill
+  vars:
+    win_workman_kill_process_name:
+      - "GenuineService"
+    win_workman_kill_force: true
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Uninstall "AutoCAD Open in Desktop"
+  ansible.windows.win_package:
+    product_id: "{{ win_workman_autodesk_open_in_desktop_guid }}"
+    state: absent
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Uninstall "Salva su Autodesk Web & Mobile"
+  ansible.windows.win_package:
+    product_id: "{{ win_workman_autodesk_web_mobile_guid }}"
+    state: absent
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Uninstall "Autodesk Genuine Service"
+  ansible.windows.win_package:
+    product_id: "{{ win_workman_autodesk_genuine_service_guid }}"
+    state: absent
+  failed_when: false
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Detect "Autodesk Access"
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_sw
+  vars:
+    win_workman_detect_sw_args:
+      name_like: "Autodesk Access"
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Uninstall "Autodesk Access"
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: start_process
+  vars:
+    win_workman_exec_success_exit_codes: [0, 1604]
+    win_workman_exec_path: "{{ win_workman_autodesk_installer_exe }}"
+    win_workman_exec_args: >-
+      -i uninstall -q --trigger_point system
+      -m {{ win_workman_autodesk_access_manifest_path }}
+      -x "{{ win_workman_autodesk_manifest_xsd_path }}"
+      --manifest_type package
+  when:
+    - win_workman_task_argv[2] == 'full'
+    - win_workman_detect_sw.result.id is defined
+    - win_workman_detect_sw.result.id is not none
+    - win_workman_detect_sw.result.id == win_workman_autodesk_access_guid
+
+- name: Uninstall "Autodesk Identity Manager"
+  ansible.windows.win_package:
+    product_id: "Autodesk Identity Manager"
+    state: absent
+    provider: registry
+    arguments: "--mode unattended"
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Remove residual "C:\\Program Files\\Autodesk"
+  ansible.windows.win_file:
+    path: "C:\\Program Files\\Autodesk"
+    state: absent
+  when: win_workman_task_argv[2] == 'full'
+
+- name: Remove residual "C:\\ProgramData\\Autodesk"
+  ansible.windows.win_file:
+    path: "C:\\ProgramData\\Autodesk"
+    state: absent
+  when: win_workman_task_argv[2] == 'full'

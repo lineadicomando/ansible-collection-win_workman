@@ -1,0 +1,24 @@
+display_name: Mozilla Firefox
+custom_actions:
+  - name: privacy
+    description: Clear user data (history, cache, cookies) for all Firefox profiles
+  - name: rm
+    description: Remove the Firefox profile directory for a specific user
+defaults:
+  - var: win_workman_firefox_shortcuts
+    type: bool
+    default: false
+    description: Create shortcuts on Desktop and Start Menu
+  - var: win_workman_firefox_shortcut_url
+    type: str
+    default: ""
+    description: Default URL to open; empty means default new tab
+  - var: win_workman_firefox_shortcut_no_first_run
+    type: bool
+    default: true
+    description: Pass --no-first-run flag to shortcut
+  - var: win_workman_firefox_arch
+    type: str
+    default: 64bit
+    description: Architecture variant; '32bit' or '64bit'
+notes: "Accepts '32bit' task argument. Closes running Firefox before install/uninstall."

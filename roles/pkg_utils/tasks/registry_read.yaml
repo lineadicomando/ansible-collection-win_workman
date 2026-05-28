@@ -1,0 +1,104 @@
+---
+- name: Read registry value by path and name
+  ansible.windows.win_powershell:
+    parameters:
+      path: "{{ win_workman_winreg_path }}"
+      name: "{{ win_workman_winreg_name }}"
+    script: |
+      param(
+        [string]$path,
+        [string]$name
+      )
+
+      $ErrorActionPreference = "Stop"
+      $Ansible.Changed = $false
+      $Ansible.Failed = $false
+
+      function Normalize-RegistryPath {
+        param([string]$Path)
+
+        if (-not $Path) { return $null }
+        $trim = $Path.Trim()
+
+        if ($trim -match '^(Registry::|HKLM:|HKCU:|HKCR:|HKU:|HKCC:)') {
+          return $trim
+        }
+
+        if ($trim -match '^(HKLM|HKEY_LOCAL_MACHINE)\\') {
+          return "Registry::HKEY_LOCAL_MACHINE\{0}" -f ($trim.Split('\', 2)[1])
+        }
+        if ($trim -match '^(HKCU|HKEY_CURRENT_USER)\\') {
+          return "Registry::HKEY_CURRENT_USER\{0}" -f ($trim.Split('\', 2)[1])
+        }
+        if ($trim -match '^(HKCR|HKEY_CLASSES_ROOT)\\') {
+          return "Registry::HKEY_CLASSES_ROOT\{0}" -f ($trim.Split('\', 2)[1])
+        }
+        if ($trim -match '^(HKU|HKEY_USERS)\\') {
+          return "Registry::HKEY_USERS\{0}" -f ($trim.Split('\', 2)[1])
+        }
+        if ($trim -match '^(HKCC|HKEY_CURRENT_CONFIG)\\') {
+          return "Registry::HKEY_CURRENT_CONFIG\{0}" -f ($trim.Split('\', 2)[1])
+        }
+
+        if ($trim -match '^[A-Za-z]+:') {
+          return $trim
+        }
+
+        return "Registry::{0}" -f $trim
+      }
+
+      if (-not $path) {
+        throw "path is required."
+      }
+      if (-not $name) {
+        throw "name is required."
+      }
+
+      $normalizedPath = Normalize-RegistryPath -Path $path
+
+      try {
+        $key = Get-Item -Path $normalizedPath -ErrorAction Stop
+      } catch {
+        $Ansible.Result = @{
+          exists = $false
+          path = $path
+          name = $name
+          error = "Registry key not found."
+        }
+        return
+      }
+
+      $value = $null
+      try {
+        $value = Get-ItemProperty -Path $normalizedPath -Name $name -ErrorAction Stop |
+          Select-Object -ExpandProperty $name
+      } catch {
+        $Ansible.Result = @{
+          exists = $false
+          path = $path
+          name = $name
+          error = "Registry value not found."
+        }
+        return
+      }
+
+      $kind = $null
+      try {
+        $kind = $key.GetValueKind($name).ToString()
+      } catch {
+        $kind = $null
+      }
+
+      $Ansible.Result = @{
+        exists = $true
+        path = $path
+        name = $name
+        normalized_path = $normalizedPath
+        kind = $kind
+        value = switch ($kind) {
+          "DWord" { [int]$value }
+          "QWord" { [long]$value }
+          Default { $value }
+        }
+      }
+  register: win_workman_registry_read

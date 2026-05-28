@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
+  description: win_workman putty role
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.20"
+  platforms:
+    - name: Windows
+      versions: ["all"]
+dependencies: []

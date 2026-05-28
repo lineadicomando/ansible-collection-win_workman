@@ -1,0 +1,166 @@
+---
+- name: Normalize win_workman_veyon_labs to list
+  ansible.builtin.set_fact:
+    win_workman_veyon_labs_list: >-
+      {{
+        [win_workman_veyon_labs]
+        if win_workman_veyon_labs is string
+        else (win_workman_veyon_labs | list)
+      }}
+
+- name: Assert lab groups exist in inventory
+  ansible.builtin.assert:
+    that:
+      - item in groups
+      - (groups[item] | default([])) | length > 0
+    fail_msg: >-
+      Inventory group '{{ item }}' not found or has no hosts.
+  loop: "{{ win_workman_veyon_labs_list }}"
+
+- name: Build lab-host pairs for validation
+  ansible.builtin.set_fact:
+    win_workman_veyon_lab_host_pairs: >-
+      {%- set pairs = [] -%}
+      {%- for lab in win_workman_veyon_labs_list -%}
+        {%- for host in (groups[lab] | default([])) -%}
+          {%- if not (hostvars[host].win_workman_veyon_master | default(false) | bool) -%}
+            {%- set _ = pairs.append({'lab': lab, 'host': host}) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ pairs }}
+
+- name: Assert each lab has at least one agent host
+  ansible.builtin.assert:
+    that:
+      - win_workman_veyon_lab_host_pairs | selectattr('lab', 'equalto', item) | list | length > 0
+    fail_msg: >-
+      Lab '{{ item }}' has no agent hosts after excluding masters.
+  loop: "{{ win_workman_veyon_labs_list }}"
+
+- name: Validate lab host inventory data
+  ansible.builtin.assert:
+    that:
+      - hostvars[item.host].ansible_host is defined
+      - (hostvars[item.host].ansible_host | string | trim) != ""
+      - hostvars[item.host].ansible_mac is defined
+      - (hostvars[item.host].ansible_mac | string | trim) != ""
+    fail_msg: >-
+      Missing ansible_host or ansible_mac for host '{{ item.host }}' in lab '{{ item.lab }}'.
+  loop: "{{ win_workman_veyon_lab_host_pairs }}"
+  loop_control:
+    label: "{{ item.lab }}/{{ item.host }}"
+
+- name: Ensure remote Veyon lab directory exists
+  ansible.windows.win_file:
+    path: "{{ win_workman_remote_tmp }}\\veyon"
+    state: directory
+
+- name: Build desired Veyon lab CSV files on target
+  ansible.windows.win_copy:
+    dest: "{{ win_workman_remote_tmp }}\\veyon\\lab_{{ item }}_desired.csv"
+    content: |
+      {% for host in (groups[item] | default([])) %}
+      {% if not (hostvars[host].win_workman_veyon_master | default(false) | bool) %}
+      {{ host }};{{ hostvars[host].ansible_host }};{{ hostvars[host].ansible_mac }}
+      {% endif %}
+      {% endfor %}
+  loop: "{{ win_workman_veyon_labs_list }}"
+
+- name: Reconcile Veyon lab network objects
+  ansible.windows.win_powershell:
+    script: |
+      $veyonCli = "{{ win_workman_veyon_cli_path | default('', true) | trim }}"
+      if (-not $veyonCli) {
+        $found = Get-Command 'veyon-cli.exe', 'veyon-cli' -ErrorAction SilentlyContinue |
+                 Select-Object -First 1
+        if ($found) { $veyonCli = $found.Source }
+      }
+      foreach ($c in "$env:ProgramFiles\Veyon\veyon-cli.exe",
+                     "${env:ProgramFiles(x86)}\Veyon\veyon-cli.exe") {
+        if (-not $veyonCli -and (Test-Path -LiteralPath $c)) { $veyonCli = $c; break }
+      }
+      if (-not $veyonCli) { throw "veyon-cli not found. Set win_workman_veyon_cli_path." }
+
+      $labName            = "{{ win_workman_veyon_current_lab }}"
+      $desiredPath        = "{{ win_workman_remote_tmp }}\veyon\lab_{{ win_workman_veyon_current_lab }}_desired.csv"
+      $currentPath        = "{{ win_workman_remote_tmp }}\veyon\lab_{{ win_workman_veyon_current_lab }}_current.csv"
+      $removeBeforeImport = {{ (win_workman_veyon_lab_force_replace | default(false) | bool) | ternary('$true', '$false') }}
+
+      function Normalize-Host([string]$v) { $v.Trim().ToLowerInvariant() }
+      function Normalize-Mac([string]$v)  { ($v.Trim().ToLowerInvariant()) -replace '[^0-9a-f]', '' }
+
+      function Read-NormalizedRows([string]$p) {
+        if (-not (Test-Path -LiteralPath $p)) { return @() }
+        $rows = @()
+        foreach ($line in (Get-Content -LiteralPath $p -ErrorAction SilentlyContinue)) {
+          if ([string]::IsNullOrWhiteSpace($line)) { continue }
+          $parts = $line.Split(';')
+          if ($parts.Length -lt 3) { continue }
+          $rows += ("{0};{1};{2}" -f $parts[0].Trim(), (Normalize-Host $parts[1]), (Normalize-Mac $parts[2]))
+        }
+        return @($rows | Sort-Object -Unique)
+      }
+
+      if (-not (Test-Path -LiteralPath $desiredPath)) {
+        throw "Desired Veyon lab file not found: $desiredPath"
+      }
+
+      if (Test-Path -LiteralPath $currentPath) {
+        Remove-Item -LiteralPath $currentPath -Force -ErrorAction SilentlyContinue
+      }
+
+      $global:LASTEXITCODE = 0
+      $exportOut = ''
+      try {
+        $exportOut = (& $veyonCli networkobjects export $currentPath location $labName format '%name%;%host%;%mac%' 2>&1 | Out-String).Trim()
+      } catch { $exportOut = ($_ | Out-String).Trim() }
+
+      $notFoundPattern = '(?i)does not exist|not exist|not found|posizione.+non trovata|non trovata|non trovato'
+      $locationExists = ($LASTEXITCODE -eq 0)
+      if ((-not $locationExists) -and ($exportOut -notmatch $notFoundPattern)) {
+        throw "Failed to export current lab '${labName}': $exportOut"
+      }
+
+      $desiredRows = Read-NormalizedRows -p $desiredPath
+      $currentRows = Read-NormalizedRows -p $currentPath
+
+      if (($desiredRows -join "`n") -eq ($currentRows -join "`n")) {
+        $Ansible.Changed = $false
+        $Ansible.Result = @{ status = 'already'; lab = $labName; count = $desiredRows.Count }
+        return
+      }
+
+      if ($removeBeforeImport -and $locationExists) {
+        $global:LASTEXITCODE = 0
+        $out = ''
+        try { $out = (& $veyonCli networkobjects remove $labName 2>&1 | Out-String).Trim() }
+        catch { $out = ($_ | Out-String).Trim() }
+        if ($LASTEXITCODE -ne 0) { throw "Failed to remove lab '${labName}': $out" }
+        $locationExists = $false
+      }
+
+      if (-not $locationExists) {
+        $global:LASTEXITCODE = 0
+        $out = ''
+        try { $out = (& $veyonCli networkobjects add location $labName 2>&1 | Out-String).Trim() }
+        catch { $out = ($_ | Out-String).Trim() }
+        if (($LASTEXITCODE -ne 0) -and ($out -notmatch '(?i)already|exists|esist')) {
+          throw "Failed to create lab '${labName}': $out"
+        }
+      }
+
+      $global:LASTEXITCODE = 0
+      $out = ''
+      try { $out = (& $veyonCli networkobjects import $desiredPath location $labName format '%name%;%host%;%mac%' 2>&1 | Out-String).Trim() }
+      catch { $out = ($_ | Out-String).Trim() }
+      if ($LASTEXITCODE -ne 0) { throw "Failed to import lab '${labName}': $out" }
+
+      $Ansible.Changed = $true
+      $Ansible.Result = @{ status = 'reconciled'; lab = $labName; count = $desiredRows.Count }
+  loop: "{{ win_workman_veyon_labs_list }}"
+  loop_control:
+    loop_var: win_workman_veyon_current_lab
+    label: "{{ win_workman_veyon_current_lab }}"
+  no_log: "{{ win_workman_veyon_no_log | bool }}"
+  notify: Restart Veyon Service

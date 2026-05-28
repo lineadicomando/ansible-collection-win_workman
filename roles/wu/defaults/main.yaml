@@ -1,0 +1,6 @@
+---
+win_workman_wu_pause_days: 7
+win_workman_wu_default_max_pause_days: 35
+win_workman_restart: true
+win_workman_wu_unpause: false
+win_workman_wu_enforce_managed_policy: false

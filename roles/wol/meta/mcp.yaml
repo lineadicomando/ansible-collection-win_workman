@@ -1,0 +1,5 @@
+display_name: Wake-on-LAN
+custom_actions:
+  - name: on
+    description: Send a Wake-on-LAN magic packet to the target host's MAC address
+notes: "Requires MAC address in inventory. Use the dedicated 'wol' playbook for broadcast scenarios."

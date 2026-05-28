@@ -1,0 +1,83 @@
+---
+- name: Check auth_keys_path
+  ansible.builtin.assert:
+    that:
+      - not (win_workman_secure_ssh_manage_authorized_keys | bool) or ansible_ssh_pub_key_path is defined
+    fail_msg: "Public key not found"
+
+- name: Load public key
+  ansible.builtin.set_fact:
+    win_workman_ssh_pub_key: >-
+      {{
+        lookup('file', ansible_ssh_pub_key_path)
+        if (win_workman_secure_ssh_manage_authorized_keys | bool)
+        else ''
+      }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Check Auth key file
+  ansible.windows.win_file:
+    path: "{{ win_workman_secure_ssh_auth_keys_path }}"
+    state: touch
+
+- name: Import key
+  community.windows.win_lineinfile:
+    path: "{{ win_workman_secure_ssh_auth_keys_path }}"
+    create: true
+    regex: >-
+      {{
+        "^" ~ (win_workman_ssh_pub_key | regex_escape) ~ "$"
+        if (win_workman_secure_ssh_manage_authorized_keys | bool)
+        else "a^"
+      }}
+    line: "{{ win_workman_ssh_pub_key }}"
+    backup: true
+    state: >-
+      {{
+        "present" if (
+          win_workman_secure_ssh_manage_authorized_keys | bool
+        ) else "absent"
+      }}
+
+- name: Allow Pub key authentication
+  community.windows.win_lineinfile:
+    path: "{{ win_workman_secure_ssh_config_path }}"
+    regex: "^PubkeyAuthentication"
+    insertafter: "^#PubkeyAuthentication"
+    line: "PubkeyAuthentication yes"
+    backup: true
+    state: >-
+      {{
+        "present" if (
+          win_workman_secure_ssh_enable_pubkey_auth | bool
+        ) else "absent"
+      }}
+
+- name: Deny Password authentication
+  community.windows.win_lineinfile:
+    path: "{{ win_workman_secure_ssh_config_path }}"
+    regex: "^PasswordAuthentication"
+    insertafter: "^#PasswordAuthentication"
+    line: "PasswordAuthentication no"
+    backup: true
+    state: >-
+      {{
+        "present" if (
+          win_workman_secure_ssh_disable_password_auth | bool
+        ) else "absent"
+      }}
+
+- name: Allow only user {{ ansible_user }}
+  community.windows.win_lineinfile:
+    path: "{{ win_workman_secure_ssh_config_path }}"
+    regex: "^AllowUsers"
+    insertafter: "^#AllowUsers"
+    line: "AllowUsers {{ ansible_user }}"
+    backup: true
+    state: >-
+      {{
+        "present" if (
+          win_workman_secure_ssh_manage_allow_users | bool
+        ) else "absent"
+      }}

@@ -1,0 +1,9 @@
+---
+win_workman_secure_ssh_schema:
+  name: Secure SSH Connection
+
+win_workman_schema_role_name: lineadicomando.win_workman.secure_ssh
+win_workman_schema_dir: secure_ssh
+
+win_workman_secure_ssh_auth_keys_path: C:\ProgramData\ssh\administrators_authorized_keys
+win_workman_secure_ssh_config_path: C:\ProgramData\ssh\sshd_config

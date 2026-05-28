@@ -1,0 +1,195 @@
+---
+- name: Check portable package
+  ansible.builtin.set_fact:
+    win_workman_pkg_portable: >-
+      {{
+        true if (
+          win_workman_schema.package.provider is defined
+          and win_workman_schema.package.provider == 'portable'
+        ) else false
+      }}
+
+- name: Derive portable install directories from files metadata | init
+  ansible.builtin.set_fact:
+    win_workman_portable_file_install_dirs: []
+  when:
+    - win_workman_pkg_portable | bool
+
+- name: Derive portable install directories from files metadata | build
+  ansible.builtin.set_fact:
+    win_workman_portable_file_install_dirs: >-
+      {{
+        win_workman_portable_file_install_dirs
+        + [win_workman_portable_file_target_dir]
+      }}
+  vars:
+    win_workman_portable_file_target_dir: >-
+      {{
+        win_workman_portable_file.dest_dir
+        if (
+          win_workman_portable_file.dest_dir is defined
+          and win_workman_portable_file.dest_dir is not none
+          and (win_workman_portable_file.dest_dir | string | trim | length) > 0
+        )
+        else ''
+      }}
+  loop: "{{ win_workman_schema.files | default([]) }}"
+  loop_control:
+    loop_var: win_workman_portable_file
+  when:
+    - win_workman_pkg_portable | bool
+    - win_workman_portable_file_target_dir | length > 0
+
+- name: Derive portable install file paths from files metadata | init
+  ansible.builtin.set_fact:
+    win_workman_portable_install_file_paths: []
+  when:
+    - win_workman_pkg_portable | bool
+
+- name: Derive portable install file paths from files metadata | build
+  ansible.builtin.set_fact:
+    win_workman_portable_install_file_paths: >-
+      {{
+        win_workman_portable_install_file_paths
+        + [win_workman_portable_file_target_path]
+      }}
+  vars:
+    win_workman_portable_file_dest_base: >-
+      {{
+        win_workman_portable_path ~ '\\' ~ win_workman_portable_file.dest_dir
+        if (
+          win_workman_portable_file.dest_dir is defined
+          and win_workman_portable_file.dest_dir is not none
+          and (win_workman_portable_file.dest_dir | string | trim | length) > 0
+        )
+        else win_workman_portable_path
+      }}
+    win_workman_portable_file_target_path: >-
+      {{
+        win_workman_portable_file_dest_base ~ '\\' ~ win_workman_portable_file.filename
+        if (
+          (
+            win_workman_portable_file.extract is not defined
+            or win_workman_portable_file.extract != '7z'
+          )
+          and (
+            win_workman_portable_file.filename is defined
+            and win_workman_portable_file.filename is not none
+            and (win_workman_portable_file.filename | string | trim | length) > 0
+          )
+        )
+        else ''
+      }}
+  loop: "{{ win_workman_schema.files | default([]) }}"
+  loop_control:
+    loop_var: win_workman_portable_file
+  when:
+    - win_workman_pkg_portable | bool
+    - win_workman_portable_file_target_path | length > 0
+
+- name: Set portable package install directories
+  ansible.builtin.set_fact:
+    win_workman_portable_install_dirs: >-
+      {{
+        win_workman_schema.package.portable_dirs
+        if (
+          win_workman_schema.package.portable_dirs is defined
+          and win_workman_schema.package.portable_dirs is not none
+        )
+        else (
+          [win_workman_schema.package.portable_dir]
+          if (
+            win_workman_schema.package.portable_dir is defined
+            and win_workman_schema.package.portable_dir is not none
+          )
+          else (
+            win_workman_portable_file_install_dirs
+            if (win_workman_portable_file_install_dirs | length > 0)
+            else (
+              []
+              if (win_workman_portable_install_file_paths | default([]) | length > 0)
+              else [win_workman_schema.name]
+            )
+          )
+        )
+      }}
+  when:
+    - win_workman_pkg_portable | bool
+
+- name: Check portable package directories
+  ansible.windows.win_stat:
+    path: "{{ win_workman_portable_path }}\\{{ win_workman_portable_dir }}"
+  register: win_workman_portable_dir_stats
+  loop: "{{ win_workman_portable_install_dirs | default([]) }}"
+  loop_control:
+    loop_var: win_workman_portable_dir
+    label: "{{ win_workman_portable_dir }}"
+  when:
+    - win_workman_pkg_portable | bool
+
+- name: Check portable package files
+  ansible.windows.win_stat:
+    path: "{{ win_workman_portable_file_path }}"
+  register: win_workman_portable_file_stats
+  loop: "{{ win_workman_portable_install_file_paths | default([]) }}"
+  loop_control:
+    loop_var: win_workman_portable_file_path
+    label: "{{ win_workman_portable_file_path }}"
+  when:
+    - win_workman_pkg_portable | bool
+
+- name: Set portable package presence
+  ansible.builtin.set_fact:
+    win_workman_portable_is_present: >-
+      {{
+        ((
+          win_workman_portable_dir_stats.results | default([])
+          | selectattr('stat.exists', 'defined')
+          | selectattr('stat.exists')
+          | selectattr('stat.isdir', 'defined')
+          | selectattr('stat.isdir')
+          | list | length
+        ) > 0)
+        or
+        ((
+          win_workman_portable_file_stats.results | default([])
+          | selectattr('stat.exists', 'defined')
+          | selectattr('stat.exists')
+          | selectattr('stat.isdir', 'defined')
+          | rejectattr('stat.isdir')
+          | list | length
+        ) > 0)
+      }}
+  when:
+    - win_workman_pkg_portable | bool
+
+- name: Fail if portable package is not present
+  ansible.builtin.assert:
+    that:
+      - win_workman_portable_is_present | default(false) | bool
+    fail_msg: >-
+      Portable package '{{ win_workman_schema_dir }}' is not installed.
+      Expected directories under {{ win_workman_portable_path }}:
+      {{ win_workman_portable_install_dirs | default([]) | join(', ') }}
+      or file paths:
+      {{ win_workman_portable_install_file_paths | default([]) | join(', ') }}
+  when:
+    - win_workman_pkg_portable | bool
+
+- name: Get package information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: info
+  when:
+    - not (win_workman_pkg_portable | bool)
+
+- name: Fail if package is not present
+  ansible.builtin.assert:
+    that:
+      - win_workman_detect_sw is defined
+      - win_workman_detect_sw.result is defined
+      - win_workman_detect_sw.result.installed | default(false, true) | bool
+    fail_msg: >-
+      Package '{{ win_workman_schema_dir | default(win_workman_task_pkg, true) }}' is not installed.
+  when:
+    - not (win_workman_pkg_portable | bool)

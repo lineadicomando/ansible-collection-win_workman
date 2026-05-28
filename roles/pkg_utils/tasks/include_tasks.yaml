@@ -1,0 +1,22 @@
+---
+# Hook mechanism for schema roles.
+# Schema roles that need before_install / after_install (or similar) hooks
+# declare them in defaults/main.yml:
+#   win_workman_schema_hooks:
+#     before_install: true
+#     after_install: true
+#
+# Called from pkg_act_on / pkg_act_off with:
+#   include_role: pkg_utils tasks_from: include_tasks
+#   vars: { win_workman_schema_tasks: "before_install" }
+#
+# The hook task file must exist at roles/<schema>/tasks/<hook>.yml.
+
+- name: "Run schema hook: {{ win_workman_schema_tasks }}"
+  ansible.builtin.include_role:
+    name: "{{ win_workman_schema_role_name }}"
+    tasks_from: "{{ win_workman_schema_tasks }}"
+  when:
+    - win_workman_schema_role_name is defined
+    - win_workman_schema_role_name | length > 0
+    - (win_workman_schema_hooks | default({}))[win_workman_schema_tasks] | default(false) | bool

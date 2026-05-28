@@ -1,0 +1,20 @@
+---
+- name: Logoff interactive sessions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: logoff
+
+- name: Collect wallpaper target profiles
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wallpaper
+    tasks_from: wallpaper_profiles
+
+- name: Reset wallpaper
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wallpaper
+    tasks_from: act_reset
+
+- name: Unlock wallpaper settings
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wallpaper
+    tasks_from: act_unlock

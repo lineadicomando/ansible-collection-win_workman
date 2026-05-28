@@ -1,0 +1,45 @@
+---
+- name: Check Pending Reboot and Reboot if needed (or set)
+  ansible.windows.win_powershell:
+    script: |
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $Ansible.Result  = $false
+
+      try {
+        $paths = @(
+          'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending',
+          'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'
+        )
+
+        foreach ($p in $paths) {
+          if (Test-Path -Path $p) {
+            $Ansible.Result  = $true
+          }
+        }
+
+        $sessionMgrKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
+        if (Test-Path -Path $sessionMgrKey) {
+          $sessionMgr = Get-Item -Path $sessionMgrKey
+          $pendingOps = $sessionMgr.GetValue('PendingFileRenameOperations', $null)
+          if ($pendingOps -ne $null -and $pendingOps.Length -gt 0) {
+            $Ansible.Result  = $true
+          }
+        }
+
+        $pendingXml = Join-Path $env:windir 'WinSxS\pending.xml'
+        if (Test-Path -Path $pendingXml) {
+          $Ansible.Result  = $true
+        }
+      } catch {
+        $Ansible.Failed  = $true
+      }
+
+  register: win_workman_pending_restart
+
+- name: Restart
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: restart
+  when:
+    - win_workman_pending_restart.result | bool | default(false, true)

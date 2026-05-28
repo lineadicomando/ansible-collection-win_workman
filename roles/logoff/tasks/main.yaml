@@ -1,0 +1,6 @@
+---
+- name: Dispatch action on
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.logoff
+    tasks_from: act_on
+  when: win_workman_action == "on"

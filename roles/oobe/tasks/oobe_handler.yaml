@@ -1,0 +1,25 @@
+---
+- name: Toggle Privacy Experience OOBE (GPO)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE
+    name: DisablePrivacyExperience
+    data: "{{ win_workman_oobe_enabled | ternary(omit, 1) }}"
+    type: dword
+    state: "{{ win_workman_oobe_enabled | ternary('absent', 'present') }}"
+
+- name: Toggle OOBE state keys (CurrentVersion\OOBE)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE
+    name: "{{ item.name }}"
+    data: "{{ win_workman_oobe_enabled | ternary(omit, item.value) }}"
+    type: dword
+    state: "{{ win_workman_oobe_enabled | ternary('absent', 'present') }}"
+  loop:
+    - { name: DisablePrivacyExperience, value: 1 }
+    - { name: PrivacyConsentStatus, value: 1 }
+    - { name: CompletedPrivacyConsent, value: 1 }
+    - { name: DisableVoice, value: 1 }
+    - { name: SkipPrivacySettings, value: 1 }
+    - { name: SystemSetupInProgress, value: 0 }
+    - { name: SkipMachineOOBE, value: 1 }
+    - { name: SkipUserOOBE, value: 1 }

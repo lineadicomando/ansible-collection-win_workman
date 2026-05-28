@@ -1,0 +1,24 @@
+---
+# - name: Dispatch action on (= check)
+#   ansible.builtin.include_role:
+#     name: lineadicomando.win_workman.wim
+#     tasks_from: act_check
+#   when: win_workman_action == "on"
+
+- name: Dispatch action on/check
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wim
+    tasks_from: act_check
+  when: win_workman_action == "check" or win_workman_action == "on"
+
+- name: Dispatch action scan
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wim
+    tasks_from: act_scan
+  when: win_workman_action == "scan"
+
+- name: Dispatch action repair
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wim
+    tasks_from: act_repair
+  when: win_workman_action == "repair"

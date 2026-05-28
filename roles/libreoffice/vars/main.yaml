@@ -1,0 +1,23 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        LibreOffice
+#      - Homepage:    https://www.libreoffice.org/
+#      - Download:    https://www.libreoffice.org/download/download-libreoffice/
+# ==============================================================================
+---
+win_workman_libreoffice_version: "26.2.3"
+win_workman_libreoffice_full_version: "26.2.3.2"
+
+win_workman_libreoffice_schema:
+  name: LibreOffice
+  package:
+    setup_file: "LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
+    searchName: "LibreOffice {{ win_workman_libreoffice_full_version }}"
+    version: "{{ win_workman_libreoffice_full_version }}"
+  files:
+    - filename: "LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
+      url: "https://www.mirrorservice.org/sites/download.documentfoundation.org/tdf/libreoffice/stable/{{ win_workman_libreoffice_version }}/win/x86_64/LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
+      checksum: sha256:468d1fb3880af3bcddac002e9054155912c70b45d105bfa1c82036f33456133d
+
+win_workman_schema_role_name: lineadicomando.win_workman.libreoffice
+win_workman_schema_dir: libreoffice

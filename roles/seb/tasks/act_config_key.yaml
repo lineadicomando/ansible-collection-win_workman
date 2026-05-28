@@ -1,0 +1,38 @@
+---
+# EXPERIMENTAL: the Config Key is SHA-256 of the raw .seb file bytes produced by
+# this module. Verify it matches the value shown by SEB Config Tool before
+# registering it in Moodle.
+- name: Compute SEB Config Key
+  block:
+    - name: Create temporary local .seb file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .seb
+      register: win_workman_seb_local_tmp
+      delegate_to: localhost
+      run_once: true
+
+    - name: Generate SEB settings file locally
+      lineadicomando.win_workman.seb_config:
+        dest: '{{ win_workman_seb_local_tmp.path }}'
+        state: present
+        settings: '{{ win_workman_seb_client_settings }}'
+      register: win_workman_seb_config_result
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display SEB Config Key
+      ansible.builtin.debug:
+        msg: "SEB Config Key (Moodle → Quiz → Safe Exam Browser): {{ win_workman_seb_config_result.config_key }}"
+      run_once: true
+
+  always:
+    - name: Remove temporary local .seb file
+      ansible.builtin.file:
+        path: '{{ win_workman_seb_local_tmp.path }}'
+        state: absent
+      when:
+        - win_workman_seb_local_tmp is defined
+        - win_workman_seb_local_tmp.path is defined
+      delegate_to: localhost
+      run_once: true

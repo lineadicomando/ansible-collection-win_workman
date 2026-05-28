@@ -1,0 +1,46 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        7-Zip
+#      - Homepage:    https://www.7-zip.org/
+#      - Download:    https://www.7-zip.org/
+# ==============================================================================
+---
+win_workman_7zip_arch: >-
+  {{
+    "32bit" if (
+      "32bit" in (win_workman_task_argv | default([]))
+    ) else "64bit"
+  }}
+
+win_workman_7zip_setup_filename:
+  32bit: 7z2600.msi
+  64bit: 7z2600-x64.msi
+
+win_workman_7zip_url:
+  64bit: https://7-zip.org/a/7z2600-x64.msi
+  32bit: https://7-zip.org/a/7z2600.msi
+
+win_workman_7zip_checksum:
+  64bit: sha256:c388d0444871ca11b21237001af158cfddad7e137851795e5b65cee69b518495
+  32bit: sha256:53b4f99a2471678020a326fd1d5c888616f5d6c84b00d5db7da30357755c74c3
+
+win_workman_7zip_cleanup_paths:
+  64bit: '%ProgramFiles%\7-Zip'
+  32bit: '%ProgramFiles(x86)%\7-Zip'
+
+win_workman_p7zip_schema:
+  name: "7-Zip 26.00"
+  package:
+    provider: msi
+    setup_file: "{{ win_workman_7zip_setup_filename[win_workman_7zip_arch] }}"
+    version: "26.00.00.0"
+    searchName: "7-Zip 26.00*"
+    cleanup_paths:
+      - "{{ win_workman_7zip_cleanup_paths[win_workman_7zip_arch] }}"
+  files:
+    - filename: "{{ win_workman_7zip_setup_filename[win_workman_7zip_arch] }}"
+      url: "{{ win_workman_7zip_url[win_workman_7zip_arch] }}"
+      checksum: "{{ win_workman_7zip_checksum[win_workman_7zip_arch] }}"
+
+win_workman_schema_role_name: lineadicomando.win_workman.p7zip
+win_workman_schema_dir: p7zip

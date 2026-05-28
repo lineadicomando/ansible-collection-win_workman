@@ -1,0 +1,82 @@
+---
+- name: Start Process
+  ansible.windows.win_powershell:
+    script: |
+      param(
+          [string]$ExePath,
+          [string]$ExeArgs,
+          [string]$SuccessExitCodesJson
+      )
+      $ExePath = $ExePath.Trim('"')
+      $Ansible.Result = @{}
+      $Ansible.Changed = $false
+      $Ansible.Failed = $false
+
+      try {
+          $successExitCodesRaw = ConvertFrom-Json -InputObject $SuccessExitCodesJson -ErrorAction Stop
+          $successExitCodes = New-Object System.Collections.Generic.List[int]
+
+          if ($successExitCodesRaw -is [System.Array]) {
+              foreach ($successExitCode in $successExitCodesRaw) {
+                  $null = $successExitCodes.Add([int]$successExitCode)
+              }
+          } else {
+              $null = $successExitCodes.Add([int]$successExitCodesRaw)
+          }
+      }
+      catch {
+          $Ansible.Failed = $true
+          $Ansible.Result["Msg"] = "Invalid SuccessExitCodesJson: $SuccessExitCodesJson. " + $_.Exception.Message
+          return
+      }
+
+      if (-not (Test-Path -LiteralPath $ExePath)) {
+          $msg = "Exec file not found at path: $ExePath"
+          $Ansible.Result["Msg"] = $msg
+          $Ansible.Failed = $true
+          return
+      }
+      try {
+          if ([string]::IsNullOrWhiteSpace($ExeArgs)) {
+              $proc = Start-Process -FilePath $ExePath -Wait -PassThru -ErrorAction Stop
+          } else {
+              $proc = Start-Process -FilePath $ExePath -ArgumentList $ExeArgs -Wait -PassThru -ErrorAction Stop
+          }
+          if ($successExitCodes -notcontains [int]$proc.ExitCode) {
+              $allowedExitCodes = ($successExitCodes | ForEach-Object { [string]$_ }) -join ', '
+              $msg = "Process returned non-success exit code: $($proc.ExitCode). Allowed: $allowedExitCodes"
+              $Ansible.Result["Msg"] = $msg
+              $Ansible.Result["ExitCode"] = [int]$proc.ExitCode
+              $Ansible.Failed = $true
+              return
+          }
+          $Ansible.Result["ExitCode"] = [int]$proc.ExitCode
+          $Ansible.Changed = $true
+      }
+      catch {
+          $Ansible.Failed = $true
+          $Ansible.Result["Msg"] = "Exception while running process: " + $_.Exception.Message
+      }
+    parameters:
+      ExePath: "{{ win_workman_exec_path }}"
+      ExeArgs: >-
+        {{
+            ( win_workman_exec_args | join (' ') ) if (
+              win_workman_exec_args is iterable and
+              win_workman_exec_args is not string
+            ) else ( win_workman_exec_args | default('') | string )
+        }}
+      SuccessExitCodesJson: >-
+        {{
+          (
+            win_workman_exec_success_exit_codes
+            if (
+              win_workman_exec_success_exit_codes is defined
+              and win_workman_exec_success_exit_codes is not none
+              and win_workman_exec_success_exit_codes is sequence
+              and win_workman_exec_success_exit_codes is not string
+            )
+            else [0]
+          ) | to_json
+        }}
+  register: win_workman_start_process_response

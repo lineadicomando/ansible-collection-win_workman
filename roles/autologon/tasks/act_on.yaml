@@ -1,0 +1,22 @@
+---
+- name: Validate autologon prerequisites
+  ansible.builtin.assert:
+    that:
+      - win_workman_autologon_user | default('') | trim | length > 0
+    fail_msg: >-
+      autologon-on requires win_workman_autologon_user.
+
+- name: Enable auto logon
+  ansible.windows.win_auto_logon:
+    username: "{{ win_workman_autologon_user }}"
+    password: "{{ win_workman_autologon_password | default('') }}"
+    state: present
+  register: win_workman_autologon_register
+
+- name: Restart if needed
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: restart
+  when:
+    - win_workman_autologon_restart | bool
+    - win_workman_autologon_register.changed | bool

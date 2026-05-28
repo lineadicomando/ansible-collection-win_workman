@@ -1,0 +1,36 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Embarcadero Dev-C++
+#      - Homepage:    https://www.embarcadero.com/free-tools/dev-cpp
+#      - Download:    https://github.com/Embarcadero/Dev-Cpp/releases
+# ==============================================================================
+---
+win_workman_embarcadero_devcpp_schema:
+  name: Embarcadero Dev-Cpp
+  package:
+    setup_file: Embarcadero_Dev-Cpp_6.3_TDM-GCC_9.2_Setup.exe
+    searchName: "Embarcadero Dev-C++"
+    version: "6.3"
+    product_id: "Embarcadero Dev-Cpp"
+    install_args: "/S"
+    uninstall_args: "/S"
+    after_install_ps_script: |
+      Remove-Item -Path "$Env:USERPROFILE\Desktop\Embarcadero Dev-C++.lnk" -Force -ErrorAction SilentlyContinue
+    cleanup_registry_key: true
+  files:
+    - filename: Embarcadero_Dev-Cpp_6.3_TDM-GCC_9.2_Setup.exe
+      url: https://github.com/Embarcadero/Dev-Cpp/releases/download/v6.3/Embarcadero_Dev-Cpp_6.3_TDM-GCC_9.2_Setup.exe
+      checksum: sha1:d18a67469c985cff13b2e3da4e308aa9da16b78b
+  shortcuts:
+    - description: "Embarcadero Dev-C++"
+      src: '%ProgramFiles(x86)%\Embarcadero\Dev-Cpp\devcpp.exe'
+      dest: '%Public%\Desktop\Embarcadero Dev-C++.lnk'
+      icon: '%ProgramFiles(x86)%\Embarcadero\Dev-Cpp\devcpp.exe,0'
+      directory: '%ProgramFiles(x86)%\Embarcadero\Dev-Cpp\'
+  cleanup_paths:
+    - '%Public%\Desktop\Embarcadero Dev-C++.lnk'
+    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Embarcadero Dev-C++'
+    - '%ProgramFiles%\Embarcadero\Dev-Cpp'
+
+win_workman_schema_role_name: lineadicomando.win_workman.embarcadero_devcpp
+win_workman_schema_dir: embarcadero_devcpp

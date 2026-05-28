@@ -1,0 +1,7 @@
+---
+- name: Enable OOBE privacy experience
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.oobe
+    tasks_from: oobe_handler
+  vars:
+    win_workman_oobe_enabled: true

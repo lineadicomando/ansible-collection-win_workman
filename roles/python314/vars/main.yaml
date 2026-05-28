@@ -1,0 +1,41 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Python 3.14
+#      - Homepage:    https://www.python.org/
+#      - Download:    https://www.python.org/downloads/windows/
+# ==============================================================================
+---
+win_workman_python314_schema:
+  name: Python 3.14
+  package:
+    setup_file: python-3.14.3-amd64.exe
+    version: "3.14.3150.0"
+    provider: registry
+    product_id: "{d91d5a08-1ddf-4529-909b-637a7fd19101}"
+    searchName: "Python 3.14.3 (64-bit)"
+    install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0 Shortcuts=1
+    uninstall_args: /quiet
+  files:
+    - filename: python-3.14.3-amd64.exe
+      url: https://www.python.org/ftp/python/3.14.3/python-3.14.3-amd64.exe
+      checksum: sha256:b68ad91421afbbd1a628105199c8c5f6179b21ba799067a8d8c0bbac3b7defb0
+  cleanup_paths:
+    - '%ProgramFiles%\Python314'
+    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.14'
+    - '%Public%\Desktop\Python 3.14 (64-bit).lnk'
+    - '%Public%\Desktop\IDLE (Python 3.14 64-bit).lnk'
+  shortcuts:
+    - description: "Launches the Python 3.14 interpreter"
+      src: '%ProgramFiles%\Python314\python.exe'
+      dest: '%Public%\Desktop\Python 3.14 (64-bit).lnk'
+      icon: '%ProgramFiles%\Python314\python.exe,0'
+      directory: '%ProgramFiles%\Python314'
+    - description: "Launches IDLE, the interactive environment for Python 3.14"
+      src: '%ProgramFiles%\Python314\pythonw.exe'
+      arguments: '"%ProgramFiles%\Python314\Lib\idlelib\idle.pyw"'
+      dest: '%Public%\Desktop\IDLE (Python 3.14 64-bit).lnk'
+      icon: '%SystemRoot%\Installer\{5CAA53DC-458E-41BE-B7FB-7E943E472E6F}\idle.exe,0'
+      directory: '%ProgramFiles%\Python314'
+
+win_workman_schema_role_name: lineadicomando.win_workman.python314
+win_workman_schema_dir: python314

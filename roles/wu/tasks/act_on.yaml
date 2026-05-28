@@ -1,0 +1,6 @@
+---
+# Alias for resume: wu-on re-enables updates identically to wu-resume.
+- name: Windows Update on (alias for resume)
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: act_resume

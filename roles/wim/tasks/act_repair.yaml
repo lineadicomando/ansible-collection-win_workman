@@ -1,0 +1,137 @@
+---
+- name: Check and Repair Windows image (ScanHealth/RestoreHealth)
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [Parameter(Mandatory = $false)]
+        [string]$Source = ''
+      )
+
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $Ansible.Result  = @{}
+
+      $Source = $Source.Trim()
+      if ($Source) {
+        $sourceMatch = [regex]::Match(
+          $Source,
+          '^wim:(?<path>[A-Za-z]:\\.+):(?<index>\d+)$'
+        )
+
+        if (-not $sourceMatch.Success) {
+          $Ansible.Failed = $true
+          $Ansible.Result = @{
+            Status  = 'InvalidSource'
+            Message = "Invalid -Source format. Expected: wim:C:\Temp\install.wim:1 (got: $Source)"
+            Source  = $Source
+          }
+          return
+        }
+
+        $sourcePath = $sourceMatch.Groups['path'].Value
+        if (-not (Test-Path -Path $sourcePath)) {
+          $Ansible.Failed = $true
+          $Ansible.Result = @{
+            Status  = 'MissingSourcePath'
+            Message = "Source path does not exist: $sourcePath"
+            Source  = $Source
+          }
+          return
+        }
+      }
+
+      try {
+        $scan = Repair-WindowsImage -Online -ScanHealth -ErrorAction Stop
+
+        $healthState = $null
+        if ($scan -and $scan.PSObject.Properties['ImageHealthState']) {
+          $healthState = [string]$scan.ImageHealthState
+        }
+
+        switch ($healthState) {
+          'Healthy' {
+            $Ansible.Changed = $false
+            $Ansible.Result  = @{
+              Status    = 'Healthy'
+              Message   = 'Image health: Healthy. No repair required.'
+              ScanState = $healthState
+              ScanRaw   = $scan
+            }
+          }
+          'Repairable' {
+            $restoreParams = @{
+              Online        = $true
+              RestoreHealth = $true
+              ErrorAction   = 'Stop'
+            }
+
+            if ($Source) {
+              $restoreParams['Source'] = $Source
+            }
+
+            $restore = Repair-WindowsImage @restoreParams
+
+            $restoreState = $null
+            if ($restore -and $restore.PSObject.Properties['ImageHealthState']) {
+              $restoreState = [string]$restore.ImageHealthState
+            }
+
+            if ($restoreState -eq 'Healthy') {
+              $Ansible.Changed = $true
+              $Ansible.Result  = @{
+                Status       = 'Repaired'
+                Message      = 'Image health: Repairable. RestoreHealth succeeded.'
+                ScanState    = $healthState
+                RestoreState = $restoreState
+                ScanRaw      = $scan
+                RestoreRaw   = $restore
+              }
+            } else {
+              $Ansible.Failed = $true
+              $Ansible.Result = @{
+                Status       = 'RepairFailed'
+                Message      = "Image health: Repairable. RestoreHealth did not reach Healthy (state: $restoreState)."
+                ScanState    = $healthState
+                RestoreState = $restoreState
+                ScanRaw      = $scan
+                RestoreRaw   = $restore
+              }
+            }
+          }
+          'NonRecoverable' {
+            $Ansible.Failed = $true
+            $Ansible.Result = @{
+              Status    = 'NonRecoverable'
+              Message   = 'Image health: NonRecoverable. Repair not possible.'
+              ScanState = $healthState
+              ScanRaw   = $scan
+            }
+          }
+          Default {
+            $Ansible.Failed = $true
+            if ($healthState) {
+              $Ansible.Result = @{
+                Status    = 'UnexpectedState'
+                Message   = "Image health: $healthState. Unexpected health state."
+                ScanState = $healthState
+                ScanRaw   = $scan
+              }
+            } else {
+              $Ansible.Result = @{
+                Status   = 'MissingState'
+                Message  = 'ScanHealth did not return ImageHealthState.'
+                ScanRaw  = $scan
+              }
+            }
+          }
+        }
+      } catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          Status  = 'Error'
+          Message = "Repair-WindowsImage failed: $($_.Exception.Message)"
+        }
+      }
+    parameters:
+      Source: "{{ win_workman_wim_repair_source | default('') }}"
+  register: win_workman_wim_repair

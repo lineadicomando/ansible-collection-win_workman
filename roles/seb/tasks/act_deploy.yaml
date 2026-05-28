@@ -1,0 +1,36 @@
+---
+- name: Ensure SafeExamBrowser program data directory exists
+  ansible.windows.win_file:
+    path: '{{ win_workman_seb_client_settings_dest | regex_replace("\\\\[^\\\\]+$", "") }}'
+    state: directory
+
+- name: Build and deploy SEB client settings file
+  block:
+    - name: Create temporary local seb file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .seb
+      register: win_workman_seb_local_tmp
+      delegate_to: localhost
+
+    - name: Generate SEB settings file locally
+      lineadicomando.win_workman.seb_config:
+        dest: '{{ win_workman_seb_local_tmp.path }}'
+        state: present
+        settings: '{{ win_workman_seb_client_settings }}'
+      delegate_to: localhost
+
+    - name: Copy SEB client settings to target
+      ansible.windows.win_copy:
+        src: '{{ win_workman_seb_local_tmp.path }}'
+        dest: '{{ win_workman_seb_client_settings_dest }}'
+
+  always:
+    - name: Remove temporary local seb file
+      ansible.builtin.file:
+        path: '{{ win_workman_seb_local_tmp.path }}'
+        state: absent
+      when:
+        - win_workman_seb_local_tmp is defined
+        - win_workman_seb_local_tmp.path is defined
+      delegate_to: localhost

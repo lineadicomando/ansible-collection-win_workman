@@ -1,0 +1,8 @@
+---
+win_workman_mode_title: "Maintenance in progress"
+win_workman_mode_text: |
+  The system is currently undergoing maintenance.
+  Contact IT for assistance.
+win_workman_mode_force_logoff: true
+win_workman_mode_interactive_logon_users:
+  - Administrators

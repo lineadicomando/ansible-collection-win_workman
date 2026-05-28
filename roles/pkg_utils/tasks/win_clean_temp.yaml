@@ -1,0 +1,34 @@
+---
+- name: Set win copy files list
+  ansible.builtin.set_fact:
+    win_workman_delete_remote_files: >-
+      {{
+        win_workman_schema.files
+        if (win_workman_schema.files is defined and win_workman_schema.files | length > 0)
+        else [
+          {
+            "filename": win_workman_schema.package.setup_file
+          }
+        ]
+      }}
+
+- name: Delete installer from Windows temporary directory
+  ansible.windows.win_file:
+    path: "{{ win_workman_remote_tmp }}\\{{ win_workman_delete_remote_file.filename }}"
+    state: absent
+  failed_when: false
+  changed_when: false
+  loop: "{{ win_workman_delete_remote_files }}"
+  loop_control:
+    label: "{{ win_workman_delete_remote_file.filename }}"
+    loop_var: win_workman_delete_remote_file
+
+- name: Delete setup dir from Windows temporary directory
+  ansible.windows.win_file:
+    path: "{{ win_workman_remote_tmp }}\\{{ win_workman_schema.package.setup_dir }}"
+    state: absent
+  failed_when: false
+  changed_when: false
+  when:
+    - win_workman_schema.package.setup_dir is defined
+    - win_workman_schema.package.setup_dir is not none

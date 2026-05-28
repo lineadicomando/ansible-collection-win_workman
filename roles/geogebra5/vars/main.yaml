@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        GeoGebra Classic 5
+#      - Homepage:    https://www.geogebra.org/
+#      - Download:    https://geogebra.github.io/docs/reference/en/GeoGebra_Installation/
+# ==============================================================================
+---
+win_workman_geogebra5_schema:
+  name: GeoGebra Classic 5
+  package:
+    setup_file: GeoGebra-Windows-Installer-5-4-919-1.msi
+    searchName: "GeoGebra 5"
+    version: "5.2.919.1"
+    install_args: "ALLUSERS=2 /qn"
+  files:
+    - filename: GeoGebra-Windows-Installer-5-4-919-1.msi
+      url: https://download.geogebra.org/installers/5.4/GeoGebra-Windows-Installer-5-4-919-1.msi
+      checksum: sha256:03aa45a5fc2b3e61a67815e3923bd8814a3070bc91b2b589bd247d1eac02ecf8
+
+win_workman_schema_role_name: lineadicomando.win_workman.geogebra5
+win_workman_schema_dir: geogebra5

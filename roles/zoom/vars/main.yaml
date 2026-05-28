@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Zoom Workplace
+#      - Homepage:    https://zoom.us
+#      - Download:    https://zoom.us/download/admin
+# ==============================================================================
+---
+win_workman_zoom_schema:
+  name: Zoom
+  package:
+    setup_file: ZoomInstallerFull64bit.msi
+    searchName: "Zoom Workplace (64-bit)"
+    version: "7.0.34412"
+    product_id: "{5620E5C6-1339-49C8-8A30-A972E47F0311}"
+  files:
+    - filename: ZoomInstallerFull64bit.msi
+      url: https://cdn.zoom.us/prod/7.0.2.34412/x64/ZoomInstallerFull.msi
+      checksum: sha256:4c9f29c5936bb5536739e846b924b32fc2952e0ec07df23e281ac70d9a9d57fc
+
+win_workman_schema_role_name: lineadicomando.win_workman.zoom
+win_workman_schema_dir: zoom

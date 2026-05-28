@@ -1,0 +1,5 @@
+---
+win_workman_secure_ssh_manage_authorized_keys: true
+win_workman_secure_ssh_enable_pubkey_auth: true
+win_workman_secure_ssh_disable_password_auth: true
+win_workman_secure_ssh_manage_allow_users: true

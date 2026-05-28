@@ -1,0 +1,7 @@
+---
+win_workman_veyon_master: false
+win_workman_veyon_labs: []
+win_workman_veyon_keypairs_dir: "{{ win_workman_storage_path }}/veyon"
+win_workman_veyon_remote_key_dir: "{{ win_workman_remote_tmp }}\\veyon\\keys"
+win_workman_veyon_no_log: true
+win_workman_veyon_lab_force_replace: false

@@ -1,0 +1,13 @@
+---
+- name: Send a magic Wake-on-LAN
+  community.general.wakeonlan:
+    mac: "{{ ansible_mac }}"
+    broadcast: "{{ ansible_broadcast | default(omit) }}"
+  delegate_to: localhost
+
+- name: Wait for target to respond on SSH port
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    timeout: 300
+  delegate_to: localhost

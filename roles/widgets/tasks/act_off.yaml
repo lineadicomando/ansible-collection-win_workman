@@ -1,0 +1,13 @@
+---
+- name: Logoff interactive sessions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: logoff
+
+- name: Disable Windows widgets on taskbar
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Dsh
+    name: AllowNewsAndInterests
+    data: 0
+    type: dword
+    state: present

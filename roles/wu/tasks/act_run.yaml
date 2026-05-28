@@ -1,0 +1,90 @@
+---
+- name: Windows Update Unpaused
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: pause_handler
+  vars:
+    win_workman_wu_state: "unpaused"
+  when: win_workman_wu_unpause | bool
+
+- name: Check for pending reboot
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pending_restart
+  when:
+    - win_workman_restart | bool
+
+- name: Search updates
+  ansible.windows.win_updates:
+    category_names: "*"
+    state: searched
+  register: win_workman_wu_search
+
+- name: Fail if reboot required after search and restart not allowed
+  ansible.builtin.fail:
+    msg: >-
+      A reboot is required before updates can be downloaded
+      but win_workman_restart is false. Reboot manually and re-run.
+  when:
+    - not (win_workman_restart | bool)
+    - win_workman_wu_search.reboot_required | default(false)
+
+- name: Restart if WUA reported reboot required after search
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: restart
+  when:
+    - win_workman_restart | bool
+    - win_workman_wu_search.reboot_required | default(false)
+
+- name: Check for pending reboot after search
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pending_restart
+  when:
+    - win_workman_restart | bool
+
+- name: Download updates
+  ansible.windows.win_updates:
+    category_names: "*"
+    state: downloaded
+  register: win_workman_wu_download
+
+- name: Fail if reboot required after download and restart not allowed
+  ansible.builtin.fail:
+    msg: >-
+      A reboot is required before updates can be installed
+      but win_workman_restart is false. Reboot manually and re-run.
+  when:
+    - not (win_workman_restart | bool)
+    - win_workman_wu_download.reboot_required | default(false)
+
+- name: Restart if WUA reported reboot required after download
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: restart
+  when:
+    - win_workman_restart | bool
+    - win_workman_wu_download.reboot_required | default(false)
+
+- name: Check for pending reboot after download
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pending_restart
+  when:
+    - win_workman_restart | bool
+
+- name: Install updates
+  ansible.windows.win_updates:
+    category_names: "*"
+    reboot: false
+    state: installed
+  register: win_workman_wu_install
+
+- name: Restart after updates if required
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: restart
+  when:
+    - win_workman_restart | bool
+    - win_workman_wu_install.reboot_required | default(false)

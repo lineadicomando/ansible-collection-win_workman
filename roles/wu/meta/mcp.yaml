@@ -1,0 +1,37 @@
+display_name: Windows Update
+custom_actions:
+  - name: run
+    description: Search, download and install available Windows updates
+  - name: on
+    description: Resume Windows Update (alias for resume)
+  - name: off
+    description: Pause Windows Update at max duration (alias for pause at max)
+  - name: pause
+    description: Pause Windows Update for win_workman_wu_pause_days days
+  - name: max_pause_days
+    description: "Read or set FlightSettingsMaxPauseDays: without args reports current value; with a duration (e.g. '35' or '5 w') sets the cap"
+  - name: resume
+    description: Resume Windows Update (clear pause)
+  - name: is_paused
+    description: Check if Windows Update is currently paused (sets win_workman_wu_is_paused fact)
+  - name: policy_standard
+    description: Apply standard Windows Update policy (quality + feature updates enabled)
+  - name: policy_ansible_managed
+    description: Apply Ansible-managed update policy (controlled deferral)
+defaults:
+  - var: win_workman_wu_pause_days
+    type: int
+    default: 7
+    description: Number of days to pause updates when using 'pause' action
+  - var: win_workman_wu_default_max_pause_days
+    type: int
+    default: 35
+    description: Maximum pause duration used by 'pause_max'
+  - var: win_workman_restart
+    type: bool
+    default: true
+    description: Allow restart after update installation if required
+  - var: win_workman_wu_enforce_managed_policy
+    type: bool
+    default: false
+    description: Enforce managed update policy even if already applied

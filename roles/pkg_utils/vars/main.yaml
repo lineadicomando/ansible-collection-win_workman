@@ -1,0 +1,18 @@
+---
+win_workman_pkg_actions:
+  - "{{ win_workman_action_default }}"
+  - !!str off
+  - info
+  - download
+  - copy
+  - shortcuts
+  - is_present
+win_workman_action_default: !!str on
+
+win_workman_mode_interactive_logon_default_users:
+  - Administrators
+  - Users
+  - Guests
+
+win_workman_mode_interactive_logon_users:
+  - Administrators

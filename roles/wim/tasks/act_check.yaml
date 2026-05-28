@@ -1,0 +1,70 @@
+---
+- name: Check Windows image health (CheckHealth)
+  ansible.windows.win_powershell:
+    script: |
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $Ansible.Result  = @{}
+
+      try {
+        $check = Repair-WindowsImage -Online -CheckHealth -ErrorAction Stop
+
+        $healthState = $null
+        if ($check -and $check.PSObject.Properties['ImageHealthState']) {
+          $healthState = [string]$check.ImageHealthState
+        }
+
+        switch ($healthState) {
+          'Healthy' {
+            $Ansible.Failed = $false
+            $Ansible.Result = @{
+              Status    = 'Healthy'
+              Message   = 'Image health: Healthy.'
+              CheckState = $healthState
+              CheckRaw  = $check
+            }
+          }
+          'Repairable' {
+            $Ansible.Failed = $true
+            $Ansible.Result = @{
+              Status    = 'Repairable'
+              Message   = 'Image health: Repairable.'
+              CheckState = $healthState
+              CheckRaw  = $check
+            }
+          }
+          'NonRecoverable' {
+            $Ansible.Failed = $true
+            $Ansible.Result = @{
+              Status    = 'NonRecoverable'
+              Message   = 'Image health: NonRecoverable.'
+              CheckState = $healthState
+              CheckRaw  = $check
+            }
+          }
+          Default {
+            $Ansible.Failed = $true
+            if ($healthState) {
+              $Ansible.Result = @{
+                Status    = 'UnexpectedState'
+                Message   = "Image health: $healthState. Unexpected health state."
+                CheckState = $healthState
+                CheckRaw  = $check
+              }
+            } else {
+              $Ansible.Result = @{
+                Status   = 'MissingState'
+                Message  = 'CheckHealth did not return ImageHealthState.'
+                CheckRaw = $check
+              }
+            }
+          }
+        }
+      } catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          Status  = 'Error'
+          Message = "Repair-WindowsImage failed: $($_.Exception.Message)"
+        }
+      }
+  register: win_workman_wim_check

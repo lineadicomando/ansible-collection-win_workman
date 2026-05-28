@@ -1,0 +1,5 @@
+---
+- name: Enable secure SSH configuration
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.secure_ssh
+    tasks_from: secure_ssh_handler

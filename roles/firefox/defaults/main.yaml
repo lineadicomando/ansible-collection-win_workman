@@ -1,0 +1,6 @@
+---
+win_workman_firefox_private: false
+win_workman_firefox_kiosk: false
+win_workman_firefox_shortcut_url: ""
+# win_workman_firefox_default_lang: "en_US"
+win_workman_firefox_shortcuts: false

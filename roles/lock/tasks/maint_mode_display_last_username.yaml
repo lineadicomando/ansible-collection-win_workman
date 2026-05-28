@@ -1,0 +1,91 @@
+---
+- name: Read saved DontDisplayLastUserName
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Ansible\\WinMaint"
+    win_workman_winreg_name: "DontDisplayLastUserName"
+
+- name: Set restore flags for DontDisplayLastUserName
+  ansible.builtin.set_fact:
+    win_workman_restore_exists: "{{ win_workman_registry_read.result.exists | bool }}"
+    win_workman_restore_value: >-
+      {{
+        (win_workman_registry_read.result.value | int) if (
+          win_workman_registry_read.result.exists | bool
+        ) else 0
+      }}
+  when:
+    - win_workman_registry_read is not none
+
+- name: Get current value (DontDisplayLastUserName)
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+    win_workman_winreg_name: "DontDisplayLastUserName"
+
+- name: Set current value for DontDisplayLastUserName
+  ansible.builtin.set_fact:
+    win_workman_current_value: >-
+      {{
+        (win_workman_registry_read.result.value | int) if (
+          win_workman_registry_read.result.exists | bool
+        ) else 0
+      }}
+  when:
+    - win_workman_registry_read is not none
+
+- name: Set recovery value
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: DontDisplayLastUserName
+    data: "{{ win_workman_current_value }}"
+    type: dword
+    state: present
+  when:
+    - win_workman_mode_state == 'present'
+    - not (win_workman_restore_exists | bool)
+    - win_workman_current_value is not none
+
+- name: Set DontDisplayLastUserName value in maint mode on
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: DontDisplayLastUserName
+    data: 1
+    type: dword
+    state: present
+  when:
+    - win_workman_mode_state == 'present'
+    - win_workman_current_value != 1
+
+- name: Set DontDisplayLastUserName value from recovery value if exists
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: DontDisplayLastUserName
+    data: "{{ win_workman_restore_value }}"
+    type: dword
+    state: present
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_restore_value != 0
+
+- name: Remove DontDisplayLastUserName
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: DontDisplayLastUserName
+    state: absent
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_restore_value == 0
+
+- name: Remove recovery value
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: DontDisplayLastUserName
+    state: absent
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_restore_exists | bool

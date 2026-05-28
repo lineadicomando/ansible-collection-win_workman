@@ -1,0 +1,22 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Microsoft PowerToys
+#      - Homepage:    https://github.com/microsoft/PowerToys
+#      - Download:    https://github.com/microsoft/PowerToys/releases
+# ==============================================================================
+---
+win_workman_powertoys_schema:
+  name: Microsoft PowerToys
+  package:
+    setup_file: PowerToysSetup-0.99.1-x64.exe
+    searchName: "PowerToys (Preview)"
+    version: "0.99.1"
+    install_args:
+      - -silent
+  files:
+    - filename: PowerToysSetup-0.99.1-x64.exe
+      url: https://github.com/microsoft/PowerToys/releases/download/v0.99.1/PowerToysSetup-0.99.1-x64.exe
+      checksum: sha256:29210f756b93dc1871694fc2a6be89ab0bc76227f66ffba0f5a80f408e576cdd
+
+win_workman_schema_role_name: lineadicomando.win_workman.powertoys
+win_workman_schema_dir: powertoys

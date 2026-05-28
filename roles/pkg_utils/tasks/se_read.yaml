@@ -1,0 +1,58 @@
+---
+- name: Read Se assignments
+  ansible.windows.win_powershell:
+    parameters:
+      seRight: "{{ win_workman_se_read_right }}"
+    script: |
+      param(
+        [string]$seRight
+      )
+
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+
+      $pattern = ('^{0}\s*=' -f [regex]::Escape($seRight))
+
+      $tmpFile = Join-Path $env:TEMP ("secpol_{0}.cfg" -f ([guid]::NewGuid()))
+
+      try {
+        secedit.exe /export /areas USER_RIGHTS /cfg $tmpFile | Out-Null
+
+        $line = Select-String -Path $tmpFile -Pattern $pattern | Select-Object -First 1
+        if (-not $line) {
+          $Ansible.Result = @()
+          return
+        }
+
+        $raw = $line.Line -replace $pattern, ''
+
+        $entries = @()
+        foreach ($entry in ($raw -split ',')) {
+          $val = $entry.Trim()
+          if (-not $val) { continue }
+
+          if ($val.StartsWith('*')) {
+            $val = $val.TrimStart('*')
+          }
+
+          try {
+            $sid  = New-Object System.Security.Principal.SecurityIdentifier($val)
+            $name = $sid.Translate([System.Security.Principal.NTAccount]).Value
+            $entries += $name
+          } catch {
+            $entries += $val
+          }
+        }
+
+        $Ansible.Result = $entries
+      } catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          Error = "$($_.Exception.Message)"
+        }
+      } finally {
+        if ($tmpFile -and (Test-Path -Path $tmpFile)) {
+          Remove-Item -Path $tmpFile -ErrorAction SilentlyContinue
+        }
+      }
+  register: win_workman_se_read

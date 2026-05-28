@@ -1,0 +1,51 @@
+---
+- name: Detect Software Info
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_sw
+  vars:
+    win_workman_detect_sw_args:
+      name_like: "{{ win_workman_schema.package.searchName }}"
+  when:
+    - win_workman_schema.package is defined
+    - win_workman_schema.package.searchName is defined
+    - win_workman_schema.package.searchName is not none
+    - win_workman_schema.package.searchName is string
+
+- name: Set basic facts
+  ansible.builtin.set_fact:
+    win_workman_is_present: >-
+      {{
+        win_workman_detect_sw is defined
+        and win_workman_detect_sw.result is defined
+        and win_workman_detect_sw.result.id is defined
+        and win_workman_detect_sw.result.id is not none
+      }}
+    win_workman_provider: >-
+      {{
+          win_workman_schema.package.provider if (
+            win_workman_schema.package.provider is defined
+            and win_workman_schema.package.provider is string
+          ) else (
+            win_workman_detect_sw.result.provider if (
+            win_workman_detect_sw.result.provider is defined
+            and win_workman_detect_sw.result.provider is not none
+            ) else 'auto'
+          )
+      }}
+    win_workman_product_id: >-
+      {{
+        (
+          win_workman_schema.package.product_id
+          if (
+            win_workman_schema.package.product_id is defined
+            and win_workman_schema.package.product_id != 'detect'
+          ) else (
+            win_workman_detect_sw.result.id
+            if (
+                win_workman_detect_sw.result.id is defined
+                and win_workman_detect_sw.result.id is not none
+            ) else none
+          )
+        )
+      }}

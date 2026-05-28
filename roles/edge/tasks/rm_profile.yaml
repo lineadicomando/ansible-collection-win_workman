@@ -1,0 +1,33 @@
+---
+- name: Force close Edge if active
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: kill
+  vars:
+    win_workman_kill_process_name: "msedge"
+    win_workman_kill_force: true
+
+- name: Get SID and localpath of local users
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: profiles
+
+- name: Remove Edge profile folder
+  ansible.windows.win_file:
+    path: "{{ item.LocalPath }}\\AppData\\Local\\Microsoft\\Edge"
+    state: absent
+  loop_control:
+    label: "{{ item.LocalPath }}\\AppData\\Local\\Microsoft\\Edge"
+  loop: "{{ win_workman_profiles }}"
+
+- name: Remove Edge profile shortcuts from all desktops
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: shortcut_cleaner
+  vars:
+    win_workman_shortcut_cleaner_path: "{{ item.LocalPath }}\\Desktop\\"
+    win_workman_shortcut_cleaner_target_regex: "msedge\\.exe"
+    win_workman_shortcut_cleaner_arguments_like: "*"
+  loop_control:
+    label: "{{ item.LocalPath }}\\Desktop\\"
+  loop: "{{ win_workman_profiles }}"

@@ -1,0 +1,34 @@
+---
+- name: Remove profile shortcuts from a target path
+  ansible.windows.win_powershell:
+    parameters:
+      shortcut_cleaner_path: "{{ win_workman_shortcut_cleaner_path }}"
+      shortcut_cleaner_target_regex: "{{ win_workman_shortcut_cleaner_target_regex }}"
+      shortcut_cleaner_arguments_like: "{{ win_workman_shortcut_cleaner_arguments_like }}"
+    script: |
+      param(
+        [string]$shortcut_cleaner_path,
+        [string]$shortcut_cleaner_target_regex,
+        [string]$shortcut_cleaner_arguments_like
+      )
+      $Ansible.Result = ""
+      $Ansible.Changed = $false
+      $Ansible.Result += $shortcut_cleaner_path
+      $ws = New-Object -ComObject WScript.Shell
+      Get-ChildItem $shortcut_cleaner_path -Filter '*.lnk' -ErrorAction SilentlyContinue |
+        ForEach-Object {
+          try {
+            $shortcut = $ws.CreateShortcut($_.FullName)
+            $isTarget = $shortcut.TargetPath -match $shortcut_cleaner_target_regex
+            $isProfile = $shortcut.Arguments -like $shortcut_cleaner_arguments_like
+            if ($isTarget -and $isProfile) {
+              Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+            }
+          } catch {
+            # ignora eventuali errori sui .lnk corrotti
+          }
+        }
+  when:
+    - win_workman_shortcut_cleaner_path is defined
+    - win_workman_shortcut_cleaner_target_regex is defined
+    - win_workman_shortcut_cleaner_arguments_like is defined

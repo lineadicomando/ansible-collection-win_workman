@@ -1,0 +1,6 @@
+---
+win_workman_ping_schema:
+  name: Win PING
+
+win_workman_schema_role_name: lineadicomando.win_workman.ping
+win_workman_schema_dir: ping

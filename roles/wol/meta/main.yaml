@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
+  license: GPL-3.0-or-later
+  role_name: wol
+  description: "Wake-on-LAN management"
+  min_ansible_version: "2.20"
+  platforms:
+    - name: Windows
+      versions:
+        - all
+dependencies:
+  - role: lineadicomando.win_workman.pkg_utils
+
+allow_duplicates: true

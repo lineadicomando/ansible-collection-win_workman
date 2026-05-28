@@ -1,0 +1,33 @@
+---
+- name: Ensure local Veyon keypairs exist
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.veyon
+    tasks_from: keypairs_local
+
+- name: Stage Veyon keys on Windows target
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.veyon
+    tasks_from: stage_remote_keys
+
+- name: Configure Veyon authentication method
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.veyon
+    tasks_from: auth_method
+
+- name: Import and validate Veyon keys
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.veyon
+    tasks_from: import_keys
+
+- name: Reconcile Veyon lab network objects from inventory
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.veyon
+    tasks_from: networkobjects_lab
+  when:
+    - win_workman_veyon_master | bool
+    - win_workman_veyon_labs | length > 0
+
+- name: Remove staged Veyon key material
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.veyon
+    tasks_from: cleanup_keys

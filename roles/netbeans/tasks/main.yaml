@@ -1,0 +1,7 @@
+---
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_netbeans_schema }}"

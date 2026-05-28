@@ -1,0 +1,28 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Git for Windows
+#      - Homepage:    https://gitforwindows.org/
+#      - Download:    https://github.com/git-for-windows/git/releases
+# ==============================================================================
+---
+win_workman_git_schema:
+  name: Git
+  package:
+    setup_file: Git-2.54.0-64-bit.exe
+    searchName: "Git"
+    version: "2.54.0"
+    install_args:
+      - /VERYSILENT
+      - /NORESTART
+      - /NOCANCEL
+      - /SP-
+    uninstall_args:
+      - /VERYSILENT
+      - /NORESTART
+  files:
+    - filename: Git-2.54.0-64-bit.exe
+      url: https://github.com/git-for-windows/git/releases/download/v2.54.0.windows.1/Git-2.54.0-64-bit.exe
+      checksum: sha256:2b96e7854f0520f0f6b709c21041d9801b1be44d5e1a0d9fa621b2fbc40f1983
+
+win_workman_schema_role_name: lineadicomando.win_workman.git
+win_workman_schema_dir: git

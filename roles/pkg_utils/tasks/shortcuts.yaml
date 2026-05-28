@@ -1,0 +1,18 @@
+---
+- name: Shortcuts
+  community.windows.win_shortcut:
+    description: "{{ win_workman_schema_shortcut.description | default(win_workman_schema.name, true) }}"
+    src: "{{ win_workman_schema_shortcut.src }}"
+    dest: "{{ win_workman_schema_shortcut.dest }}"
+    icon: "{{ win_workman_schema_shortcut.icon }}"
+    arguments: "{{ win_workman_schema_shortcut.arguments | default('', true) }}"
+    directory: "{{ win_workman_schema_shortcut.directory }}"
+    state: "{{ win_workman_schema_shortcuts_state }}"
+  when:
+    - win_workman_schema.shortcuts is defined
+    - win_workman_schema.shortcuts is not none
+    - win_workman_schema_shortcuts_state is defined
+  loop: "{{ win_workman_schema.shortcuts | default([]) }}"
+  loop_control:
+    loop_var: win_workman_schema_shortcut
+    label: "{{ win_workman_schema_shortcut.description }}"

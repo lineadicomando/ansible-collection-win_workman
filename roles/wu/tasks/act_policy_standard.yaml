@@ -1,0 +1,7 @@
+---
+- name: Windows Update policy set to standard
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: policy_handler
+  vars:
+    win_workman_wu_policy_state: "standard"

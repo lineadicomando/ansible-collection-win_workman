@@ -1,0 +1,2 @@
+display_name: win_workman Dispatcher (internal)
+notes: "Internal role. Do not use directly; it is invoked by win_wm.yaml to dispatch task strings to individual roles."

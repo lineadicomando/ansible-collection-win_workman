@@ -1,0 +1,20 @@
+---
+- name: Ensure vcredist14 is present (required by MySQL Server)
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.vcredist14
+  vars:
+    win_workman_action: "on"
+  when: win_workman_action == "on"
+
+- name: Restore mysql_server schema context
+  ansible.builtin.set_fact:
+    win_workman_schema_role_name: lineadicomando.win_workman.mysql_server
+    win_workman_schema_dir: mysql_server
+  when: win_workman_action == "on"
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_mysql_server_schema }}"

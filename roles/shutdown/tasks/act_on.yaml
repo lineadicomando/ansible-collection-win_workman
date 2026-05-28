@@ -1,0 +1,19 @@
+---
+- name: Check whether target is reachable on SSH port
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    timeout: 5
+  register: win_workman_shutdown_ssh_check
+  delegate_to: localhost
+  failed_when: false
+  ignore_errors: true
+
+- name: Shutdown system if reachable
+  ansible.windows.win_powershell:
+    script: |
+      shutdown /s /t 10 /f
+  when:
+    - win_workman_shutdown_ssh_check is defined
+    - win_workman_shutdown_ssh_check.state is defined
+  failed_when: false

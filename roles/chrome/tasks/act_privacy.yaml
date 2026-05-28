@@ -1,0 +1,14 @@
+---
+- name: Validate chrome-privacy argument
+  ansible.builtin.assert:
+    that:
+      - win_workman_task_argv[2] is defined
+      - win_workman_task_argv[2] in ['on', 'off']
+    fail_msg: "chrome-privacy requires an argument. Supported: on, off"
+
+- name: Set chrome privacy policy
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.chrome
+    tasks_from: privacy_handler
+  vars:
+    win_workman_chrome_policy_enabled: "{{ win_workman_task_argv[2] == 'on' }}"

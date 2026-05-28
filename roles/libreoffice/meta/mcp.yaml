@@ -1,0 +1,4 @@
+display_name: LibreOffice
+custom_actions:
+  - name: rm_data
+    description: Remove LibreOffice user profile data (resets per-user settings)

@@ -1,0 +1,24 @@
+---
+- name: Validate pause duration arguments
+  ansible.builtin.assert:
+    that:
+      - win_workman_task.argv[2] is not defined or (win_workman_task.argv[2] | string) is match('^[0-9]+$')
+      - win_workman_task.argv[3] is not defined or (win_workman_task.argv[3] | lower) in ['d', 'day', 'days', 'w', 'week', 'weeks', 'm', 'month', 'months']
+      - win_workman_task.argv[3] is not defined or win_workman_task.argv[2] is defined
+    fail_msg: "pause on accepts an optional non-negative integer duration and an optional unit among: d, w, m"
+
+- name: Set pause days with optional unit conversion
+  ansible.builtin.set_fact:
+    win_workman_wu_pause_days: >-
+      {{
+        (win_workman_task.argv[2] | default(win_workman_wu_pause_days) | int)
+        * (7  if (win_workman_task.argv[3] | default('') | lower) in ['w', 'week', 'weeks'] else
+           28 if (win_workman_task.argv[3] | default('') | lower) in ['m', 'month', 'months'] else 1)
+      }}
+
+- name: Windows Update Paused
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: pause_handler
+  vars:
+    win_workman_wu_state: "paused"

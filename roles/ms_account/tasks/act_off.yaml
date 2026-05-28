@@ -1,0 +1,7 @@
+---
+- name: Disable Microsoft Account restrictions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.ms_account
+    tasks_from: ms_account_handler
+  vars:
+    win_workman_ms_account_enabled: false

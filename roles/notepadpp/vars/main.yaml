@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Notepad++
+#      - Homepage:    https://notepad-plus-plus.org/
+#      - Download:    https://github.com/notepad-plus-plus/notepad-plus-plus/releases
+# ==============================================================================
+---
+win_workman_notepadpp_schema:
+  name: Notepad++
+  package:
+    setup_file: npp.8.9.5.Installer.x64.msi
+    provider: msi
+    searchName: "Notepad++ (x64)"
+    version: "8.9.5"
+  files:
+    - filename: npp.8.9.5.Installer.x64.msi
+      url: https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.5/npp.8.9.5.Installer.x64.msi
+      checksum: sha256:64915e83689ad55ea527bbf6c97c9a6471707b74df48e0acb80d957c669953f5
+
+win_workman_schema_role_name: lineadicomando.win_workman.notepadpp
+win_workman_schema_dir: notepadpp

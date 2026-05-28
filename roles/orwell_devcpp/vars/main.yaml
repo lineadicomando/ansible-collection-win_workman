@@ -1,0 +1,26 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Orwell Dev-Cpp
+#      - Homepage:    https://www.dev-cpp.com/
+#      - Download:    https://sourceforge.net/projects/orwelldevcpp/
+# ==============================================================================
+---
+win_workman_orwell_devcpp_schema:
+  name: Orwell Dev-Cpp
+  package:
+    setup_file: Dev-Cpp_5.11_TDM-GCC_4.9.2_Setup.exe
+    version: "5.11"
+    searchName: "Dev-C++"
+    provider: registry
+    install_args:
+      - /S
+    uninstall_args:
+      - /S
+    product_id: "Dev-C++"
+  files:
+    - filename: Dev-Cpp_5.11_TDM-GCC_4.9.2_Setup.exe
+      url: http://sourceforge.net/projects/orwelldevcpp/files/Setup%20Releases/Dev-Cpp%205.11%20TDM-GCC%204.9.2%20Setup.exe/download
+      checksum: sha256:faad96bbcc51f115c9edd691785d1309e7663b67dcfcf7c11515c3d28c9c0f1f
+
+win_workman_schema_role_name: lineadicomando.win_workman.orwell_devcpp
+win_workman_schema_dir: orwell_devcpp

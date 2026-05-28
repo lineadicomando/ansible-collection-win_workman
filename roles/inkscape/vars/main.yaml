@@ -1,0 +1,22 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Inkscape
+#      - Homepage:    https://inkscape.org/
+#      - Download:    https://inkscape.org/release/
+# ==============================================================================
+---
+win_workman_inkscape_schema:
+  name: Inkscape
+  package:
+    setup_file: inkscape-1.4.4_2026-05-05_dcaf3e7-x64.signed_xMx7DJV.msi
+    uninstall_before_upgrade: true
+    provider: msi
+    searchName: "Inkscape"
+    version: "1.4.4"
+  files:
+    - filename: inkscape-1.4.4_2026-05-05_dcaf3e7-x64.signed_xMx7DJV.msi
+      url: https://media.inkscape.org/dl/resources/file/inkscape-1.4.4_2026-05-05_dcaf3e7-x64.signed_xMx7DJV.msi
+      checksum: sha256:2fa033e95113ae83d6430b2479e7e63e4266d0632a5b03f99ee3db9360e3b8b8
+
+win_workman_schema_role_name: lineadicomando.win_workman.inkscape
+win_workman_schema_dir: inkscape

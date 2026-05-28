@@ -1,0 +1,121 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Autocad LT 2026
+#      - Homepage:    https://www.autodesk.com/
+#      - Download:    https://www.ekeys.it/download-autodesk-2026/
+#      - Doc:         https://help.autodesk.com/view/INSTALL_LICENSE/ENU/?guid=ODIS_silent_install
+#                     https://silentinstallhq.com/autodesk-autocad-2026-silent-install-how-to-guide/
+# ==============================================================================
+---
+
+# --- per-locale data ---------------------------------------------------------
+
+win_workman_autocadlt2026_allowed_langs:
+  - en
+  - it
+
+win_workman_autocadlt2026_locale_data:
+  en:
+    schema_name: "Autocad LT 2026 EN"
+    search_name: "AutoCAD LT 2026 - English"
+    bundle_guid: "{09E544DA-5EFC-3B5B-9E50-689C464B492B}"
+    display_name: "Autodesk AutoCAD LT 2026 - English"
+    setup_exe: "ACDLT_2026_english_us_win_db_001_002.exe"
+    setup_path: 'C:\Autodesk\WI\ACDLT_2026_english_us_win_db_002_002\image'
+    locale: "EN"
+    files:
+      - filename: ACDLT_2026_english_us_win_db_001_002.exe
+        url: https://edutrial.autodesk.com/NetSWDLD/ODIS/prd/2026/ACDLT/09E544DA-5EFC-3B5B-9E50-689C464B492B/SFX/ACDLT_2026_english_us_win_db_001_002.exe
+        checksum: sha256:6af20b1da9db48474bc098779ec9ddab9e3dc8a7d78cc894705f27a58d1511c6
+      - filename: ACDLT_2026_english_us_win_db_002_002.7z
+        url: https://edutrial.autodesk.com/NetSWDLD/ODIS/prd/2026/ACDLT/09E544DA-5EFC-3B5B-9E50-689C464B492B/SFX/ACDLT_2026_english_us_win_db_002_002.7z
+        checksum: sha256:f728ced60da133876a3311faa240384590a2ef144c4c0cd9553fd5c7ed143a93
+  it:
+    schema_name: "Autocad LT 2026 IT"
+    search_name: "AutoCAD LT 2026 - Italiano (Italian)"
+    bundle_guid: "{FC57B452-AE09-3060-8EA8-35F11F8A012C}"
+    display_name: "Autodesk AutoCAD LT 2026 - Italiano (Italian)"
+    setup_exe: "ACDLT_2026_italian_win_db_001_002.exe"
+    setup_path: 'C:\Autodesk\WI\ACDLT_2026_italian_win_db_002_002\image'
+    locale: "IT"
+    files:
+      - filename: ACDLT_2026_italian_win_db_001_002.exe
+        url: https://edutrial.autodesk.com/NetSWDLD/ODIS/prd/2026/ACDLT/FC57B452-AE09-3060-8EA8-35F11F8A012C/SFX/ACDLT_2026_italian_win_db_001_002.exe
+        checksum: sha256:389b412007340d913a30f5a151c80b7b2e2d8d880486feaa063c09ad3a1adfe4
+      - filename: ACDLT_2026_italian_win_db_002_002.7z
+        url: https://edutrial.autodesk.com/NetSWDLD/ODIS/prd/2026/ACDLT/FC57B452-AE09-3060-8EA8-35F11F8A012C/SFX/ACDLT_2026_italian_win_db_002_002.7z
+        checksum: sha256:b0c137f42dd2bc3899f0cea452fe96d9527e28e854530d0a783086761ecd8109
+
+# --- locale resolution -------------------------------------------------------
+
+# Resolve win_workman_default_lang (BCP47, e.g. "it-IT") to an allowed lang code.
+# Tries exact match first, then ISO 639-1 base code (e.g. "it-IT" → "it").
+win_workman_autocadlt2026_default_lang: >-
+  {{
+    (
+      [
+        win_workman_default_lang | default('', true),
+        win_workman_default_lang | default('', true) | regex_replace('^([a-z]{2})[-_].*$', '\\1')
+      ]
+      | select('in', win_workman_autocadlt2026_allowed_langs)
+      | list | first
+    ) | default('en', true)
+  }}
+
+# Explicit override via task argv (e.g. autocadlt2026[it]) takes priority.
+win_workman_autocadlt2026_lang: >-
+  {{
+    (
+      (win_workman_task_argv | default([]))
+      | select('in', win_workman_autocadlt2026_allowed_langs)
+      | list | first
+    ) | default(win_workman_autocadlt2026_default_lang, true)
+  }}
+
+# --- derived vars (resolved from the active locale) --------------------------
+
+win_workman_schema_role_name: lineadicomando.win_workman.autocadlt2026
+win_workman_schema_dir: autocadlt2026
+
+win_workman_autodesk_bundle_guid: >-
+  {{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].bundle_guid }}
+win_workman_autodesk_bundle_display_name: >-
+  {{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].display_name }}
+win_workman_autodesk_setup_exe: >-
+  {{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].setup_exe }}
+win_workman_autodesk_setup_path: >-
+  {{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].setup_path }}
+win_workman_autodesk_locale: >-
+  {{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].locale }}
+
+win_workman_autodesk_pit_path: "{{ win_workman_autodesk_setup_path }}\\x64\\acadltprivate\\LTConfig.pit"
+
+# --- shared (identical across all locales) -----------------------------------
+
+win_workman_autodesk_autocad_path: "C:\\Program Files\\Autodesk\\AutoCAD LT 2026\\acadlt.exe"
+win_workman_autodesk_product_key: "057R1"
+win_workman_autodesk_product_ver: "2026.0.0.F"
+win_workman_autodesk_helper_path: '%ProgramFiles(x86)%\Common Files\Autodesk Shared\AdskLicensing\Current\Helper\AdskLicensingInstHelper.exe'
+
+win_workman_autodesk_installer_path: "C:\\Program Files\\Autodesk\\AdODIS\\V1"
+win_workman_autodesk_installer_exe: "{{ win_workman_autodesk_installer_path }}\\Installer.exe"
+win_workman_autodesk_manifest_xsd_path: "{{ win_workman_autodesk_installer_path }}\\SetupRes\\manifest.xsd"
+
+win_workman_autodesk_odis_metadata_path: "C:\\ProgramData\\Autodesk\\ODIS\\metadata"
+win_workman_autodesk_bundle_manifest_path: "{{ win_workman_autodesk_odis_metadata_path }}\\{{ win_workman_autodesk_bundle_guid }}\\bundleManifest.xml"
+win_workman_autodesk_bundle_xsd_path: "{{ win_workman_autodesk_odis_metadata_path }}\\{{ win_workman_autodesk_bundle_guid }}\\SetupRes\\manifest.xsd"
+
+win_workman_autodesk_access_guid: "{A3158B3E-5F28-358A-BF1A-9532D8EBC811}"
+win_workman_autodesk_access_manifest_path: "{{ win_workman_autodesk_odis_metadata_path }}\\{{ win_workman_autodesk_access_guid }}\\pkg.access.xml"
+
+win_workman_autodesk_genuine_service_guid: "{D207E870-6397-417E-B7DD-720BFBE589A3}"
+win_workman_autodesk_open_in_desktop_guid: "{F67CF5AA-24B6-4904-A243-83D97FCEDF89}"
+win_workman_autodesk_web_mobile_guid: "{5BF7551A-09A6-4BDD-AE1E-048104FB478C}"
+
+# --- schema ------------------------------------------------------------------
+
+win_workman_autocadlt2026_schema:
+  name: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].schema_name }}"
+  package:
+    searchName: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
+  files: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].files }}"

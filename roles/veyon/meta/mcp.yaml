@@ -1,0 +1,24 @@
+display_name: Veyon
+custom_actions:
+  - name: config
+    description: Deploy Veyon configuration and keypairs to target hosts
+defaults:
+  - var: win_workman_veyon_master
+    type: bool
+    default: false
+    description: Install Veyon with Master component (teacher station); false installs Service only
+  - var: win_workman_veyon_labs
+    type: list
+    default: []
+    description: List of lab names whose network objects are configured on this host
+  - var: win_workman_veyon_keypairs_dir
+    type: str
+    default: "{{ win_workman_storage_path }}/veyon"
+    description: Local controller path where Veyon keypairs are stored
+  - var: win_workman_veyon_lab_force_replace
+    type: bool
+    default: false
+    description: Force replacement of existing Veyon network objects on the host
+notes: >
+  Use the dedicated 'veyon' playbook (run_playbook) for full lab setup including key generation.
+  Use run_tasks with 'veyon-config' only to push config/key updates to already-provisioned hosts.

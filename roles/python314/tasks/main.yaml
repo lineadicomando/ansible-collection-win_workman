@@ -1,0 +1,12 @@
+---
+- name: Set schema role context
+  ansible.builtin.set_fact:
+    win_workman_schema_role_name: lineadicomando.win_workman.python314
+    win_workman_schema_dir: python314
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_python314_schema }}"

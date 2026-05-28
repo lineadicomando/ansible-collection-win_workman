@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        GeoGebra Classic
+#      - Homepage:    https://www.geogebra.org/
+#      - Download:    https://geogebra.github.io/docs/reference/en/GeoGebra_Installation/
+# ==============================================================================
+---
+win_workman_geogebra_schema:
+  name: GeoGebra Calculator Suite
+  package:
+    setup_file: GeoGebra-Windows-Installer-6-0-919-1.msi
+    searchName: "GeoGebra Classic"
+    version: "6.0.919.1"
+    install_args: "ALLUSERS=2 /qn"
+  files:
+    - filename: GeoGebra-Windows-Installer-6-0-919-1.msi
+      url: https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-919-1.msi
+      checksum: sha256:a79ab68d95e051abab4269a52afc218bbd1ba8c5885be5f789d61a3fff2d193b
+
+win_workman_schema_role_name: lineadicomando.win_workman.geogebra
+win_workman_schema_dir: geogebra

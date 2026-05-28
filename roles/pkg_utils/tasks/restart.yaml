@@ -1,0 +1,11 @@
+---
+- name: Restart
+  ansible.windows.win_reboot:
+    reboot_timeout: "{{ win_workman_restart_timeout | default(600) }}"
+    pre_reboot_delay: 10
+    post_reboot_delay: 5
+    test_command: >
+      if (
+        (Get-Service -Name sshd).Status -eq "Running" -and
+        (Get-CimInstance Win32_OperatingSystem).LastBootUpTime -lt (Get-Date).AddSeconds(-60)
+      ) { exit 0 } else { exit 1 }

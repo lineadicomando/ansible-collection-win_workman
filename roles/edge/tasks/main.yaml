@@ -1,0 +1,26 @@
+---
+- name: Dispatch action off (unsupported)
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.edge
+    tasks_from: act_off
+  when: win_workman_action == "off"
+
+- name: Dispatch action rm
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.edge
+    tasks_from: act_rm
+  when: win_workman_action == "rm"
+
+- name: Dispatch action privacy
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.edge
+    tasks_from: act_privacy
+  when: win_workman_action == "privacy"
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_edge_schema }}"
+  when: win_workman_action not in ["off", "rm", "privacy"]

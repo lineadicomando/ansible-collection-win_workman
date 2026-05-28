@@ -1,0 +1,29 @@
+display_name: Safe Exam Browser
+custom_actions:
+  - name: deploy
+    description: Install SEB and deploy the current win_workman_seb_client_settings as a .seb config file
+  - name: undeploy
+    description: Remove the deployed .seb config file (leaves SEB installed)
+  - name: config_key
+    description: Print the Browser Exam Key for the current configuration (for server-side verification)
+defaults:
+  - var: win_workman_seb_client_settings
+    type: dict
+    default: "(baseline lockdown preset)"
+    description: >
+      Full SEB client settings dict. Key fields: startURL, allowQuit, browserViewMode (1=fullscreen),
+      createNewDesktop, killExplorerShell, allowScreenSharing (required for Veyon),
+      sebServicePolicy (2=enforce), URLFilterEnable, URLFilterRules, clipboardPolicy,
+      sendBrowserExamKey.
+  - var: win_workman_seb_client_settings_dest
+    type: str
+    default: "C:\\ProgramData\\SafeExamBrowser\\SebClientSettings.seb"
+    description: Destination path for the deployed .seb config file
+  - var: win_workman_seb_shortcuts
+    type: bool
+    default: false
+    description: Create a Desktop shortcut for SEB
+notes: >
+  Use 'deploy' instead of 'on' when you want to push a specific exam config.
+  allowScreenSharing must be true when Veyon is used alongside SEB (prevents black screen).
+  Accepts '32bit' task argument.

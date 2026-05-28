@@ -1,0 +1,5 @@
+display_name: System File Checker (sfc)
+custom_actions:
+  - name: on
+    description: Run sfc /scannow to scan and repair protected system files
+notes: "Does not install software. Consider running 'wim-repair' first for severe corruption."

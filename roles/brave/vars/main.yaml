@@ -1,0 +1,53 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Brave Browser
+#      - Homepage:    https://brave.com/
+#      - Download:    https://github.com/brave/brave-browser/releases/
+# ==============================================================================
+---
+win_workman_brave_program_file: "%ProgramFiles%"
+win_workman_brave_shortcut_arguments: >-
+  {{
+    (
+      ("--disable-search-engine-choice-screen " if win_workman_brave_shortcut_no_first_run | default(false) | bool else "") +
+      ("--no-default-browser-check " if win_workman_brave_shortcut_no_first_run | default(false) | bool else "") +
+      ("--no-first-run " if win_workman_brave_shortcut_no_first_run | default(false) | bool else "") +
+      (win_workman_brave_shortcut_url | default(''))
+    ) | trim
+  }}
+
+win_workman_brave_shortcuts_schema:
+  - description: "Brave"
+    src: "{{ win_workman_brave_program_file }}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+    arguments: "{{ win_workman_brave_shortcut_arguments }}"
+    dest: "%Public%\\Desktop\\Brave.lnk"
+    icon: "{{ win_workman_brave_program_file }}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe,0"
+    directory: "{{ win_workman_brave_program_file }}\\BraveSoftware\\Brave-Browser\\Application\\"
+  - description: "Brave"
+    src: "{{ win_workman_brave_program_file }}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+    arguments: "{{ win_workman_brave_shortcut_arguments }}"
+    dest: "%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\Brave.lnk"
+    icon: "{{ win_workman_brave_program_file }}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe,0"
+    directory: "{{ win_workman_brave_program_file }}\\BraveSoftware\\Brave-Browser\\Application\\"
+
+win_workman_brave_schema:
+  name: Brave Browser
+  package:
+    setup_file: "brave_installer-x64.exe"
+    searchName: "*Brave*"
+    install_args: "--install --silent --system-level"
+    uninstall_args: "--uninstall --system-level --force-uninstall"
+    cleanup_paths:
+      - "{{ win_workman_brave_program_file }}\\BraveSoftware\\Brave-Browser"
+  files:
+    - filename: "brave_installer-x64.exe"
+      url: "https://brave-browser-downloads.s3.brave.com/latest/brave_installer-x64.exe"
+  shortcuts: >-
+    {{
+      win_workman_brave_shortcuts_schema if (
+        win_workman_brave_shortcuts | bool | default(false)
+      ) else []
+    }}
+
+win_workman_schema_role_name: lineadicomando.win_workman.brave
+win_workman_schema_dir: brave

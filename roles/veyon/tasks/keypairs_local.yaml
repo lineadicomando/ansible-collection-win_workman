@@ -1,0 +1,75 @@
+---
+- name: Manage Veyon authentication keypair on control node
+  run_once: true
+  delegate_to: localhost
+  block:
+    - name: Ensure local Veyon keypair directories exist
+      ansible.builtin.file:
+        path: "{{ win_workman_veyon_keypairs_dir }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - private
+        - public
+
+    - name: Inspect Veyon keypair presence state
+      ansible.builtin.shell: |
+        private_key="{{ win_workman_veyon_keypairs_dir }}/private/key.pem"
+        public_key="{{ win_workman_veyon_keypairs_dir }}/public/key.pem"
+
+        if [ -f "${private_key}" ] && [ -f "${public_key}" ]; then
+          echo both
+        elif [ ! -f "${private_key}" ] && [ ! -f "${public_key}" ]; then
+          echo none
+        else
+          echo partial
+        fi
+      args:
+        executable: /bin/bash
+      register: win_workman_veyon_keypair_state
+      changed_when: false
+
+    - name: Fail if keypair is only partially present
+      ansible.builtin.fail:
+        msg: >-
+          Invalid state: only one of private/public key exists under
+          '{{ win_workman_veyon_keypairs_dir }}'. Remove the remaining file
+          and re-run to regenerate the pair.
+      when: win_workman_veyon_keypair_state.stdout == "partial"
+
+    - name: Generate private key
+      ansible.builtin.command:
+        cmd: >-
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048
+          -out {{ win_workman_veyon_keypairs_dir }}/private/key.pem
+      when: win_workman_veyon_keypair_state.stdout == "none"
+
+    - name: Generate public key from private key
+      ansible.builtin.command:
+        cmd: >-
+          openssl pkey
+          -in {{ win_workman_veyon_keypairs_dir }}/private/key.pem
+          -pubout
+          -out {{ win_workman_veyon_keypairs_dir }}/public/key.pem
+      when: win_workman_veyon_keypair_state.stdout == "none"
+
+    - name: Validate keypair integrity
+      ansible.builtin.shell: |
+        set -o errexit
+        set -o nounset
+        set -o pipefail
+
+        private_key="{{ win_workman_veyon_keypairs_dir }}/private/key.pem"
+        public_key="{{ win_workman_veyon_keypairs_dir }}/public/key.pem"
+
+        openssl pkey -in "${private_key}" -noout >/dev/null 2>&1
+        openssl pkey -pubin -in "${public_key}" -noout >/dev/null 2>&1
+
+        private_fp="$(openssl pkey -in "${private_key}" -pubout -outform DER 2>/dev/null | sha256sum | awk '{print $1}')"
+        public_fp="$(openssl pkey -pubin -in "${public_key}" -outform DER 2>/dev/null | sha256sum | awk '{print $1}')"
+
+        test "${private_fp}" = "${public_fp}"
+      args:
+        executable: /bin/bash
+      when: win_workman_veyon_keypair_state.stdout in ['both', 'none']
+      changed_when: false

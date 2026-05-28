@@ -1,0 +1,13 @@
+---
+- name: Dispatch each task to its schema role
+  ansible.builtin.include_role:
+    name: "lineadicomando.win_workman.{{ _wm_item.schema }}"
+  vars:
+    win_workman_action: "{{ _wm_item.act }}"
+    win_workman_task_argv: "{{ _wm_item.argv }}"
+    win_workman_task_argc: "{{ _wm_item.argc }}"
+    win_workman_task: "{{ _wm_item }}"
+  loop: "{{ _win_workman_tasks_parsed }}"
+  loop_control:
+    loop_var: _wm_item
+    label: "{{ _wm_item.task }}"

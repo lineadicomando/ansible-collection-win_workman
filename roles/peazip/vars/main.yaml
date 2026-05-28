@@ -1,0 +1,28 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        PeaZip
+#      - Homepage:    https://github.com/peazip/PeaZip/
+#      - Download:    https://github.com/peazip/PeaZip/releases
+# ==============================================================================
+---
+win_workman_peazip_schema:
+  name: PeaZip
+  package:
+    setup_file: peazip-11.1.0.WIN64.exe
+    searchName: "PeaZip"
+    version: "11.1.0"
+    install_args:
+      - /VERYSILENT
+      - /SUPPRESSMSGBOXES
+      - /NORESTART
+    uninstall_args:
+      - /VERYSILENT
+      - /SUPPRESSMSGBOXES
+      - /NORESTART
+  files:
+    - filename: peazip-11.1.0.WIN64.exe
+      url: https://github.com/peazip/PeaZip/releases/download/11.1.0/peazip-11.1.0.WIN64.exe
+      checksum: sha256:36ed5ebf33568bfbb5b7a752a7c35f7852a3bca605536a7d1d6a054037e804c1
+
+win_workman_schema_role_name: lineadicomando.win_workman.peazip
+win_workman_schema_dir: peazip

@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: lineadicomando
+  description: win_workman winrar role
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Windows
+      versions: ["all"]
+dependencies: []

@@ -1,0 +1,4 @@
+---
+win_workman_autologon_user: "{{ ansible_user | default('') }}"
+win_workman_autologon_password: "{{ ansible_password | default('') }}"
+win_workman_autologon_restart: false

@@ -1,0 +1,51 @@
+# Based upon https://github.com/Aetherinox/pause-windows-updates/blob/main/windows-updates-pause.reg
+---
+- name: Read current FlightSettingsMaxPauseDays
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
+    win_workman_winreg_name: "FlightSettingsMaxPauseDays"
+  when: win_workman_task.argv[2] is not defined
+
+- name: Report current max pause days
+  ansible.builtin.debug:
+    msg: "FlightSettingsMaxPauseDays = {{ win_workman_registry_read.result.value | default('not set (Windows default: 35)') }}"
+  when: win_workman_task.argv[2] is not defined
+
+- name: Validate max pause duration arguments
+  ansible.builtin.assert:
+    that:
+      - (win_workman_task.argv[2] | string) is match('^[0-9]+$')
+      - win_workman_task.argv[3] is not defined or (win_workman_task.argv[3] | lower) in ['d', 'day', 'days', 'w', 'week', 'weeks', 'm', 'month', 'months']
+    fail_msg: "pause max requires a non-negative integer duration and an optional unit among: d, w, m"
+  when: win_workman_task.argv[2] is defined
+
+- name: Set max pause days with optional unit conversion
+  # 1 month = 4 weeks: Windows Update UX uses weekly steps, so 28 days aligns with the GUI.
+  ansible.builtin.set_fact:
+    win_workman_wu_max_pause_days: >-
+      {{
+        (win_workman_task.argv[2] | int)
+        * (7  if (win_workman_task.argv[3] | default('') | lower) in ['w', 'week', 'weeks'] else
+           28 if (win_workman_task.argv[3] | default('') | lower) in ['m', 'month', 'months'] else 1)
+      }}
+  when: win_workman_task.argv[2] is defined
+
+- name: Restore default max pause days when requested
+  ansible.builtin.set_fact:
+    # "pause max 0" resets the cap to the Windows-like default of 5 weeks
+    # instead of making the maximum pause duration unusable.
+    win_workman_wu_max_pause_days: "{{ win_workman_wu_default_max_pause_days }}"
+  when:
+    - win_workman_task.argv[2] is defined
+    - win_workman_wu_max_pause_days | int == 0
+
+- name: Set Windows Update UX Settings (Max Pause Days)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings
+    name: FlightSettingsMaxPauseDays
+    type: dword
+    data: "{{ win_workman_wu_max_pause_days }}"
+  when: win_workman_task.argv[2] is defined

@@ -1,0 +1,23 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        VLC for Windows
+#      - Homepage:    https://www.videolan.org/
+#      - Download:    https://www.videolan.org/vlc/download-windows.html
+# ==============================================================================
+---
+win_workman_vlc_schema:
+  name: VLC for Windows
+  package:
+    setup_file: vlc-3.0.23-win64.exe
+    searchName: "VLC media player"
+    version: "3.0.23"
+    install_args: /S
+    uninstall_args: /S
+    uninstall_via_helper: true
+  files:
+    - filename: vlc-3.0.23-win64.exe
+      url: https://www.sooftware.com/mirrors/VLC/vlc/3.0.23/win64/vlc-3.0.23-win64.exe
+      checksum: sha256:20ad191348684b470ddc4e05204316f3d8e39655f412b3e392a0eef97639daaf
+
+win_workman_schema_role_name: lineadicomando.win_workman.vlc
+win_workman_schema_dir: vlc

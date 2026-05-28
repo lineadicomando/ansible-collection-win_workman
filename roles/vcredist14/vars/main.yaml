@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        VC Redist
+#      - Homepage:    https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
+#      - Download:    https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
+# ==============================================================================
+---
+win_workman_vcredist14_schema:
+  name: VC Redist 14
+  package:
+    setup_file: vc_redist.x64.exe
+    searchName: "Microsoft Visual C++*Redistributable*"
+    install_args: "/quiet /norestart"
+    uninstall_args: "/quiet /norestart"
+    provider: registry
+  files:
+    - filename: vc_redist.x64.exe
+      url: https://aka.ms/vc14/vc_redist.x64.exe
+
+win_workman_schema_role_name: lineadicomando.win_workman.vcredist14
+win_workman_schema_dir: vcredist14

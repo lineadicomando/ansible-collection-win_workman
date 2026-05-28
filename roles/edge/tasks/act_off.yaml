@@ -1,0 +1,5 @@
+---
+- name: Unsupported action
+  ansible.builtin.debug:
+    msg: "Unsupported action"
+    verbosity: 1

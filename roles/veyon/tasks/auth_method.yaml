@@ -1,0 +1,58 @@
+---
+- name: Configure Veyon authentication method to key-based authentication
+  ansible.windows.win_powershell:
+    script: |
+      $veyonCli = "{{ win_workman_veyon_cli_path | default('', true) | trim }}"
+      if (-not $veyonCli) {
+        $found = Get-Command 'veyon-cli.exe', 'veyon-cli' -ErrorAction SilentlyContinue |
+                 Select-Object -First 1
+        if ($found) { $veyonCli = $found.Source }
+      }
+      foreach ($c in "$env:ProgramFiles\Veyon\veyon-cli.exe",
+                     "${env:ProgramFiles(x86)}\Veyon\veyon-cli.exe") {
+        if (-not $veyonCli -and (Test-Path -LiteralPath $c)) { $veyonCli = $c; break }
+      }
+      if (-not $veyonCli) { throw "veyon-cli not found. Set win_workman_veyon_cli_path." }
+      $accepted = @('KeyFileAuthentication', 'key-file', 'keyfile', '1')
+
+      $current = ''
+      try {
+        $current = (& $veyonCli config get 'Authentication/Method' 2>$null | Out-String).Trim()
+      } catch {
+        $current = ''
+      }
+
+      if ($accepted -contains $current -or $current -match '(?i)key') {
+        $Ansible.Changed = $false
+        $Ansible.Result = @{
+          current = $current
+          final = $current
+          status = 'already'
+        }
+        return
+      }
+
+      $setValue = $null
+      foreach ($candidate in $accepted) {
+        try {
+          & $veyonCli config set 'Authentication/Method' $candidate | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            $setValue = $candidate
+            break
+          }
+        } catch {
+        }
+      }
+
+      $final = (& $veyonCli config get 'Authentication/Method' 2>$null | Out-String).Trim()
+      if (($accepted -notcontains $final) -and ($final -notmatch '(?i)key')) {
+        throw "Unable to configure key-based authentication. Current value: '$final'"
+      }
+
+      $Ansible.Changed = ($null -ne $setValue)
+      $Ansible.Result = @{
+        current = $current
+        final = $final
+        status = $(if ($setValue) { 'set' } else { 'already' })
+      }
+  notify: Restart Veyon Service

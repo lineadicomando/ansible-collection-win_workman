@@ -1,0 +1,4 @@
+---
+win_workman_optimize_volumes:
+  - "C"
+win_workman_optimize_defrag: false

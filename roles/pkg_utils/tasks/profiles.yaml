@@ -1,0 +1,322 @@
+---
+- name: Get information about existing user profiles
+  ansible.windows.win_powershell:
+      script: |
+          param(
+            [object[]]$ProfilesExclude = @(),
+            [object[]]$ProfilesInclude = @(),
+            [bool]$Single = $false,
+            [bool]$IncludeDefault = $false
+          )
+
+          $Ansible.Changed = $false
+
+          function Convert-SafeDmtfDate {
+            param([string]$Dmtf)
+
+            if ([string]::IsNullOrWhiteSpace($Dmtf)) {
+              return $null
+            }
+
+            try {
+              return [System.Management.ManagementDateTimeConverter]::ToDateTime($Dmtf)
+            }
+            catch {
+              return $null
+            }
+          }
+
+          $profiles = @()
+          $ProfilesInclude = @($ProfilesInclude) | Where-Object { $_ -ne $null -and $_.ToString().Trim() }
+          $ProfilesExclude = @($ProfilesExclude) | Where-Object { $_ -ne $null -and $_.ToString().Trim() }
+          $hasInclude = $ProfilesInclude.Count -gt 0
+
+          function Test-ProfileMatch {
+            param(
+              [string]$Name,
+              [string]$Domain,
+              [object[]]$Patterns
+            )
+
+            foreach ($pattern in $Patterns) {
+              if (-not $pattern) { continue }
+              $patternText = $pattern.ToString().Trim()
+              if (-not $patternText) { continue }
+
+              if ($patternText -like '*\*') {
+                $parts = $patternText.Split('\', 2)
+                $domainPattern = $parts[0]
+                $namePattern = $parts[1]
+
+                $domainMatch = $domainPattern -eq '*' -or ($Domain -and $Domain -ilike $domainPattern)
+                $nameMatch = $Name -and $Name -ilike $namePattern
+
+                if ($domainMatch -and $nameMatch) { return $true }
+              } else {
+                if ($Name -and $Name -ilike $patternText) { return $true }
+              }
+            }
+
+            return $false
+          }
+
+          $cimProfiles = @()
+          try {
+            $cimProfiles = Get-CimInstance -ClassName Win32_UserProfile -ErrorAction Stop |
+                             Where-Object {
+                                $_.LocalPath -ne $null -and
+                                $_.Special -eq $false -and
+                                $_.SID -match '^S-1-5-21-'
+                            }
+          }
+          catch {
+            $cimProfiles = @()
+          }
+
+          $activeSessionUsers = @{}
+          function Ensure-WtsTypes {
+            if ('WinMgmtWtsNative' -as [type]) {
+              return
+            }
+            $typeDefinition = @(
+              'using System;',
+              'using System.Runtime.InteropServices;',
+              'public enum WinMgmtWtsConnectState {',
+              '  WTSActive, WTSConnected, WTSConnectQuery, WTSShadow, WTSDisconnected,',
+              '  WTSIdle, WTSListen, WTSReset, WTSDown, WTSInit',
+              '}',
+              'public enum WinMgmtWtsInfoClass {',
+              '  WTSInitialProgram, WTSApplicationName, WTSWorkingDirectory, WTSOEMId,',
+              '  WTSSessionId, WTSUserName, WTSWinStationName, WTSDomainName',
+              '}',
+              '[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]',
+              'public struct WinMgmtWtsSessionInfo {',
+              '  public int SessionId;',
+              '  [MarshalAs(UnmanagedType.LPTStr)] public string WinStationName;',
+              '  public WinMgmtWtsConnectState State;',
+              '}',
+              'public static class WinMgmtWtsNative {',
+              '  [DllImport("wtsapi32.dll", SetLastError=true)]',
+              '  public static extern bool WTSEnumerateSessions(IntPtr hServer, int reserved, int version, out IntPtr ppSessionInfo, out int count);',
+              '  [DllImport("wtsapi32.dll")]',
+              '  public static extern void WTSFreeMemory(IntPtr pMemory);',
+              '  [DllImport("wtsapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]',
+              '  public static extern bool WTSQuerySessionInformation(IntPtr hServer, int sessionId, WinMgmtWtsInfoClass infoClass, out IntPtr ppBuffer, out int bytesReturned);',
+              '}'
+            ) -join [Environment]::NewLine
+            Add-Type -TypeDefinition $typeDefinition -ErrorAction Stop | Out-Null
+          }
+
+          function Get-WtsText {
+            param(
+              [int]$SessionId,
+              [object]$InfoClass
+            )
+
+            $buffer = [IntPtr]::Zero
+            $bytesReturned = 0
+            try {
+              $ok = [WinMgmtWtsNative]::WTSQuerySessionInformation(
+                [IntPtr]::Zero,
+                $SessionId,
+                $InfoClass,
+                [ref]$buffer,
+                [ref]$bytesReturned
+              )
+              if (-not $ok -or $buffer -eq [IntPtr]::Zero -or $bytesReturned -le 1) {
+                return ''
+              }
+              return [Runtime.InteropServices.Marshal]::PtrToStringUni($buffer)
+            } finally {
+              if ($buffer -ne [IntPtr]::Zero) {
+                [WinMgmtWtsNative]::WTSFreeMemory($buffer)
+              }
+            }
+          }
+
+          try {
+            Ensure-WtsTypes
+            $sessionInfoPtr = [IntPtr]::Zero
+            $sessionCount = 0
+            $structSize = [Runtime.InteropServices.Marshal]::SizeOf([type]'WinMgmtWtsSessionInfo')
+            $ok = [WinMgmtWtsNative]::WTSEnumerateSessions([IntPtr]::Zero, 0, 1, [ref]$sessionInfoPtr, [ref]$sessionCount)
+            if ($ok) {
+              try {
+                for ($i = 0; $i -lt $sessionCount; $i++) {
+                  $itemPtr = [IntPtr]($sessionInfoPtr.ToInt64() + ($i * $structSize))
+                  $sessionInfo = [Runtime.InteropServices.Marshal]::PtrToStructure($itemPtr, [type]'WinMgmtWtsSessionInfo')
+                  if ([int]$sessionInfo.SessionId -le 0) {
+                    continue
+                  }
+                  if ($sessionInfo.State -ne [WinMgmtWtsConnectState]::WTSActive) {
+                    continue
+                  }
+
+                  $userName = Get-WtsText -SessionId ([int]$sessionInfo.SessionId) -InfoClass ([WinMgmtWtsInfoClass]::WTSUserName)
+                  if (-not $userName) {
+                    continue
+                  }
+                  $domainName = Get-WtsText -SessionId ([int]$sessionInfo.SessionId) -InfoClass ([WinMgmtWtsInfoClass]::WTSDomainName)
+                  $fullUserName = if ($domainName) { "$domainName\$userName" } else { $userName }
+                  if ($fullUserName -match '^NT AUTHORITY\\' -or $fullUserName -match '^NT SERVICE\\') {
+                    continue
+                  }
+                  $activeSessionUsers[$fullUserName.ToUpperInvariant()] = $true
+                }
+              }
+              finally {
+                if ($sessionInfoPtr -ne [IntPtr]::Zero) {
+                  [WinMgmtWtsNative]::WTSFreeMemory($sessionInfoPtr)
+                }
+              }
+            }
+          }
+          catch {
+            $activeSessionUsers = @{}
+          }
+
+          foreach ($p in $cimProfiles) {
+              $sid = $p.SID
+              $name = $null
+              $domain = $null
+              $profileLoaded = $false
+
+              try {
+                  $sidObj = New-Object System.Security.Principal.SecurityIdentifier($sid)
+                  $ntAccount = $sidObj.Translate([System.Security.Principal.NTAccount])
+                  $accountName = $ntAccount.Value
+
+                  $parts = $accountName.Split('\', 2)
+                  if ($parts.Count -eq 2) {
+                      $domain = $parts[0]
+                      $name   = $parts[1]
+                  } else {
+                      $name = $accountName
+                  }
+              }
+              catch {
+                  # SID not resolved
+              }
+
+              if (-not $name) {
+                  if ($p.LocalPath) {
+                      $name = Split-Path -Leaf $p.LocalPath
+                  } else {
+                      $name = $sid
+                  }
+              }
+
+              if ($hasInclude -and -not (Test-ProfileMatch -Name $name -Domain $domain -Patterns $ProfilesInclude)) {
+                  continue
+              }
+
+              if (Test-ProfileMatch -Name $name -Domain $domain -Patterns $ProfilesExclude) {
+                  continue
+              }
+
+              $hkuProfileMounted = $false
+              if ($sid) {
+                  try {
+                      $hkuProfileMounted = Test-Path -LiteralPath ("Registry::HKEY_USERS\" + $sid)
+                  }
+                  catch {
+                      $hkuProfileMounted = $false
+                  }
+              }
+              $hasInteractiveSession = $false
+              if ($name) {
+                  $fullUserName = if ($domain) { "$domain\$name" } else { $name }
+                  $hasInteractiveSession = $activeSessionUsers.ContainsKey($fullUserName.ToUpperInvariant())
+              }
+              $profileLoaded = [bool]$p.Loaded -and [bool]$hkuProfileMounted -and [bool]$hasInteractiveSession
+              $profileHiveRoot = if ($sid -and $hkuProfileMounted) { 'HKU:\' + $sid + '\' } else { 'HKLM:\ANSIBLE\' }
+
+              $profiles += [pscustomobject]@{
+                  Name           = $name
+                  Domain         = $domain
+                  SID            = $sid
+                  LocalPath      = $p.LocalPath
+                  HiveRoot       = $profileHiveRoot
+                  HivePath       = if ($p.LocalPath) { Join-Path $p.LocalPath 'NTUSER.DAT' } else { $null }
+                  HiveExists     = if ($p.LocalPath) { Test-Path -LiteralPath (Join-Path $p.LocalPath 'NTUSER.DAT') } else { $false }
+                  Loaded         = $profileLoaded
+                  LoadedByCim    = [bool]$p.Loaded
+                  HiveMounted    = [bool]$hkuProfileMounted
+                  HasActiveSession = [bool]$hasInteractiveSession
+                  Special        = $p.Special
+                  Temporary      = $p.Temporary
+                  Roaming        = $p.RoamingConfigured
+                  RawLastUseTime = $p.LastUseTime
+                  LastUseTime    = Convert-SafeDmtfDate $p.LastUseTime
+              }
+          }
+
+          if ($IncludeDefault) {
+            $defaultPath = $null
+            try {
+              $profileList = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction Stop
+              if ($profileList.Default -and $profileList.Default.ToString().Trim()) {
+                $defaultPath = $profileList.Default
+              }
+              if ($profileList.DefaultUserProfile -and $profileList.DefaultUserProfile.ToString().Trim()) {
+                $defaultPath = $profileList.DefaultUserProfile
+              }
+            }
+            catch {
+              $defaultPath = $null
+            }
+
+            if (-not $defaultPath) {
+              try {
+                $defaultProfileKey = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\DefaultUserProfile' -ErrorAction Stop
+                if ($defaultProfileKey.ProfileImagePath -and $defaultProfileKey.ProfileImagePath.ToString().Trim()) {
+                  $defaultPath = $defaultProfileKey.ProfileImagePath
+                }
+              }
+              catch {
+                $defaultPath = $null
+              }
+            }
+
+            if ($defaultPath) {
+              $defaultPath = [Environment]::ExpandEnvironmentVariables($defaultPath)
+              $defaultName = 'Default'
+              $defaultDomain = $null
+
+              $profiles += [pscustomobject]@{
+                  Name           = $defaultName
+                  Domain         = $defaultDomain
+                  SID            = $null
+                  LocalPath      = $defaultPath
+                  HiveRoot       = 'HKLM:\ANSIBLE\'
+                  HivePath       = if ($defaultPath) { Join-Path $defaultPath 'NTUSER.DAT' } else { $null }
+                  HiveExists     = if ($defaultPath) { Test-Path -LiteralPath (Join-Path $defaultPath 'NTUSER.DAT') } else { $false }
+                  Loaded         = $false
+                  Special        = $true
+                  Temporary      = $false
+                  Roaming        = $false
+                  RawLastUseTime = $null
+                  LastUseTime    = $null
+              }
+            }
+          }
+
+          if ($Single) {
+            if ($profiles.Count -gt 0) {
+              $Ansible.Result = $profiles[0]
+            } else {
+              $Ansible.Result = $false
+            }
+          } else {
+            $Ansible.Result = $profiles
+          }
+      parameters:
+          ProfilesExclude: "{{ win_workman_profiles_exclude | default([]) }}"
+          ProfilesInclude: "{{ win_workman_profiles_include | default([]) }}"
+          Single: "{{ win_workman_profiles_single | default(false) }}"
+          IncludeDefault: "{{ win_workman_profiles_include_default | default(false) | bool }}"
+  register: win_workman_profiles_response
+
+- name: Set profiles facts
+  ansible.builtin.set_fact:
+      win_workman_profiles: "{{ win_workman_profiles_response.result }}"

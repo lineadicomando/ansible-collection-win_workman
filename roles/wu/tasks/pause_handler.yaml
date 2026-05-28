@@ -1,0 +1,174 @@
+# Based upon https://github.com/Aetherinox/pause-windows-updates/blob/main/windows-updates-pause.reg
+#
+# ------------------------------------------------------------------------------
+# Reference
+# - https://github.com/Aetherinox/pause-windows-updates
+# - https://learn.microsoft.com/en-us/windows/deployment/update/waas-configure-wufb
+#
+# Pause model in this role
+# - pause_on: computes [now, now + N days] and writes both UX and policy markers
+# - pause_off: removes UX pause windows and clears policy pause status
+# ------------------------------------------------------------------------------
+---
+- name: Get current value (FlightSettingsMaxPauseDays)
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
+    win_workman_winreg_name: "FlightSettingsMaxPauseDays"
+  when: win_workman_wu_state == 'paused'
+
+- name: Set FlightSettingsMaxPauseDays cap fact
+  ansible.builtin.set_fact:
+    win_workman_wu_max_pause_days: "{{ win_workman_registry_read.result.value | default(win_workman_wu_default_max_pause_days, true) | int }}"
+  when: win_workman_wu_state == 'paused'
+
+- name: Validate desired Windows Update action
+  ansible.builtin.assert:
+    that:
+      - win_workman_wu_state in ['paused', 'unpaused']
+    fail_msg: "win_workman_wu_state must be 'paused' or 'unpaused'"
+
+- name: Validate pause_days bounds
+  ansible.builtin.assert:
+    that:
+      - win_workman_wu_pause_days | int >= 0
+    fail_msg: "pause_days must be greater than or equal to 0"
+  when: win_workman_wu_state == 'paused'
+
+- name: Determine effective pause days (capped by Windows 11)
+  ansible.builtin.set_fact:
+    win_workman_effective_pause_days: "{{ [win_workman_wu_pause_days | int, win_workman_wu_max_pause_days | int] | min }}"
+  when: win_workman_wu_state == 'paused'
+
+- name: Calculate pause window timestamps on Windows host
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [Parameter(Mandatory = $true)]
+        [int]$PauseDays
+      )
+
+      $nowUtc = [DateTime]::UtcNow
+      $startUtc = [DateTime]::SpecifyKind($nowUtc, [System.DateTimeKind]::Utc)
+      $endUtc = $startUtc.AddDays($PauseDays)
+
+      $result = @{
+        pause_start_time = $startUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
+        pause_end_time   = $endUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
+      }
+
+      $Ansible.Result = $result
+      $Ansible.Changed = $false
+    parameters:
+      PauseDays: "{{ win_workman_effective_pause_days }}"
+  when: win_workman_wu_state == 'paused'
+  register: win_workman_pause_window_raw
+
+- name: Set pause window facts
+  ansible.builtin.set_fact:
+    win_workman_pause_start_time: "{{ win_workman_pause_window_raw.result.pause_start_time }}"
+    win_workman_pause_end_time: "{{ win_workman_pause_window_raw.result.pause_end_time }}"
+  when: win_workman_wu_state == 'paused'
+
+- name: Set Windows Update UX pause timers
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    - name: PauseFeatureUpdatesStartTime
+      type: string
+      data: "{{ win_workman_pause_start_time }}"
+    - name: PauseFeatureUpdatesEndTime
+      type: string
+      data: "{{ win_workman_pause_end_time }}"
+    - name: PauseQualityUpdatesStartTime
+      type: string
+      data: "{{ win_workman_pause_start_time }}"
+    - name: PauseQualityUpdatesEndTime
+      type: string
+      data: "{{ win_workman_pause_end_time }}"
+    - name: PauseUpdatesStartTime
+      type: string
+      data: "{{ win_workman_pause_start_time }}"
+    - name: PauseUpdatesExpiryTime
+      type: string
+      data: "{{ win_workman_pause_end_time }}"
+  when: win_workman_wu_state == 'paused'
+
+# ------------------------------------------------------------------------------
+# UpdatePolicy pause status
+# - PausedFeatureStatus / PausedQualityStatus
+#   - 0: not paused
+#   - 1: paused
+#   - 2: auto-resumed after pause expiry (system-managed state)
+#
+# - PausedFeatureDate / PausedQualityDate
+#   UTC timestamps used by Windows update policy state.
+# ------------------------------------------------------------------------------
+- name: Set Windows Update Policy pause state
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UpdatePolicy\Settings
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    - name: PausedFeatureStatus
+      type: dword
+      data: 0x00000001
+    - name: PausedQualityStatus
+      type: dword
+      data: 0x00000001
+    - name: PausedQualityDate
+      type: string
+      data: "{{ win_workman_pause_start_time }}"
+    - name: PausedFeatureDate
+      type: string
+      data: "{{ win_workman_pause_start_time }}"
+  when: win_workman_wu_state == 'paused'
+
+- name: Remove Windows Update pause keys
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - PauseFeatureUpdatesStartTime
+    - PauseFeatureUpdatesEndTime
+    - PauseQualityUpdatesStartTime
+    - PauseQualityUpdatesEndTime
+    - PauseUpdatesStartTime
+    - PauseUpdatesExpiryTime
+  when: win_workman_wu_state == 'unpaused'
+
+# ------------------------------------------------------------------------------
+# Unpause reset
+# - Remove UX pause timestamps
+# - Set policy status flags to 0
+# - Remove policy pause date markers
+# ------------------------------------------------------------------------------
+- name: Reset Windows Update Policy pause status
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UpdatePolicy\Settings
+    name: "{{ item.name }}"
+    type: dword
+    data: "{{ item.data }}"
+  loop:
+    - name: PausedFeatureStatus
+      data: 0x00000000
+    - name: PausedQualityStatus
+      data: 0x00000000
+  when: win_workman_wu_state == 'unpaused'
+
+- name: Remove Windows Update pause dates
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UpdatePolicy\Settings
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - PausedQualityDate
+    - PausedFeatureDate
+  when: win_workman_wu_state == 'unpaused'

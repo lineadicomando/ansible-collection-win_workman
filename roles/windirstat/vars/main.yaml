@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        WinDirStat
+#      - Homepage:    https://windirstat.net/
+#      - Download:    https://github.com/windirstat/windirstat/releases/latest
+# ==============================================================================
+---
+win_workman_windirstat_schema:
+  name: WinDirStat
+  package:
+    setup_file: WinDirStat-x64.msi
+    provider: msi
+    searchName: "WinDirStat"
+    version: "2.2.2"
+  files:
+    - filename: WinDirStat-x64.msi
+      url: https://github.com/windirstat/windirstat/releases/download/release/v2.2.2/WinDirStat-x64.msi
+      checksum: sha256:029cc7158d5e2d475243b36ae207921d8205c1296e24c2cab13f142aefba473d
+
+win_workman_schema_role_name: lineadicomando.win_workman.windirstat
+win_workman_schema_dir: windirstat

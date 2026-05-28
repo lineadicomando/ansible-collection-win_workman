@@ -1,0 +1,35 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Apache NetBeans
+#      - Homepage:    https://netbeans.apache.org/
+#      - Download:    https://github.com/codelerity/netbeans-packages/releases/
+# ==============================================================================
+---
+win_workman_netbeans_schema:
+  name: Apache NetBeans
+  package:
+    setup_file: Apache-NetBeans-30.exe
+    searchName: "Apache NetBeans version 30"
+    version: "30"
+    provider: registry
+    install_args:
+      - /VERYSILENT
+      - /SUPPRESSMSGBOXES
+      - /NORESTART
+    uninstall_args:
+      - /VERYSILENT
+      - /SUPPRESSMSGBOXES
+      - /NORESTART
+  files:
+    - filename: Apache-NetBeans-30.exe
+      url: https://github.com/codelerity/netbeans-packages/releases/download/v30-build1/Apache-NetBeans-30.exe
+      checksum: sha256:bae35bbc1a7f6972c9ee5451fe7ef87f876f70b80222a16ebb264b732e605c8b
+  # shortcuts:
+  #   - description: "Apache NetBeans"
+  #     src: '%ProgramFiles%\Apache NetBeans\bin\netbeans64.exe'
+  #     dest: '%Public%\Desktop\Apache NetBeans 30.lnk'
+  #     icon: '%ProgramFiles%\Apache NetBeans\bin\netbeans64.exe,0'
+  #     directory: '%ProgramFiles%\Apache NetBeans\bin'
+
+win_workman_schema_role_name: lineadicomando.win_workman.netbeans
+win_workman_schema_dir: netbeans

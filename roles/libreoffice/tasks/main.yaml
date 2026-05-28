@@ -1,0 +1,14 @@
+---
+- name: Dispatch action rm_data
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.libreoffice
+    tasks_from: act_rm_data
+  when: win_workman_action == "rm_data"
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_libreoffice_schema }}"
+  when: win_workman_action != "rm_data"

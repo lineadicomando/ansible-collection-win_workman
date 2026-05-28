@@ -1,0 +1,3 @@
+---
+win_workman_chkdsk_volumes:
+  - "C"

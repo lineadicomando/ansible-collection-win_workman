@@ -1,0 +1,27 @@
+---
+- name: Unzip 7z archive if needed
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: 7zip
+  vars:
+    win_workman_7zip_command: x
+    win_workman_7zip_extract_path: >-
+      {{
+        win_workman_remote_extract_path ~ '\\' ~ win_workman_extract_file.dest_dir
+        if (
+          win_workman_extract_file.dest_dir is defined
+          and win_workman_extract_file.dest_dir is not none
+          and (win_workman_extract_file.dest_dir | string | trim | length) > 0
+        )
+        else win_workman_remote_extract_path
+      }}
+    win_workman_7zip_archive_path: >-
+      {{ win_workman_remote_tmp }}\{{ win_workman_extract_file.filename }}
+    win_workman_7zip_source_path: "{{ win_workman_7zip_extract_path }}"
+  when:
+    - win_workman_extract_file.extract is defined
+    - win_workman_extract_file.extract == '7z'
+  loop: "{{ win_workman_extract_files }}"
+  loop_control:
+    loop_var: win_workman_extract_file
+    label: "{{ win_workman_extract_file.filename }}"

@@ -1,0 +1,25 @@
+---
+- name: Logoff interactive sessions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: logoff
+  when: win_workman_wallpaper_profiles_target is not defined
+
+- name: Ensure wallpaper target profiles are collected
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wallpaper
+    tasks_from: wallpaper_profiles
+  when:
+    - win_workman_wallpaper_profiles_target is not defined
+
+- name: Prevent wallpaper changes in offline profiles and the Default profile
+  ansible.windows.win_regedit:
+    hive: "{{ (item.0.HiveMounted | default(false) | bool) | ternary(omit, item.0.HivePath) }}"
+    path: "{{ item.0.HiveRoot ~ (item.1.path | replace('HKLM:\\ANSIBLE', '')) }}"
+    name: "{{ item.1.name }}"
+    data: "{{ item.1.data }}"
+    type: "{{ item.1.type }}"
+    state: present
+  loop: "{{ win_workman_wallpaper_profiles_target | product(win_workman_wallpaper_registry_entries_lock) | list }}"
+  loop_control:
+    label: "{{ item.0.LocalPath }} -> {{ item.0.HiveRoot ~ (item.1.path | replace('HKLM:\\ANSIBLE', '')) }}"

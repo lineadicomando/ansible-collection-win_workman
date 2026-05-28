@@ -1,0 +1,14 @@
+---
+- name: Install dependency vcredist14
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.vcredist14
+  vars:
+    win_workman_action: "on"
+  when: win_workman_task.act == "on"
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_ntop_schema }}"

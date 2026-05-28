@@ -1,0 +1,5 @@
+display_name: System Shutdown
+custom_actions:
+  - name: on
+    description: Shut down the host immediately
+notes: "Does not install software."

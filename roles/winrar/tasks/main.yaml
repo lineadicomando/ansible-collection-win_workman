@@ -1,0 +1,18 @@
+---
+- name: Detect WinRAR language from host locale
+  ansible.windows.win_powershell:
+    script: |
+      $Ansible.Result = @(
+          (Get-WinSystemLocale).Name,
+          (Get-SystemPreferredUILanguage),
+          (Get-UICulture).Name,
+          (Get-Culture).Name
+      ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+  register: win_workman_winrar_host_locale
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_winrar_schema }}"

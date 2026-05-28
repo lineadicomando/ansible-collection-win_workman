@@ -1,0 +1,7 @@
+display_name: System Restart
+custom_actions:
+  - name: on
+    description: Restart the host immediately
+  - name: if
+    description: Restart only if a pending reboot is detected
+notes: "Does not install software. Use 'restart-if' after updates or installs that require a reboot."

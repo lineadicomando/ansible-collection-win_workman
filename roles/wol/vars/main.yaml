@@ -1,0 +1,6 @@
+---
+win_workman_wol_schema:
+  name: Wake-on-LAN
+
+win_workman_schema_role_name: lineadicomando.win_workman.wol
+win_workman_schema_dir: wol

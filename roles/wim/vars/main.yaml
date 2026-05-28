@@ -1,0 +1,6 @@
+---
+win_workman_wim_schema:
+  name: Windows image health management
+
+win_workman_schema_role_name: lineadicomando.win_workman.wim
+win_workman_schema_dir: wim

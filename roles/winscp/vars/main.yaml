@@ -1,0 +1,28 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        WinSCP
+#      - Homepage:    https://winscp.net/
+#      - Download:    https://winscp.net/eng/download.php
+# ==============================================================================
+---
+win_workman_winscp_schema:
+  name: WinSCP
+  package:
+    setup_file: WinSCP-6.3.8.msi
+    searchName: "WinSCP*"
+    version: "6.3.8"
+    provider: msi
+    uninstall_before_upgrade: true
+  files:
+    - filename: WinSCP-6.3.8.msi
+      url: https://downloads.sourceforge.net/project/winscp/WinSCP/6.3.8/WinSCP-6.3.8.msi
+      checksum: sha256:ca958c21d648083573667c4db950b85dfc888f9d8ee97d9aeb16ba8226ecbad8
+  shortcuts:
+    - description: "WinSCP"
+      src: '%ProgramFiles%\WinSCP\WinSCP.exe'
+      dest: '%Public%\Desktop\WinSCP.lnk'
+      icon: '%ProgramFiles%\WinSCP\WinSCP.exe,0'
+      directory: '%ProgramFiles%\WinSCP'
+
+win_workman_schema_role_name: lineadicomando.win_workman.winscp
+win_workman_schema_dir: winscp

@@ -1,0 +1,5 @@
+display_name: Host Ping
+custom_actions:
+  - name: on
+    description: Ping the target host and report reachability
+notes: "Does not install software. Useful as a connectivity check before other tasks."

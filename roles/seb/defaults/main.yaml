@@ -1,0 +1,70 @@
+---
+win_workman_seb_client_settings_dest: 'C:\\ProgramData\\SafeExamBrowser\\SebClientSettings.seb'
+
+win_workman_seb_shortcuts: false
+
+# Common baseline settings for SEB client configuration.
+# Extend/override in inventory/group_vars as needed.
+win_workman_seb_client_settings:
+  startURL: "https://safeexambrowser.org/start/start_en.html"
+  allowQuit: false
+  enableLogging: true
+  logDirectoryWin: 'C:\\ProgramData\\SafeExamBrowser\\Logs'
+  # WARNING: enable only for test purposes.
+  allowVirtualMachine: true
+  # Force fullscreen browser mode (0=window, 1=fullscreen, 2=touch).
+  browserViewMode: 1
+  # Block JavaScript popup windows.
+  # Note: newBrowserWindowByLinkPolicy (block new windows from links) is Mac/iOS only
+  # and has no effect on Windows SEB 3.x.
+  blockPopUpWindows: true
+
+  # --- Kiosk / Desktop (Windows only) ---
+  # Isolates SEB on a separate Windows desktop.
+  createNewDesktop: true
+  # Terminates Explorer shell for stronger isolation.
+  killExplorerShell: true
+  # Required for Veyon: without this SEB calls SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE) → black screen.
+  allowScreenSharing: true
+  # Require SEB Windows Service (0=ignore, 1=warn, 2=enforce).
+  sebServicePolicy: 2
+  # Clean up browser profile at end of session.
+  removeBrowserProfile: true
+
+  # --- Keyboard hooks (Windows only, require hookKeys: true) ---
+  hookKeys: true
+  # Windows only: block Alt+Tab application switching.
+  enableAltTab: false
+  enableAltF4: false
+  enablePrintScreen: false
+  enableCtrlEsc: false
+  # Ctrl+Alt+* shortcuts: kept true so technicians can use Ctrl+Alt+Del.
+  enableAltCtrl: true
+
+  # --- Ctrl+Alt+Del security screen (Windows only) ---
+  # Note: Ctrl+Alt+Del itself cannot be intercepted (Windows SAS).
+  insideSebEnableStartTaskManager: false
+  insideSebEnableLogOff: false
+  # Kept true: allows manual shutdown by lab technicians.
+  insideSebEnableShutDown: true
+  insideSebEnableLockThisComputer: false
+  insideSebEnableSwitchUser: false
+  insideSebEnableEaseOfAccess: false
+
+  # --- Clipboard policy (Win 3.7+) ---
+  # 0=Allow (unrestricted), 1=Block (clears clipboard + blocks Ctrl+C/V/X), 2=SEB Only (isolated within browser).
+  # Block (1) prevents students from copying exam questions from Google Forms.
+  clipboardPolicy: 1
+
+  # --- Exam integrity ---
+  # Enables Browser Exam Key for server-side verification.
+  sendBrowserExamKey: true
+
+  # --- URL filtering ---
+  URLFilterEnable: true
+  URLFilterEnableContentFilter: false
+  URLFilterRules:
+    - action: 1 # allow
+      active: true
+      expression: "^(https://safeexambrowser[.]org).*$"
+      regex: true

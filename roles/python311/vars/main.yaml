@@ -1,0 +1,40 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Python 3.11
+#      - Homepage:    https://www.python.org/
+#      - Download:    https://www.python.org/downloads/windows/
+# ==============================================================================
+---
+win_workman_python311_schema:
+  name: Python 3.11
+  package:
+    setup_file: python-3.11.9-amd64.exe
+    version: "3.11.9150.0"
+    provider: registry
+    searchName: "Python 3.11.9 (64-bit)"
+    install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
+    uninstall_args: /quiet
+  files:
+    - filename: python-3.11.9-amd64.exe
+      url: https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
+      checksum: sha256:5ee42c4eee1e6b4464bb23722f90b45303f79442df63083f05322f1785f5fdde
+  cleanup_paths:
+    - '%ProgramFiles%\Python311'
+    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.11'
+    - '%Public%\Desktop\Python 3.11 (64-bit).lnk'
+    - '%Public%\Desktop\IDLE (Python 3.11 64-bit).lnk'
+  shortcuts:
+    - description: "Launches the Python 3.11 interpreter"
+      src: '%ProgramFiles%\Python311\python.exe'
+      dest: '%Public%\Desktop\Python 3.11 (64-bit).lnk'
+      icon: '%ProgramFiles%\Python311\python.exe,0'
+      directory: '%ProgramFiles%\Python311'
+    - description: "Launches IDLE, the interactive environment for Python 3.11"
+      src: '%ProgramFiles%\Python311\pythonw.exe'
+      arguments: '"%ProgramFiles%\Python311\Lib\idlelib\idle.pyw"'
+      dest: '%Public%\Desktop\IDLE (Python 3.11 64-bit).lnk'
+      icon: '%SystemRoot%\Installer\{57AC2A86-EC99-4E9C-9FF9-15DAA88D1FAE}\idle.exe,0'
+      directory: '%ProgramFiles%\Python311'
+
+win_workman_schema_role_name: lineadicomando.win_workman.python311
+win_workman_schema_dir: python311

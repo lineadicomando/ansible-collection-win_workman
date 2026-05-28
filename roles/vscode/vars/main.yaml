@@ -1,0 +1,40 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Visual Studio Code
+#      - Homepage:    https://code.visualstudio.com/
+#      - Download:    https://code.visualstudio.com/Download
+# ==============================================================================
+---
+win_workman_vscode_shortcuts_schema:
+  - description: "Visual Studio Code"
+    src: "%ProgramFiles%\\Microsoft VS Code\\Code.exe"
+    arguments: ""
+    dest: '%Public%\Desktop\Visual Studio Code.lnk'
+    icon: "%ProgramFiles%\\Microsoft VS Code\\Code.exe,0"
+    directory: "%ProgramFiles%\\Microsoft VS Code"
+
+win_workman_vscode_schema:
+  name: Visual Studio Code
+  package:
+    setup_file: VSCodeSetup-x64-1.121.0.exe
+    searchName: "Microsoft Visual Studio Code"
+    version: "1.121.0"
+    install_args:
+      - /VERYSILENT
+      - /TASKS=desktopicon,addtopath
+      - /MERGETASKS=!runcode
+    uninstall_args:
+      - /VERYSILENT
+  files:
+    - filename: VSCodeSetup-x64-1.121.0.exe
+      url: https://vscode.download.prss.microsoft.com/dbazure/download/stable/f6cfa2ea2403534de03f069bdf160d06451ed282/VSCodeSetup-x64-1.121.0.exe
+      checksum: sha256:6a8e538085d5fcc5e1b5befb97f55a129d353c37246231cd61cfb0707ad19d09
+  shortcuts: >-
+    {{
+      win_workman_vscode_shortcuts_schema if (
+        win_workman_vscode_shortcuts | bool | default(false)
+      ) else []
+    }}
+
+win_workman_schema_role_name: lineadicomando.win_workman.vscode
+win_workman_schema_dir: vscode

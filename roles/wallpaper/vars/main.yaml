@@ -1,0 +1,68 @@
+---
+win_workman_wallpaper_schema:
+  name: Set Wallpaper
+
+win_workman_schema_role_name: lineadicomando.win_workman.wallpaper
+win_workman_schema_dir: wallpaper
+
+win_workman_wallpaper_registry_entries_set:
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: Wallpaper
+    data: "{{ win_workman_wallpaper_path }}"
+    type: string
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: WallpaperStyle
+    data: "{{ win_workman_wallpaper_set_style }}"
+    type: string
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: TileWallpaper
+    data: "{{ win_workman_wallpaper_set_tile }}"
+    type: string
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers
+    name: BackgroundType
+    data: 0
+    type: dword
+win_workman_wallpaper_registry_entries_lock:
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop
+    name: NoChangingWallPaper
+    data: 1
+    type: dword
+
+win_workman_wallpaper_registry_entries_reset:
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: Wallpaper
+    data: "{{ win_workman_wallpaper_default_path }}"
+    type: string
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: WallpaperStyle
+    data: "{{ win_workman_wallpaper_default_style }}"
+    type: string
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: TileWallpaper
+    data: "{{ win_workman_wallpaper_default_tile }}"
+    type: string
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers
+    name: BackgroundType
+    data: 0
+    type: dword
+win_workman_wallpaper_registry_entries_unlock:
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\System
+    name: Wallpaper
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\System
+    name: WallpaperStyle
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop
+    name: NoChangingWallPaper
+win_workman_wallpaper_registry_entries_clear_history:
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers
+    name: BackgroundHistoryPath0
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers
+    name: BackgroundHistoryPath1
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers
+    name: BackgroundHistoryPath2
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers
+    name: BackgroundHistoryPath3
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers
+    name: BackgroundHistoryPath4
+win_workman_wallpaper_cache_paths:
+  - AppData\Roaming\Microsoft\Windows\Themes\TranscodedWallpaper
+  - AppData\Roaming\Microsoft\Windows\Themes\CachedFiles

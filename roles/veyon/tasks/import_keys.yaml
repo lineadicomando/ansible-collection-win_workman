@@ -1,0 +1,120 @@
+---
+- name: Resolve veyon-cli path
+  ansible.windows.win_powershell:
+    script: |
+      $cli = "{{ win_workman_veyon_cli_path | default('', true) | trim }}"
+      if (-not $cli) {
+        $found = Get-Command 'veyon-cli.exe', 'veyon-cli' -ErrorAction SilentlyContinue |
+                 Select-Object -First 1
+        if ($found) { $cli = $found.Source }
+      }
+      foreach ($c in "$env:ProgramFiles\Veyon\veyon-cli.exe",
+                     "${env:ProgramFiles(x86)}\Veyon\veyon-cli.exe") {
+        if (-not $cli -and (Test-Path -LiteralPath $c)) { $cli = $c; break }
+      }
+      if (-not $cli) { throw "veyon-cli not found. Set win_workman_veyon_cli_path." }
+      $Ansible.Result = @{ path = $cli }
+      $Ansible.Changed = $false
+  register: win_workman_veyon_cli_resolved
+
+- name: Compute staged key fingerprint on controller
+  ansible.builtin.shell:
+    cmd: >-
+      openssl pkey {{ '-pubin' if not (win_workman_veyon_master | bool) else '' }}
+      -in {{ win_workman_veyon_keypairs_dir }}/{{ 'private' if (win_workman_veyon_master | bool) else 'public' }}/key.pem
+      -pubout -outform DER |
+      openssl dgst -sha256 -hex
+  delegate_to: localhost
+  changed_when: false
+  register: win_workman_veyon_staged_fp_result
+  no_log: "{{ win_workman_veyon_no_log | bool }}"
+
+- name: Export installed Veyon key for comparison
+  ansible.windows.win_powershell:
+    script: |
+      $veyonCli   = "{{ win_workman_veyon_cli_resolved.result.path }}"
+      $kind       = "{{ 'private' if (win_workman_veyon_master | bool) else 'public' }}"
+      $ref        = "{{ win_workman_veyon_keypairs_dir | basename }}/$kind"
+      $exportPath = "{{ win_workman_veyon_remote_key_dir }}\check_key.pem"
+      Remove-Item -LiteralPath $exportPath -Force -ErrorAction SilentlyContinue
+      $global:LASTEXITCODE = 0
+      & $veyonCli authkeys export $ref $exportPath 2>&1 | Out-Null
+      $Ansible.Changed = $false
+      $Ansible.Result = @{
+        exported = ($LASTEXITCODE -eq 0) -and (Test-Path -LiteralPath $exportPath)
+        path     = $exportPath
+      }
+  register: win_workman_veyon_export_result
+
+- name: Slurp installed key for fingerprint comparison
+  ansible.builtin.slurp:
+    src: "{{ win_workman_veyon_export_result.result.path }}"
+  register: win_workman_veyon_exported_key_slurp
+  when: win_workman_veyon_export_result.result.exported
+  no_log: "{{ win_workman_veyon_no_log | bool }}"
+
+- name: Write installed key to temp file on controller
+  ansible.builtin.copy:
+    content: "{{ win_workman_veyon_exported_key_slurp.content | b64decode }}"
+    dest: "/tmp/veyon_check_{{ inventory_hostname }}.pem"
+    mode: "0600"
+  delegate_to: localhost
+  when: win_workman_veyon_export_result.result.exported
+  no_log: "{{ win_workman_veyon_no_log | bool }}"
+
+- name: Compute installed key fingerprint on controller
+  ansible.builtin.shell:
+    cmd: >-
+      openssl pkey {{ '-pubin' if not (win_workman_veyon_master | bool) else '' }}
+      -in /tmp/veyon_check_{{ inventory_hostname }}.pem
+      -pubout -outform DER |
+      openssl dgst -sha256 -hex
+  delegate_to: localhost
+  changed_when: false
+  register: win_workman_veyon_installed_fp_result
+  when: win_workman_veyon_export_result.result.exported
+  no_log: "{{ win_workman_veyon_no_log | bool }}"
+
+- name: Remove temp installed key file from controller
+  ansible.builtin.file:
+    path: "/tmp/veyon_check_{{ inventory_hostname }}.pem"
+    state: absent
+  delegate_to: localhost
+  when: win_workman_veyon_export_result.result.exported
+
+- name: Set import needed flag
+  ansible.builtin.set_fact:
+    win_workman_veyon_import_needed: >-
+      {{
+        (not win_workman_veyon_export_result.result.exported)
+        or
+        (
+          (win_workman_veyon_staged_fp_result.stdout | regex_search('[0-9a-f]{64}') | default(''))
+          !=
+          (win_workman_veyon_installed_fp_result.stdout | default('') | regex_search('[0-9a-f]{64}') | default(''))
+        )
+      }}
+
+- name: Delete existing Veyon key if mismatched
+  ansible.windows.win_powershell:
+    script: |
+      $veyonCli = "{{ win_workman_veyon_cli_resolved.result.path }}"
+      $ref      = "{{ win_workman_veyon_keypairs_dir | basename }}/{{ 'private' if (win_workman_veyon_master | bool) else 'public' }}"
+      $out = (& $veyonCli authkeys delete $ref 2>&1 | Out-String).Trim()
+      if ($LASTEXITCODE -ne 0) { throw "Delete failed for '$ref': $out" }
+  when:
+    - win_workman_veyon_import_needed | bool
+    - win_workman_veyon_export_result.result.exported
+
+- name: Import Veyon key
+  ansible.windows.win_powershell:
+    script: |
+      $veyonCli   = "{{ win_workman_veyon_cli_resolved.result.path }}"
+      $kind       = "{{ 'private' if (win_workman_veyon_master | bool) else 'public' }}"
+      $ref        = "{{ win_workman_veyon_keypairs_dir | basename }}/$kind"
+      $stagedPath = "{{ win_workman_veyon_remote_key_dir }}\${kind}_key.pem"
+      $out = (& $veyonCli authkeys import $ref $stagedPath 2>&1 | Out-String).Trim()
+      if ($LASTEXITCODE -ne 0) { throw "Import failed for '$ref': $out" }
+  when: win_workman_veyon_import_needed | bool
+  no_log: "{{ win_workman_veyon_no_log | bool }}"
+  notify: Restart Veyon Service

@@ -1,0 +1,9 @@
+---
+- name: Remove staged Veyon key material
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ win_workman_veyon_remote_key_dir }}\\public_key.pem"
+    - "{{ win_workman_veyon_remote_key_dir }}\\private_key.pem"
+    - "{{ win_workman_veyon_remote_key_dir }}\\check_key.pem"

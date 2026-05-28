@@ -1,0 +1,40 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Python 3.13
+#      - Homepage:    https://www.python.org/
+#      - Download:    https://www.python.org/downloads/windows/
+# ==============================================================================
+---
+win_workman_python313_schema:
+  name: Python 3.13
+  package:
+    setup_file: python-3.13.9-amd64.exe
+    version: "3.13.9150.0"
+    provider: registry
+    searchName: "Python 3.13.9 (64-bit)"
+    install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
+    uninstall_args: /quiet
+  files:
+    - filename: python-3.13.9-amd64.exe
+      url: https://www.python.org/ftp/python/3.13.9/python-3.13.9-amd64.exe
+      checksum: sha256:200ddff856bbff949d2cc1be42e8807c07538abd6b6966d5113a094cf628c5c5
+  cleanup_paths:
+    - '%ProgramFiles%\Python313'
+    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.13'
+    - '%Public%\Desktop\Python 3.13 (64-bit).lnk'
+    - '%Public%\Desktop\IDLE (Python 3.13 64-bit).lnk'
+  shortcuts:
+    - description: "Launches the Python 3.13 interpreter"
+      src: '%ProgramFiles%\Python313\python.exe'
+      dest: '%Public%\Desktop\Python 3.13 (64-bit).lnk'
+      icon: '%ProgramFiles%\Python313\python.exe,0'
+      directory: '%ProgramFiles%\Python313'
+    - description: "Launches IDLE, the interactive environment for Python 3.13"
+      src: '%ProgramFiles%\Python313\pythonw.exe'
+      arguments: '"%ProgramFiles%\Python313\Lib\idlelib\idle.pyw"'
+      dest: '%Public%\Desktop\IDLE (Python 3.13 64-bit).lnk'
+      icon: '%SystemRoot%\Installer\{85983D54-E692-4397-8263-7B2EE696AD19}\idle.exe,0'
+      directory: '%ProgramFiles%\Python313'
+
+win_workman_schema_role_name: lineadicomando.win_workman.python313
+win_workman_schema_dir: python313

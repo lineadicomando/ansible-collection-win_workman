@@ -1,0 +1,5 @@
+---
+- name: Remove SEB client settings file
+  ansible.windows.win_file:
+    path: '{{ win_workman_seb_client_settings_dest }}'
+    state: absent

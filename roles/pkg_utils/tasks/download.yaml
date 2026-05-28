@@ -1,0 +1,64 @@
+---
+- name: Storage directory
+  ansible.builtin.file:
+    path: "{{ win_workman_storage_path }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  run_once: true
+
+- name: Set download files list
+  ansible.builtin.set_fact:
+    win_workman_downloads: "{{ win_workman_schema.files }}"
+  when:
+    - win_workman_schema.files is defined
+
+- name: Download file
+  ansible.builtin.get_url:
+    url: "{{ win_workman_download_item.url }}"
+    dest: "{{ win_workman_storage_path }}/{{ win_workman_download_item.filename }}"
+    checksum: "{{ win_workman_download_item.checksum | default(omit, true) }}"
+    mode: "0664"
+    validate_certs: "{{ win_workman_download_item.validate_certs | default(true) }}"
+  retries: 3
+  delay: 5
+  register: _win_workman_download_result
+  until: _win_workman_download_result is succeeded
+  when:
+    - win_workman_download_item.url is defined
+    - win_workman_schema.files is defined
+  loop: "{{ win_workman_downloads }}"
+  loop_control:
+    label: "{{ win_workman_download_item.filename }}"
+    loop_var: win_workman_download_item
+  delegate_to: localhost
+  run_once: true
+
+- name: Calculate downloaded file sha256 checksum
+  ansible.builtin.stat:
+    path: "{{ win_workman_storage_path }}/{{ win_workman_download_item.filename }}"
+    checksum_algorithm: sha256
+  when:
+    - win_workman_download_item.url is defined
+    - win_workman_schema.files is defined
+    - win_workman_download_item.checksum is not defined or not win_workman_download_item.checksum
+  loop: "{{ win_workman_downloads }}"
+  loop_control:
+    label: "{{ win_workman_download_item.filename }}"
+    loop_var: win_workman_download_item
+  register: win_workman_download_stats
+  delegate_to: localhost
+  run_once: true
+
+- name: Show downloaded file sha256 checksum
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.win_workman_download_item.filename }} - sha256:{{ item.stat.checksum }}
+  when:
+    - item.stat is defined
+    - item.stat.exists | default(false)
+    - item.stat.checksum is defined
+  loop: "{{ win_workman_download_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.win_workman_download_item.filename }}"
+  run_once: true

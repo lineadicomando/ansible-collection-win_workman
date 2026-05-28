@@ -1,0 +1,27 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        TinyCAD
+#      - Homepage:    https://www.tinycad.net/
+#      - Download:    https://github.com/matt123p/TinyCADv4/releases
+# ==============================================================================
+---
+win_workman_tinycad_schema:
+  name: TinyCAD
+  package:
+    provider: portable
+    portable_dir: TinyCAD
+  files:
+    - filename: TinyCAD.Windows.Setup.4.0.8.exe
+      url: https://github.com/matt123p/TinyCADv4/releases/download/v4.0.8/TinyCAD.Windows.Setup.4.0.8.exe
+      checksum: sha256:22e35bb35c326837e4b4ea22353a20ae8eac93a0941a3bf52194f72fd12cb0e0
+      extract: 7z
+      dest_dir: TinyCAD
+  shortcuts:
+    - description: "TinyCAD"
+      src: "{{ win_workman_portable_path }}\\TinyCAD\\TinyCAD.exe"
+      dest: '%Public%\Desktop\TinyCAD.lnk'
+      icon: "{{ win_workman_portable_path }}\\TinyCAD\\TinyCAD.exe,0"
+      directory: "{{ win_workman_portable_path }}\\TinyCAD\\"
+
+win_workman_schema_role_name: lineadicomando.win_workman.tinycad
+win_workman_schema_dir: tinycad

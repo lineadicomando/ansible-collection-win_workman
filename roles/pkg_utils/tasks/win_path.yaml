@@ -1,0 +1,14 @@
+---
+- name: Windows system PATH
+  ansible.windows.win_path:
+    elements: "{{ win_workman_portable_path }}\\{{ win_workman_schema_path_dir }}"
+    scope: machine
+    state: "{{ win_workman_schema_win_path_state }}"
+  when:
+    - win_workman_schema.package.path_dirs is defined
+    - win_workman_schema.package.path_dirs is not none
+    - win_workman_schema_win_path_state is defined
+  loop: "{{ win_workman_schema.package.path_dirs | default([]) }}"
+  loop_control:
+    loop_var: win_workman_schema_path_dir
+    label: "{{ win_workman_schema_path_dir }}"

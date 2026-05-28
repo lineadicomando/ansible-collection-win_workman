@@ -1,0 +1,7 @@
+---
+- name: Windows Update Unpaused
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: pause_handler
+  vars:
+    win_workman_wu_state: "unpaused"

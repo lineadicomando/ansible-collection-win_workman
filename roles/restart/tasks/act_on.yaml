@@ -1,0 +1,5 @@
+---
+- name: Restart
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: restart

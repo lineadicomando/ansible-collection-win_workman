@@ -1,0 +1,12 @@
+---
+- name: Dispatch action on
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.secure_ssh
+    tasks_from: act_on
+  when: win_workman_action == "on"
+
+- name: Dispatch action off
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.secure_ssh
+    tasks_from: act_off
+  when: win_workman_action == "off"

@@ -1,0 +1,40 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Python 3.10
+#      - Homepage:    https://www.python.org/
+#      - Download:    https://www.python.org/downloads/windows/
+# ==============================================================================
+---
+win_workman_python310_schema:
+  name: Python 3.10
+  package:
+    setup_file: python-3.10.11-amd64.exe
+    version: "3.10.11150.0"
+    provider: registry
+    searchName: "Python 3.10.11 (64-bit)"
+    install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
+    uninstall_args: /quiet
+  files:
+    - filename: python-3.10.11-amd64.exe
+      url: https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe
+      checksum: sha256:d8dede5005564b408ba50317108b765ed9c3c510342a598f9fd42681cbe0648b
+  cleanup_paths:
+    - '%ProgramFiles%\Python310'
+    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.10'
+    - '%Public%\Desktop\Python 3.10 (64-bit).lnk'
+    - '%Public%\Desktop\IDLE (Python 3.10 64-bit).lnk'
+  shortcuts:
+    - description: "Launches the Python 3.10 interpreter"
+      src: '%ProgramFiles%\Python310\python.exe'
+      dest: '%Public%\Desktop\Python 3.10 (64-bit).lnk'
+      icon: '%ProgramFiles%\Python310\python.exe,0'
+      directory: '%ProgramFiles%\Python310'
+    - description: "Launches IDLE, the interactive environment for Python 3.10"
+      src: '%ProgramFiles%\Python310\pythonw.exe'
+      arguments: '"%ProgramFiles%\Python310\Lib\idlelib\idle.pyw"'
+      dest: '%Public%\Desktop\IDLE (Python 3.10 64-bit).lnk'
+      icon: '%SystemRoot%\Installer\{6108D417-E511-4AFC-A24D-7CEE1DC9D3EE}\idle.exe,0'
+      directory: '%ProgramFiles%\Python310'
+
+win_workman_schema_role_name: lineadicomando.win_workman.python310
+win_workman_schema_dir: python310

@@ -1,0 +1,24 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        WinFsp
+#      - Homepage:    https://winfsp.dev/
+#      - Download:    https://winfsp.dev/rel/
+# ==============================================================================
+---
+win_workman_winfsp_schema:
+  name: WinFsp
+  package:
+    setup_file: winfsp-2.1.25156.msi
+    searchName: "WinFsp 2025"
+    version: "2.1.25156"
+  files:
+    - filename: winfsp-2.1.25156.msi
+      url: https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi
+      checksum: sha256:073a70e00f77423e34bed98b86e600def93393ba5822204fac57a29324db9f7a
+  services:
+    - name: VirtioFsSvc
+      start_mode: auto
+      state: started
+
+win_workman_schema_role_name: lineadicomando.win_workman.winfsp
+win_workman_schema_dir: winfsp

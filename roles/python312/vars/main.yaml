@@ -1,0 +1,40 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Python 3.12
+#      - Homepage:    https://www.python.org/
+#      - Download:    https://www.python.org/downloads/windows/
+# ==============================================================================
+---
+win_workman_python312_schema:
+  name: Python 3.12
+  package:
+    setup_file: python-3.12.8-amd64.exe
+    version: "3.12.8150.0"
+    provider: registry
+    searchName: "Python 3.12.8 (64-bit)"
+    install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
+    uninstall_args: /quiet
+  files:
+    - filename: python-3.12.8-amd64.exe
+      url: https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe
+      checksum: sha256:71bd44e6b0e91c17558963557e4cdb80b483de9b0a0a9717f06cf896f95ab598
+  cleanup_paths:
+    - '%ProgramFiles%\Python312'
+    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.12'
+    - '%Public%\Desktop\Python 3.12 (64-bit).lnk'
+    - '%Public%\Desktop\IDLE (Python 3.12 64-bit).lnk'
+  shortcuts:
+    - description: "Launches the Python 3.12 interpreter"
+      src: '%ProgramFiles%\Python312\python.exe'
+      dest: '%Public%\Desktop\Python 3.12 (64-bit).lnk'
+      icon: '%ProgramFiles%\Python312\python.exe,0'
+      directory: '%ProgramFiles%\Python312'
+    - description: "Launches IDLE, the interactive environment for Python 3.12"
+      src: '%ProgramFiles%\Python312\pythonw.exe'
+      arguments: '"%ProgramFiles%\Python312\Lib\idlelib\idle.pyw"'
+      dest: '%Public%\Desktop\IDLE (Python 3.12 64-bit).lnk'
+      icon: '%SystemRoot%\Installer\{32492549-34FA-4C4D-9654-B42B10DAE7F3}\idle.exe,0'
+      directory: '%ProgramFiles%\Python312'
+
+win_workman_schema_role_name: lineadicomando.win_workman.python312
+win_workman_schema_dir: python312

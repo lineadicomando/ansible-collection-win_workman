@@ -1,0 +1,24 @@
+---
+- name: Force close Firefox if active
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: kill
+  vars:
+    win_workman_kill_process_name: "firefox"
+    win_workman_kill_force: true
+
+- name: Get SID and localpath of local users
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: profiles
+
+- name: Remove Firefox profile folders
+  ansible.windows.win_file:
+    path: "{{ win_workman_firefox_profile_path }}"
+    state: absent
+  loop: "{{ win_workman_profiles | product(['Local', 'Roaming']) | list }}"
+  vars:
+    win_workman_firefox_profile_path: "{{ win_workman_firefox_data_profile.0.LocalPath }}\\AppData\\{{ win_workman_firefox_data_profile.1 }}\\Mozilla\\Firefox"
+  loop_control:
+    label: "{{ win_workman_firefox_profile_path }}"
+    loop_var: win_workman_firefox_data_profile

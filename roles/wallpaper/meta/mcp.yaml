@@ -1,0 +1,33 @@
+display_name: Wallpaper Management
+custom_actions:
+  - name: on
+    description: Deploy and set the configured wallpaper image
+  - name: off
+    description: Remove the deployed wallpaper and restore Windows default
+  - name: set
+    description: Apply a specific wallpaper profile without reinstalling
+  - name: reset
+    description: Restore the Windows default wallpaper
+  - name: lock
+    description: Prevent users from changing the wallpaper (policy)
+  - name: unlock
+    description: Allow users to change the wallpaper
+  - name: clear_history
+    description: Clear Windows wallpaper history/recents from the registry
+defaults:
+  - var: win_workman_wallpaper_source
+    type: str
+    default: "{{ role_path }}/files/default_wallpaper.png"
+    description: Source image path to deploy as wallpaper
+  - var: win_workman_wallpaper_dir
+    type: str
+    default: "C:\\ProgramData\\Wallpaper"
+    description: Destination directory on the remote host
+  - var: win_workman_wallpaper_set_style
+    type: str
+    default: "10"
+    description: "Wallpaper style: 0=center, 2=stretch, 6=fit, 10=fill, 22=span"
+  - var: win_workman_wallpaper_profiles_include_default
+    type: bool
+    default: true
+    description: Apply wallpaper to the default user profile (new user template)

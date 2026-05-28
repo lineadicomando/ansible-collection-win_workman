@@ -1,0 +1,34 @@
+namespace: lineadicomando
+name: win_workman
+version: 0.1.0
+readme: README.md
+authors:
+  - Alessandro Gagliano <alessandro.gagliano@gmail.com>
+description: >
+  Schema-driven Windows software and system management collection.
+  Provides a dispatcher role and per-software schema roles with download,
+  install/upgrade, and uninstall workflows.
+license:
+  - GPL-3.0-or-later
+tags:
+  - windows
+  - packages
+  - installer
+  - software
+  - msi
+  - winget
+  - chocolatey
+  - education
+repository: https://github.com/lineadicomando/ansible-collection-win_workman
+homepage: https://github.com/lineadicomando/ansible-collection-win_workman
+issues: https://github.com/lineadicomando/ansible-collection-win_workman/issues
+dependencies:
+  ansible.windows: ">=2.0.0"
+  community.windows: ">=2.0.0"
+  community.general: ">=8.0.0"
+build_ignore:
+  - .github
+  - .gitignore
+  - "*.retry"
+  - "**/__pycache__"
+  - "**/*.pyc"

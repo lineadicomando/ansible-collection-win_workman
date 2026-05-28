@@ -1,0 +1,142 @@
+---
+- name: Set root key
+  ansible.builtin.set_fact:
+    win_workman_chrome_policy_path: HKLM:\SOFTWARE\Policies\Google\Chrome
+
+- name: Create the Chrome base policy key
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_chrome_policy_path }}"
+    state: present
+  when: win_workman_chrome_policy_enabled
+
+- name: Create subkeys for data clearing and extension blocking
+  ansible.windows.win_regedit:
+    path: "{{ item }}"
+    state: present
+  loop:
+    - "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+    - "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
+  when: win_workman_chrome_policy_enabled
+
+- name: Set Chrome policy values
+  ansible.windows.win_regedit:
+    path: "{{ item.path }}"
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    # Disable sign-in with a Google account in the browser.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: BrowserSignin
+      type: dword
+      data: 0
+    # Disable profile and data sync.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: SyncDisabled
+      type: dword
+      data: 1
+    # Disable the first run experience.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: HideFirstRunExperience
+      type: dword
+      data: 1
+    # Disable the import wizard at first run.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: ImportAtFirstRun
+      type: dword
+      data: 0
+    # Clear cookies and site data on exit.
+    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+      name: "1"
+      type: string
+      data: cookies_and_other_site_data
+    # Clear cache (images/files) on exit.
+    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+      name: "2"
+      type: string
+      data: cached_images_and_files
+    # Clear browsing history on exit.
+    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+      name: "3"
+      type: string
+      data: browsing_history
+    # Disable password saving.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: PasswordManagerEnabled
+      type: dword
+      data: 0
+    # Disable address autofill.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: AutofillAddressEnabled
+      type: dword
+      data: 0
+    # Disable credit card autofill.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: AutofillCreditCardEnabled
+      type: dword
+      data: 0
+    # Disable optional telemetry.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: MetricsReportingEnabled
+      type: dword
+      data: 0
+    # Disable personalization/diagnostics.
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: PersonalizationReportingEnabled
+      type: dword
+      data: 0
+    # Block installation of all extensions.
+    - path: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
+      name: "1"
+      type: string
+      data: "*"
+  when: win_workman_chrome_policy_enabled
+
+- name: Remove Chrome policy values (restore)
+  ansible.windows.win_regedit:
+    path: "{{ item.path }}"
+    name: "{{ item.name }}"
+    state: absent
+  loop:
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: BrowserSignin
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: SyncDisabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: HideFirstRunExperience
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: ImportAtFirstRun
+    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+      name: "1"
+    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+      name: "2"
+    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+      name: "3"
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: PasswordManagerEnabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: AutofillAddressEnabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: AutofillCreditCardEnabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: MetricsReportingEnabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: PersonalizationReportingEnabled
+    - path: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
+      name: "1"
+  when: not win_workman_chrome_policy_enabled
+
+- name: Remove Chrome policy subkeys (restore)
+  ansible.windows.win_regedit:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+    - "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
+  when: not win_workman_chrome_policy_enabled
+
+- name: Remove the Chrome base policy key (restore)
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_chrome_policy_path }}"
+    state: absent
+  when: not win_workman_chrome_policy_enabled

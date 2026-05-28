@@ -1,0 +1,28 @@
+---
+- name: Set Banner Title
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.lock
+    tasks_from: maint_mode_banner
+  vars:
+    win_workman_mode_state: present
+
+- name: Set display last username
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.lock
+    tasks_from: maint_mode_display_last_username
+  vars:
+    win_workman_mode_state: present
+
+- name: Set Se Interactive Logon Rights
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.lock
+    tasks_from: maint_mode_se_logon
+  vars:
+    win_workman_mode_state: present
+
+- name: Force logoff interactive sessions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: logoff
+  when:
+    - win_workman_mode_force_logoff | bool

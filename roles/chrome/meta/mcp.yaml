@@ -1,0 +1,20 @@
+display_name: Google Chrome
+custom_actions:
+  - name: privacy
+    description: Clear user data (history, cache, cookies) for all Chrome profiles
+  - name: rm
+    description: Remove the Chrome profile directory for a specific user
+defaults:
+  - var: win_workman_chrome_shortcuts
+    type: bool
+    default: false
+    description: Create shortcuts on Desktop and Start Menu
+  - var: win_workman_chrome_shortcut_url
+    type: str
+    default: ""
+    description: Default URL to open; empty means default new tab
+  - var: win_workman_chrome_shortcut_no_first_run
+    type: bool
+    default: true
+    description: Pass --no-first-run --no-default-browser-check flags to shortcut
+notes: "Accepts '32bit' task argument. Closes running Chrome before install/uninstall."

@@ -1,0 +1,31 @@
+---
+- name: Get SID and localpath of local users
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: profiles
+  vars:
+    win_workman_profiles_include_default: "{{ win_workman_wallpaper_profiles_include_default }}"
+
+- name: Build wallpaper target profiles list
+  ansible.builtin.set_fact:
+    win_workman_wallpaper_profiles_target: >-
+      {{
+        (win_workman_profiles | default([]))
+        | selectattr('Loaded', 'equalto', false)
+        | selectattr('HiveExists', 'equalto', true)
+        | list
+      }}
+    win_workman_wallpaper_profiles_skipped_logged: >-
+      {{
+        (win_workman_profiles | default([]))
+        | selectattr('Loaded', 'equalto', true)
+        | list
+      }}
+
+- name: Warn about profiles skipped because they are currently logged in
+  ansible.builtin.debug:
+    msg: "Skipped (user logged in): {{ item.LocalPath }}"
+  loop: "{{ win_workman_wallpaper_profiles_skipped_logged }}"
+  loop_control:
+    label: "{{ item.LocalPath }}"
+  when: win_workman_wallpaper_profiles_skipped_logged | length > 0

@@ -1,0 +1,94 @@
+---
+- name: Chkdsk
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [Parameter(Mandatory = $false)]
+        [ValidatePattern('^[A-Za-z]$')]
+        [string]$DriveLetter = "C"
+      )
+
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+
+      $psi = New-Object System.Diagnostics.ProcessStartInfo
+      $psi.FileName = "chkdsk.exe"
+      $psi.Arguments = "$DriveLetter`: /scan"
+      $psi.RedirectStandardOutput = $true
+      $psi.RedirectStandardError  = $true
+      $psi.UseShellExecute = $false
+      $psi.CreateNoWindow = $true
+      $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::UTF8
+      $psi.StandardErrorEncoding  = [System.Text.UTF8Encoding]::UTF8
+
+      $process = New-Object System.Diagnostics.Process
+
+      try {
+        $process.StartInfo = $psi
+        $process.Start() | Out-Null
+        $stdOut = $process.StandardOutput.ReadToEnd()
+        $stdErr = $process.StandardError.ReadToEnd()
+        $exitCode = $process.ExitCode
+
+        $resultMap = @{
+          0 = "OK"
+          1 = "FIXED"
+          2 = "UNRESOLVED"
+          3 = "UNRESOLVED"
+        }
+        $resultType = $resultMap[$exitCode]
+        if (-not $resultType) { $resultType = "UNKNOWN" }
+
+        switch ($resultType) {
+          "OK" {
+            $Ansible.Changed = $false
+            $Ansible.Failed  = $false
+          }
+          "FIXED" {
+            $Ansible.Changed = $true
+          }
+          "UNRESOLVED" {
+            $Ansible.Failed  = $true
+          }
+          default {
+            $Ansible.Failed  = $true
+          }
+        }
+
+        $lines = ($stdOut -split "`n") | Where-Object {
+          $_ -and
+          ($_ -notmatch '\d')
+        }
+        $cleanStdOut = ($lines -join " - ") -replace '-', '' -replace '\s{2,}', ' '
+
+        $Ansible.Result = @{
+          ExitCode = $exitCode
+          Drive    = "$DriveLetter`:"
+          StdOut   = $cleanStdOut
+          StdErr   = $stdErr
+        }
+      }
+      catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          Output   = "$($_.Exception.Message)"
+          ExitCode = -1
+          Drive    = "$DriveLetter`:"
+          StdOut   = ""
+          StdErr   = ""
+        }
+        return
+      }
+    parameters:
+      DriveLetter: "{{ win_workman_chkdsk_volume }}"
+  loop: "{{ win_workman_chkdsk_volumes }}"
+  loop_control:
+    loop_var: win_workman_chkdsk_volume
+  register: win_workman_chkdsk
+
+- name: Show chkdsk results
+  ansible.builtin.debug:
+    msg: "{{ item.result.Drive }} exit={{ item.result.ExitCode }} | {{ item.result.StdOut | default('no output') }}"
+  loop: "{{ win_workman_chkdsk.results }}"
+  loop_control:
+    label: "{{ item.result.Drive }}"

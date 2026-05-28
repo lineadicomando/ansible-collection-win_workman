@@ -1,0 +1,105 @@
+---
+- name: Force close process if active
+  ansible.windows.win_powershell:
+    parameters:
+      kill_process_names_json: >-
+        {{
+          (
+            win_workman_kill_process_name
+            if (win_workman_kill_process_name is sequence and win_workman_kill_process_name is not string)
+            else [win_workman_kill_process_name]
+          )
+          | to_json
+          if win_workman_kill_process_name is defined
+          else '[]'
+        }}
+      kill_image_names_json: >-
+        {{
+          (
+            win_workman_kill_image_name
+            if (win_workman_kill_image_name is sequence and win_workman_kill_image_name is not string)
+            else [win_workman_kill_image_name]
+          )
+          | to_json
+          if win_workman_kill_image_name is defined
+          else '[]'
+        }}
+      kill_force: "{{ win_workman_kill_force | default(true) }}"
+      kill_user_names_json: >-
+        {{
+          (
+            win_workman_kill_user_name
+            if (win_workman_kill_user_name is sequence and win_workman_kill_user_name is not string)
+            else [win_workman_kill_user_name]
+          )
+          | to_json
+          if win_workman_kill_user_name is defined
+          else '[]'
+        }}
+    script: |
+      param(
+        [string]$kill_process_names_json,
+        [string]$kill_image_names_json,
+        [bool]$kill_force,
+        [string]$kill_user_names_json
+      )
+      $ErrorActionPreference = "Stop"
+      $Ansible.Changed = $false
+
+      $kill_process_names = @()
+      $kill_image_names = @()
+      $kill_user_names = @()
+
+      if ($kill_process_names_json) {
+          $kill_process_names = @(
+              ConvertFrom-Json -InputObject $kill_process_names_json |
+              Where-Object { $_ -and $_.ToString().Trim() }
+          )
+      }
+
+      if ($kill_image_names_json) {
+          $kill_image_names = @(
+              ConvertFrom-Json -InputObject $kill_image_names_json |
+              Where-Object { $_ -and $_.ToString().Trim() }
+          )
+      }
+
+      if ($kill_user_names_json) {
+          $kill_user_names = @(
+              ConvertFrom-Json -InputObject $kill_user_names_json |
+              Where-Object { $_ -and $_.ToString().Trim() } |
+              ForEach-Object { $_.ToString().Trim().ToLowerInvariant() }
+          )
+      }
+
+      if (-not $kill_process_names -and $kill_image_names) {
+          $kill_process_names = @(
+              $kill_image_names | ForEach-Object { $_.ToString() -replace '\.exe$','' }
+          )
+      }
+
+      if (-not $kill_process_names) {
+          throw "kill_process_name or kill_image_name must be provided."
+      }
+
+      foreach ($kill_process_name in ($kill_process_names | Select-Object -Unique)) {
+          $processes = @(Get-Process -Name $kill_process_name -IncludeUserName -ErrorAction SilentlyContinue)
+          if ($kill_user_names) {
+              $processes = @(
+                  $processes | Where-Object {
+                      if (-not $_.UserName) { return $false }
+                      $userValue = $_.UserName.ToString().Trim().ToLowerInvariant()
+                      foreach ($killUser in $kill_user_names) {
+                          if ($userValue -eq $killUser -or $userValue -like "*\$killUser") {
+                              return $true
+                          }
+                      }
+                      return $false
+                  }
+              )
+          }
+          if ($processes) {
+              Stop-Process -InputObject $processes -Force:$kill_force
+              $Ansible.Changed = $true
+          }
+      }

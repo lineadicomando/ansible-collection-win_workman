@@ -1,0 +1,33 @@
+---
+- name: Force close Chrome if active
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: kill
+  vars:
+    win_workman_kill_process_name: "chrome"
+    win_workman_kill_force: true
+
+- name: Get SID and localpath of local users
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: profiles
+
+- name: Remove Chrome profile folder
+  ansible.windows.win_file:
+    path: "{{ item.LocalPath }}\\AppData\\Local\\Google\\Chrome"
+    state: absent
+  loop_control:
+    label: "{{ item.LocalPath }}\\AppData\\Local\\Google\\Chrome"
+  loop: "{{ win_workman_profiles }}"
+
+- name: Remove profile shortcuts from all desktops
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: shortcut_cleaner
+  vars:
+    win_workman_shortcut_cleaner_path: "{{ item.LocalPath }}\\Desktop\\"
+    win_workman_shortcut_cleaner_target_regex: "chrome\\.exe"
+    win_workman_shortcut_cleaner_arguments_like: "*--profile-directory*"
+  loop_control:
+    label: "{{ item.LocalPath }}\\Desktop\\"
+  loop: "{{ win_workman_profiles }}"

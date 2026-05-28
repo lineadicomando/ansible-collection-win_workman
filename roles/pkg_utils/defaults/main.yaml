@@ -1,0 +1,13 @@
+---
+win_workman_remote_tmp: C:\Windows\Temp\ansible
+win_workman_storage_path: "{{ lookup('env', 'HOME') }}/win_workman_storage"
+win_workman_portable_path: C:\PortableApps
+win_workman_default_lang: "en_US"
+
+win_workman_mode_title: "Maintenance in progress"
+win_workman_mode_text: |
+  The system is currently undergoing maintenance.
+  Contact IT for assistance.
+win_workman_mode_force_logoff: true
+win_workman_restart_timeout: 600
+win_workman_restart: true

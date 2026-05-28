@@ -1,0 +1,52 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Foxit PDF Reader
+#      - Homepage:    https://www.foxit.com/pdf-reader/
+#      - Download:    https://www.foxit.com/pdf-reader/
+# ==============================================================================
+---
+win_workman_foxit_pdf_reader_uninstall_script: |
+  $Ansible.Changed = $false
+  $process = Get-Process -Name "FoxitPDFReader" -ErrorAction SilentlyContinue
+  if ($process) {
+      Stop-Process -InputObject $process -Force:$true
+  }
+  $reg = Get-ItemProperty `
+      "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*", `
+      "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" `
+      -ErrorAction SilentlyContinue |
+      Where-Object { $_.DisplayName -eq "Foxit PDF Reader" } |
+      Select-Object -First 1
+  if ($reg) {
+      $productCode = $reg.PSChildName
+      $p = Start-Process "MsiExec.exe" `
+          -ArgumentList "/X$productCode /quiet /norestart" `
+          -Wait -PassThru
+      if ($p.ExitCode -ne 0) {
+          throw "MsiExec /X failed with exit code $($p.ExitCode)"
+      }
+      $Ansible.Changed = $true
+  }
+
+win_workman_foxit_pdf_reader_schema:
+  name: Foxit PDF Reader
+  package:
+    setup_file: FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
+    searchName: "Foxit PDF Reader"
+    version: "2026.1.1.36485"
+    provider: registry
+    install_args:
+      - /quiet
+    uninstall_args:
+      - /quiet
+    before_uninstall_ps_script: "{{ win_workman_foxit_pdf_reader_uninstall_script }}"
+    cleanup_paths:
+      - '%ProgramFiles%\Foxit Software\Foxit PDF Reader'
+  files:
+    - filename: FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
+      url: https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.1.1/FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
+      checksum: sha256:a730326133337d8b7e49745e014fc4e8309a11f2a631061175cb29c37407b2df
+  shortcuts: []
+
+win_workman_schema_role_name: lineadicomando.win_workman.foxit_pdf_reader
+win_workman_schema_dir: foxit_pdf_reader

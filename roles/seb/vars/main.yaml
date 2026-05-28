@@ -1,0 +1,64 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Safe Exam Browser
+#      - Homepage:    https://safeexambrowser.org
+#      - Download:    https://github.com/SafeExamBrowser/seb-win-refactoring/releases
+# ==============================================================================
+---
+win_workman_seb_arch: >-
+  {{
+    "32bit" if (
+      "32bit" in (win_workman_task_argv | default([]))
+    ) else "64bit"
+  }}
+
+win_workman_seb_program_file:
+  64bit: "%ProgramFiles%"
+  32bit: "%ProgramFiles(x86)%"
+
+win_workman_seb_before_act_ps_script: |
+  $Ansible.Changed = $false
+  $process = Get-Process -Name seb -ErrorAction SilentlyContinue
+  if ($process) {
+      Stop-Process -InputObject $process -Force:$true
+      $Ansible.Changed = $true
+  }
+
+win_workman_seb_setup_filename:
+  64bit: SEB_3.10.1.864_x64_Setup.msi
+  32bit: SEB_3.10.1.864_x86_Setup.msi
+
+win_workman_seb_url:
+  64bit: "https://github.com/SafeExamBrowser/seb-win-refactoring/releases/download/v3.10.1/SEB_3.10.1.864_x64_Setup.msi"
+  32bit: "https://github.com/SafeExamBrowser/seb-win-refactoring/releases/download/v3.10.1/SEB_3.10.1.864_x86_Setup.msi"
+
+win_workman_seb_checksum:
+  64bit: "sha256:bf434e461ec308222677ce4ba1df00f6ce4272af76444b1ad9e82c0bf1112d4e"
+  32bit: "sha256:daa9effc6a8b468d6d398a7c8190905f94ae430a2c51494cd36570e99c96b4b3"
+
+win_workman_seb_shortcuts_schema:
+  - description: "Safe Exam Browser"
+    src: "{{ win_workman_seb_program_file[win_workman_seb_arch] }}\\SafeExamBrowser\\Application\\SafeExamBrowser.exe"
+    dest: '%Public%\Desktop\Safe Exam Browser.lnk'
+    icon: "{{ win_workman_seb_program_file[win_workman_seb_arch] }}\\SafeExamBrowser\\Application\\SafeExamBrowser.exe,0"
+    directory: "{{ win_workman_seb_program_file[win_workman_seb_arch] }}\\SafeExamBrowser\\Application\\"
+
+win_workman_seb_schema:
+  name: "Safe Exam Browser"
+  package:
+    setup_file: "{{ win_workman_seb_setup_filename[win_workman_seb_arch] }}"
+    searchName: "Safe Exam Browser*"
+    version: 3.10.1.864
+    provider: msi
+    before_install_ps_script: "{{ win_workman_seb_before_act_ps_script }}"
+    before_uninstall_ps_script: "{{ win_workman_seb_before_act_ps_script }}"
+  files:
+    - filename: "{{ win_workman_seb_setup_filename[win_workman_seb_arch] }}"
+      url: "{{ win_workman_seb_url[win_workman_seb_arch] }}"
+      checksum: "{{ win_workman_seb_checksum[win_workman_seb_arch] }}"
+  shortcuts: >-
+    {{
+      win_workman_seb_shortcuts_schema if (
+        win_workman_seb_shortcuts | bool | default(false)
+      ) else []
+    }}

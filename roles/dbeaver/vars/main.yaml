@@ -1,0 +1,30 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        DBeaver Community
+#      - Homepage:    https://dbeaver.io
+#      - Download:    https://github.com/dbeaver/dbeaver/releases
+# ==============================================================================
+---
+win_workman_dbeaver_schema:
+  name: DBeaver
+  package:
+    setup_file: dbeaver-ce-26.0.4-windows-x86_64.exe
+    searchName: "DBeaver*"
+    version: 26.0.4
+    provider: registry
+    product_id: DBeaver
+    install_args: "/S /allusers"
+    uninstall_args: "/S"
+  files:
+    - filename: dbeaver-ce-26.0.4-windows-x86_64.exe
+      url: https://github.com/dbeaver/dbeaver/releases/download/26.0.4/dbeaver-ce-26.0.4-windows-x86_64.exe
+      checksum: sha256:62b4c46f8f2ab6040688f5c0b368c553158fca383e38c343e14ed00b4a10d54b
+  shortcuts:
+    - description: "DBeaver"
+      src: '%ProgramFiles%\DBeaver\dbeaver.exe'
+      dest: '%Public%\Desktop\DBeaver.lnk'
+      icon: '%ProgramFiles%\DBeaver\dbeaver.exe,0'
+      directory: '%ProgramFiles%\DBeaver'
+
+win_workman_schema_role_name: lineadicomando.win_workman.dbeaver
+win_workman_schema_dir: dbeaver

@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
+  namespace: lineadicomando
+  role_name: dispatcher
+  description: >
+    Entry point for lineadicomando.win_workman. Parses task strings and dispatches
+    to schema roles.
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.20"
+  platforms:
+    - name: Windows
+collections:
+  - ansible.windows
+  - community.windows
+  - community.general
+allow_duplicates: false
+dependencies: []

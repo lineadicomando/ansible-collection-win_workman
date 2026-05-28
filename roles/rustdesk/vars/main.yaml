@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        RustDesk
+#      - Homepage:    https://rustdesk.com
+#      - Download:    https://github.com/rustdesk/rustdesk/releases
+# ==============================================================================
+---
+win_workman_rustdesk_schema:
+  name: RustDesk
+  package:
+    setup_file: rustdesk-1.4.6-x86_64.msi
+    searchName: "RustDesk"
+    version: "1.4.6"
+    product_id: "detect"
+  files:
+    - filename: rustdesk-1.4.6-x86_64.msi
+      url: https://github.com/rustdesk/rustdesk/releases/download/1.4.6/rustdesk-1.4.6-x86_64.msi
+      checksum: sha256:7aad1f481b2fdf86166d082933071e7e9aaf7efd3666a4204cdc5fd2f42b0e59
+
+win_workman_schema_role_name: lineadicomando.win_workman.rustdesk
+win_workman_schema_dir: rustdesk

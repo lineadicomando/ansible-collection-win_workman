@@ -1,0 +1,10 @@
+display_name: Check Disk (chkdsk)
+custom_actions:
+  - name: on
+    description: Schedule chkdsk on target volumes; runs on next reboot
+defaults:
+  - var: win_workman_chkdsk_volumes
+    type: list
+    default: ["C"]
+    description: Drive letters to schedule chkdsk on
+notes: "chkdsk runs at next reboot; a restart is typically needed after scheduling."

@@ -1,0 +1,27 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        PatchCleaner
+#      - Homepage:    https://sourceforge.net/projects/patchcleaner/
+#      - Download:    https://sourceforge.net/projects/patchcleaner/files/PatchCleaner/
+# ==============================================================================
+---
+win_workman_patchcleaner_schema:
+  name: PatchCleaner
+  package:
+    setup_dir: PatchCleaner
+    setup_file: PatchCleaner.msi
+    provider: msi
+    searchName: "PatchCleaner"
+    version: "1.4.2.0"
+    install_args:
+      - /qn
+      - /norestart
+  files:
+    - filename: PatchCleaner_1.4.2.0.exe
+      url: https://sourceforge.net/projects/patchcleaner/files/PatchCleaner/v1.4.2.0/PatchCleaner_1.4.2.0.exe/download
+      checksum: sha256:6472de894c5cb6050fd80cdd893b8772aef71f8bdb5c65a0175cf7cbb90e6ec6
+      extract: 7z
+      dest_dir: PatchCleaner
+
+win_workman_schema_role_name: lineadicomando.win_workman.patchcleaner
+win_workman_schema_dir: patchcleaner

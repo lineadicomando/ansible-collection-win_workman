@@ -1,0 +1,32 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        MySQL Workbench
+#      - Homepage:    https://www.mysql.com/products/workbench/
+#      - Download:    https://dev.mysql.com/downloads/workbench/
+# ==============================================================================
+---
+win_workman_mysqlworkbench_setupfile: mysql-workbench-community-8.0.47-winx64.msi
+win_workman_mysqlworkbench_url: https://cdn.mysql.com//Downloads/MySQLGUITools/mysql-workbench-community-8.0.47-winx64.msi
+win_workman_mysqlworkbench_checksum: sha256:f7a0f3c811bcec93456184bb252540cbae4ea32f9af2cc910760fccbce6767bd
+
+win_workman_mysql_workbench_schema:
+  name: MySQL Workbench
+  package:
+    setup_file: "{{ win_workman_mysqlworkbench_setupfile }}"
+    searchName: "MySQL Workbench 8.0 CE"
+    version: "8.0.47"
+    provider: msi
+    install_args: "/quiet ALLUSERS=1"
+    uninstall_args: "/quiet"
+  files:
+    - filename: "{{ win_workman_mysqlworkbench_setupfile }}"
+      url: "{{ win_workman_mysqlworkbench_url }}"
+      checksum: "{{ win_workman_mysqlworkbench_checksum | default(omit) }}"
+  shortcuts:
+    - description: "MySQL Workbench 8.0 CE"
+      src: '%ProgramFiles%\MySQL\MySQL Workbench 8.0 CE\MySQLWorkbench.exe'
+      dest: '%Public%\Desktop\MySQL Workbench 8.0 CE.lnk'
+      icon: '%SystemRoot%\Installer\{4B4BE791-7CB2-414A-9800-2868358F03CA}\WBIcon.exe,0'
+      directory: '%ProgramFiles%\MySQL\MySQL Workbench 8.0 CE\'
+win_workman_schema_role_name: lineadicomando.win_workman.mysql_workbench
+win_workman_schema_dir: mysql_workbench

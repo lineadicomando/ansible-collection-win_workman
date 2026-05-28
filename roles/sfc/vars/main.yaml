@@ -1,0 +1,6 @@
+---
+win_workman_sfc_schema:
+  name: Sfc
+
+win_workman_schema_role_name: lineadicomando.win_workman.sfc
+win_workman_schema_dir: sfc

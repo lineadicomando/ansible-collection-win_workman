@@ -1,0 +1,26 @@
+---
+- name: Ensure remote Veyon key staging directory exists
+  ansible.windows.win_file:
+    path: "{{ win_workman_veyon_remote_key_dir }}"
+    state: directory
+
+- name: Stage Veyon public key on Windows target
+  ansible.windows.win_copy:
+    src: "{{ win_workman_veyon_keypairs_dir }}/public/key.pem"
+    dest: "{{ win_workman_veyon_remote_key_dir }}\\public_key.pem"
+  when: not (win_workman_veyon_master | bool)
+
+- name: Read Veyon private key from control node
+  ansible.builtin.slurp:
+    src: "{{ win_workman_veyon_keypairs_dir }}/private/key.pem"
+  delegate_to: localhost
+  register: win_workman_veyon_private_key_slurp
+  no_log: true
+  when: win_workman_veyon_master | bool
+
+- name: Stage Veyon private key on Windows target
+  ansible.windows.win_copy:
+    content: "{{ win_workman_veyon_private_key_slurp.content | b64decode }}"
+    dest: "{{ win_workman_veyon_remote_key_dir }}\\private_key.pem"
+  no_log: true
+  when: win_workman_veyon_master | bool

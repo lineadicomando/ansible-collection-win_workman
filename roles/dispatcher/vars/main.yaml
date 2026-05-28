@@ -1,0 +1,4 @@
+---
+_win_workman_tasks_parsed: >-
+  {{ win_workman_tasks | lineadicomando.win_workman.parse_tasks(win_workman_action_default) }}
+_win_workman_executed: []

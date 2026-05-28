@@ -1,0 +1,218 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Mozilla Firefox
+#      - Homepage:    https://www.firefox.com/
+#      - Download:    https://www.firefox.com/it/download/all/desktop-release/
+# ==============================================================================
+---
+win_workman_firefox_version: "150.0.2"
+
+win_workman_firefox_allowed_langs:
+  - "it"
+  - "ach"
+  - "af"
+  - "sq"
+  - "ar"
+  - "an"
+  - "hy_AM"
+  - "ast"
+  - "az"
+  - "eu"
+  - "be"
+  - "bn"
+  - "bs"
+  - "br"
+  - "bg"
+  - "my"
+  - "ca"
+  - "ca_valencia"
+  - "zh_CN"
+  - "zh_TW"
+  - "hr"
+  - "cs"
+  - "da"
+  - "nl"
+  - "en_GB"
+  - "en_CA"
+  - "en_US"
+  - "eo"
+  - "et"
+  - "fi"
+  - "fr"
+  - "fy_NL"
+  - "fur"
+  - "ff"
+  - "gd"
+  - "gl"
+  - "ka"
+  - "de"
+  - "el"
+  - "gn"
+  - "gu_IN"
+  - "he"
+  - "hi_IN"
+  - "hu"
+  - "is"
+  - "id"
+  - "ia"
+  - "ga_IE"
+  - "ja"
+  - "kab"
+  - "kn"
+  - "cak"
+  - "kk"
+  - "km"
+  - "ko"
+  - "lv"
+  - "lij"
+  - "lt"
+  - "dsb"
+  - "mk"
+  - "ms"
+  - "mr"
+  - "ne_NP"
+  - "nb_NO"
+  - "nn_NO"
+  - "oc"
+  - "fa"
+  - "pl"
+  - "pt_BR"
+  - "pt_PT"
+  - "pa_IN"
+  - "ro"
+  - "rm"
+  - "ru"
+  - "sat"
+  - "skr"
+  - "sc"
+  - "sco"
+  - "sr"
+  - "szl"
+  - "si"
+  - "sk"
+  - "sl"
+  - "son"
+  - "es_AR"
+  - "es_CL"
+  - "es_MX"
+  - "es_ES"
+  - "sv_SE"
+  - "tl"
+  - "tg"
+  - "ta"
+  - "te"
+  - "th"
+  - "trs"
+  - "tr"
+  - "uk"
+  - "hsb"
+  - "ur"
+  - "uz"
+  - "vi"
+  - "cy"
+  - "xh"
+
+win_workman_firefox_windows_lang_map:
+  it-IT: it
+  en-US: en_US
+  en-GB: en_GB
+  en-CA: en_CA
+  pt-BR: pt_BR
+  pt-PT: pt_PT
+  zh-CN: zh_CN
+  zh-TW: zh_TW
+  nb-NO: nb_NO
+  nn-NO: nn_NO
+  ne-NP: ne_NP
+  fy-NL: fy_NL
+  ga-IE: ga_IE
+  gu-IN: gu_IN
+  hi-IN: hi_IN
+  hy-AM: hy_AM
+  pa-IN: pa_IN
+  sv-SE: sv_SE
+  es-AR: es_AR
+  es-CL: es_CL
+  es-MX: es_MX
+  es-ES: es_ES
+  ca-ES-valencia: ca_valencia
+
+win_workman_firefox_before_act_ps_script: |
+  $Ansible.Changed = $false
+  $process = Get-Process -Name firefox -ErrorAction SilentlyContinue
+  if ($process) {
+      Stop-Process -InputObject $process -Force:$true
+      $Ansible.Changed = $true
+  }
+
+win_workman_firefox_shortcut_arguments: >-
+  {{
+    (
+      ("--private-window " if win_workman_firefox_private | bool else "" ) +
+      ("--kiosk " if win_workman_firefox_kiosk | bool else "" ) +
+      win_workman_firefox_shortcut_url
+    ) | trim
+  }}
+
+win_workman_firefox_arch: >-
+  {{
+    "win32" if (
+      "32bit" in (win_workman_task_argv | default([]))
+    ) else "win64"
+  }}
+
+win_workman_schema_role_name: lineadicomando.win_workman.firefox
+win_workman_schema_dir: firefox
+
+win_workman_firefox_lang: >-
+  {{
+    (
+      (win_workman_task_argv | default([]))
+      | select('in', win_workman_firefox_allowed_langs)
+      | list
+      | first
+    ) | default(win_workman_default_lang, true) | replace('_', '-')
+  }}
+
+win_workman_firefox_setup_filename: "Firefox_Setup_{{ win_workman_firefox_version }}_{{ win_workman_firefox_lang }}.exe"
+
+win_workman_firefox_url: "https://download-installer.cdn.mozilla.net/pub/firefox/releases/{{ win_workman_firefox_version }}/{{ win_workman_firefox_arch }}/{{ win_workman_firefox_lang }}/Firefox%20Setup%20{{ win_workman_firefox_version }}.exe"
+
+win_workman_firefox_program_file: >-
+  {{
+    "%ProgramFiles(x86)%" if (win_workman_firefox_arch == "win32") else "%ProgramFiles%"
+  }}
+
+win_workman_firefox_shortcuts_schema:
+  - description: "Firefox"
+    src: "{{ win_workman_firefox_program_file }}\\Mozilla Firefox\\firefox.exe"
+    arguments: "{{ win_workman_firefox_shortcut_arguments }}"
+    dest: "%Public%\\Desktop\\Firefox.lnk"
+    icon: "{{ win_workman_firefox_program_file }}\\Mozilla Firefox\\firefox.exe,0"
+    directory: "{{ win_workman_firefox_program_file }}\\Mozilla Firefox\\"
+  - description: "Firefox"
+    src: "{{ win_workman_firefox_program_file }}\\Mozilla Firefox\\firefox.exe"
+    arguments: "{{ win_workman_firefox_shortcut_arguments }}"
+    dest: "%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\Firefox.lnk"
+    icon: "{{ win_workman_firefox_program_file }}\\Mozilla Firefox\\firefox.exe,0"
+    directory: "{{ win_workman_firefox_program_file }}\\Mozilla Firefox\\"
+
+win_workman_firefox_schema:
+  name: "Mozilla Firefox"
+  package:
+    setup_file: "{{ win_workman_firefox_setup_filename }}"
+    version: "{{ win_workman_firefox_version }}"
+    searchName: "*Mozilla Firefox*"
+    provider: "registry"
+    uninstall_args: "/S"
+    install_args: "/S"
+    uninstall_via_helper: true
+  files:
+    - filename: "{{ win_workman_firefox_setup_filename }}"
+      url: "{{ win_workman_firefox_url }}"
+  shortcuts: >-
+    {{
+      win_workman_firefox_shortcuts_schema if (
+        win_workman_firefox_shortcuts | bool | default(false)
+      ) else []
+    }}

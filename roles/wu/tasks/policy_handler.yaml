@@ -1,0 +1,176 @@
+# Administrative baseline for Windows Update policy state.
+#
+# ------------------------------------------------------------------------------
+# Reference
+# - https://github.com/Aetherinox/pause-windows-updates
+# - https://learn.microsoft.com/en-us/windows/deployment/update/waas-wu-settings
+# - https://learn.microsoft.com/en-us/windows/deployment/update/waas-restart
+# - https://learn.microsoft.com/en-us/windows/deployment/update/waas-configure-wufb
+#
+# Notes
+# - This schema intentionally leaves optional driver delivery at Windows default.
+#   Any legacy ExcludeWUDriversInQualityUpdate values are removed below.
+# ------------------------------------------------------------------------------
+---
+- name: Validate desired Windows Update policy state
+  ansible.builtin.assert:
+    that:
+      - win_workman_wu_policy_state in ['ansible_managed', 'standard']
+    fail_msg: "win_workman_wu_policy_state must be 'ansible_managed' or 'standard'"
+
+- name: Configure Windows Update Medic Service (WaaSMedicSvc) for ansible-managed policy
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    - name: Start
+      type: dword
+      data: 0x00000004
+    - name: FailureActions
+      type: binary
+      data: "{{ win_workman_waas_pause_failure_actions }}"
+  when: win_workman_wu_policy_state == 'ansible_managed'
+  vars:
+    win_workman_waas_pause_failure_actions: "{{ [0] * 44 }}"
+
+# ------------------------------------------------------------------------------
+# WaaSMedicSvc
+# - Start=3: manual/triggered
+# - Start=4: disabled
+# - FailureActions binary:
+#   - ansible_managed -> zeroed actions (no recovery actions configured)
+#   - standard        -> default Windows service recovery policy
+# ------------------------------------------------------------------------------
+- name: Configure Windows Update Medic Service (WaaSMedicSvc) for standard policy
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    - name: Start
+      type: dword
+      data: 0x00000003
+    - name: FailureActions
+      type: binary
+      data:
+        [
+          132, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          3, 0, 0, 0, 20, 0, 0, 0,
+          1, 0, 0, 0, 192, 212, 1, 0,
+          1, 0, 0, 0, 224, 147, 4, 0,
+          0, 0, 0, 0, 0, 0, 0, 0,
+        ]
+  when: win_workman_wu_policy_state == 'standard'
+
+- name: Configure Windows Update Automatic Updates (AU) policy for ansible-managed state
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    - name: AUOptions
+      type: dword
+      data: 0x00000001
+    - name: NoAutoUpdate
+      type: dword
+      data: 0x00000001
+    - name: NoAUShutdownOption
+      type: dword
+      data: 0x00000001
+    - name: AutoInstallMinorUpdates
+      type: dword
+      data: 0x00000000
+    - name: UseWUServer
+      type: dword
+      data: 0x00000000
+  when: win_workman_wu_policy_state == 'ansible_managed'
+
+# ------------------------------------------------------------------------------
+# AU policy keys
+# Ref: https://learn.microsoft.com/en-us/windows/deployment/update/waas-wu-settings
+#
+# AUOptions
+# - 1: automatic updates disabled
+# - 4: auto download + scheduled install
+#
+# NoAutoUpdate
+# - 0: automatic updates enabled
+# - 1: automatic updates disabled
+#
+# NoAUShutdownOption
+# - 0: show "Install updates and shut down"
+# - 1: hide the shutdown update option
+#
+# AutoInstallMinorUpdates
+# - 0: follow normal update schedule
+# - 1: install minor updates immediately
+#
+# UseWUServer
+# - 0: use Microsoft update service
+# - 1: use WSUS (when configured in companion policies)
+#
+# For Windows 11, AlwaysAutoRebootAtScheduledTime is legacy and intentionally not set.
+# ------------------------------------------------------------------------------
+- name: Configure Windows Update Automatic Updates (AU) policy for standard state
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    data: "{{ item.data }}"
+  loop:
+    - name: NoAutoUpdate
+      type: dword
+      data: 0x00000000
+    - name: NoAUShutdownOption
+      type: dword
+      data: 0x00000000
+    - name: AutoInstallMinorUpdates
+      type: dword
+      data: 0x00000001
+    - name: UseWUServer
+      type: dword
+      data: 0x00000000
+  when: win_workman_wu_policy_state == 'standard'
+
+# ------------------------------------------------------------------------------
+# Optional driver updates policy
+# We remove any persisted ExcludeWUDriversInQualityUpdate values to keep
+# Windows default behavior and avoid stale cross-policy state.
+# ------------------------------------------------------------------------------
+- name: Restore optional driver update policy to Windows defaults
+  ansible.windows.win_regedit:
+    path: "{{ item.path }}"
+    name: "{{ item.name }}"
+    state: absent
+  loop:
+    - path: HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Update
+      name: ExcludeWUDriversInQualityUpdate
+    - path: HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\Update
+      name: ExcludeWUDriversInQualityUpdate
+    - path: HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Update\ExcludeWUDriversInQualityUpdate
+      name: value
+    - path: HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings
+      name: ExcludeWUDriversInQualityUpdate
+    - path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate
+      name: ExcludeWUDriversInQualityUpdate
+    - path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU
+      name: ExcludeWUDriversInQualityUpdate
+
+# ------------------------------------------------------------------------------
+# Standard profile defaults
+# AUOptions and NoAutoRebootWithLoggedOnUsers are reset to "Not Configured"
+# (registry value absent) to align with Windows default policy behavior.
+# ------------------------------------------------------------------------------
+- name: Restore AU policy keys to Windows defaults for standard state
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - AUOptions
+    - NoAutoRebootWithLoggedOnUsers
+  when: win_workman_wu_policy_state == 'standard'

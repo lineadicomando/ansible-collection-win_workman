@@ -1,0 +1,14 @@
+display_name: Opera Browser
+defaults:
+  - var: win_workman_opera_shortcuts
+    type: bool
+    default: false
+    description: Create shortcuts on Desktop and Start Menu
+  - var: win_workman_opera_shortcut_url
+    type: str
+    default: ""
+    description: Default URL to open; empty means default new tab
+  - var: win_workman_opera_shortcut_no_first_run
+    type: bool
+    default: true
+    description: Pass --no-first-run flags to shortcut

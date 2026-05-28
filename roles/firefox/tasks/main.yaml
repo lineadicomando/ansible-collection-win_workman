@@ -1,0 +1,28 @@
+---
+- name: Detect Firefox default language from host locale
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_lang
+  vars:
+    win_workman_detect_lang_allowed: "{{ win_workman_firefox_allowed_langs }}"
+    win_workman_detect_lang_map: "{{ win_workman_firefox_windows_lang_map }}"
+
+- name: Dispatch action rm
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.firefox
+    tasks_from: act_rm
+  when: win_workman_action == "rm"
+
+- name: Dispatch action privacy
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.firefox
+    tasks_from: act_privacy
+  when: win_workman_action == "privacy"
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_firefox_schema }}"
+  when: win_workman_action not in ["rm", "privacy"]

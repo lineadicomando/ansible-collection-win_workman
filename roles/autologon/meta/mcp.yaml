@@ -1,0 +1,20 @@
+display_name: Windows Autologon
+custom_actions:
+  - name: on
+    description: Enable automatic logon with specified credentials
+  - name: off
+    description: Disable automatic logon and clear stored credentials
+defaults:
+  - var: win_workman_autologon_user
+    type: str
+    default: "{{ ansible_user }}"
+    description: Username for autologon; defaults to the Ansible connection user
+  - var: win_workman_autologon_password
+    type: str
+    default: "{{ ansible_password }}"
+    description: Password for autologon; defaults to the Ansible connection password
+  - var: win_workman_autologon_restart
+    type: bool
+    default: false
+    description: Restart the host after enabling autologon
+notes: "Credentials are written to the registry (Winlogon). Use vault-encrypted vars for the password."

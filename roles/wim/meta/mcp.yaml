@@ -1,0 +1,9 @@
+display_name: Windows Image (DISM)
+custom_actions:
+  - name: scan
+    description: Scan the component store for corruption (DISM /ScanHealth)
+  - name: check
+    description: Check whether the component store is repairable (DISM /CheckHealth)
+  - name: repair
+    description: Repair the component store using Windows Update (DISM /RestoreHealth)
+notes: "Does not install software. Typical sequence: check → scan → repair."

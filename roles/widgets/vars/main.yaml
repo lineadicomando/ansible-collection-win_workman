@@ -1,0 +1,6 @@
+---
+win_workman_widgets_schema:
+  name: Windows Widgets
+
+win_workman_schema_role_name: lineadicomando.win_workman.widgets
+win_workman_schema_dir: widgets

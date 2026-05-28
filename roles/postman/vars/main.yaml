@@ -1,0 +1,86 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Postman
+#      - Homepage:    https://www.postman.com
+#      - Download:    https://www.postman.com/downloads/
+# ==============================================================================
+---
+win_workman_postman_schema:
+  name: Postman
+  package:
+    provider: portable
+    uninstall_before_upgrade: true
+    after_copy_ps_script: |
+      $ErrorActionPreference = "Stop"
+
+      $destination = Join-Path "{{ win_workman_portable_path }}" "Postman"
+      $sevenZip = "{{ win_workman_remote_tmp }}\7za\7za.exe"
+
+      if (-not (Test-Path $destination -PathType Container)) {
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
+      }
+
+      $packageCandidates = Get-ChildItem `
+        -LiteralPath $destination `
+        -Filter "Postman-*-full.nupkg" `
+        -File `
+        -Recurse `
+        -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+
+      if ($null -eq $packageCandidates -or $packageCandidates.Count -eq 0) {
+        $Ansible.Changed = $false
+        $Ansible.Result = @{
+          package = $null
+          destination = $destination
+          extracted = $false
+          reason = "nupkg_not_found"
+        }
+        return
+      }
+
+      $packagePath = $packageCandidates[0].FullName
+
+      if (-not (Test-Path $sevenZip -PathType Leaf)) {
+        throw "7za.exe not found. Expected path: $sevenZip"
+      }
+
+      $ErrorActionPreference = "Continue"
+      $output = & $sevenZip x -y -o"$destination" -- $packagePath 2>&1
+      $exitCode = $LASTEXITCODE
+      $ErrorActionPreference = "Stop"
+
+      if ($exitCode -ne 0) {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          package = $packagePath
+          destination = $destination
+          sevenzip = $sevenZip
+          exit_code = $exitCode
+          output = ($output | Out-String).Trim()
+        }
+        return
+      }
+
+      $Ansible.Changed = $true
+      $Ansible.Result = @{
+        package = $packagePath
+        destination = $destination
+        sevenzip = $sevenZip
+        exit_code = $exitCode
+        output = ($output | Out-String).Trim()
+      }
+  files:
+    - filename: Postman_64bit.exe
+      url: https://dl.pstmn.io/download/latest/win64
+      extract: 7z
+      dest_dir: Postman
+  shortcuts:
+    - description: "Postman"
+      src: "{{ win_workman_portable_path }}\\Postman\\lib\\net45\\Postman.exe"
+      arguments: ""
+      dest: "%Public%\\Desktop\\Postman.lnk"
+      icon: "{{ win_workman_portable_path }}\\Postman\\lib\\net45\\Postman.exe,0"
+      directory: "{{ win_workman_portable_path }}\\Postman\\"
+
+win_workman_schema_role_name: lineadicomando.win_workman.postman
+win_workman_schema_dir: postman

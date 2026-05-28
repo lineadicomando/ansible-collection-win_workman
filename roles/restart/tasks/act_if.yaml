@@ -1,0 +1,13 @@
+---
+- name: Validate restart-if argument
+  ansible.builtin.assert:
+    that:
+      - win_workman_task_argv[2] is defined
+      - win_workman_task_argv[2] in ['pending']
+    fail_msg: "restart-if requires a condition argument. Supported: pending"
+
+- name: Restart if pending reboot detected
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pending_restart
+  when: win_workman_task_argv[2] == 'pending'

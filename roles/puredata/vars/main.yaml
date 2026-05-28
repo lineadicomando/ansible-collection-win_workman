@@ -1,0 +1,25 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Pure Data
+#      - Homepage:    https://puredata.info/
+#      - Download:    https://puredata.info/downloads/pure-data
+# ==============================================================================
+---
+win_workman_puredata_schema:
+  name: Pure Data
+  package:
+    setup_file: pd-0.56-2.windows-installer.exe
+    searchName: "Pure Data*"
+    version: "0.56-2"
+    uninstall_via_helper: true
+    provider: registry
+    install_args: "/S"
+    uninstall_args: "/S"
+  files:
+    - filename: pd-0.56-2.windows-installer.exe
+      url: https://msp.ucsd.edu/Software/pd-0.56-2.windows-installer.exe
+      checksum: sha256:e61c908b3954ea4fab44bd23851c8a64cb07116e34fb91fa559a08d2d7f5648f
+      validate_certs: false
+
+win_workman_schema_role_name: lineadicomando.win_workman.puredata
+win_workman_schema_dir: puredata

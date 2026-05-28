@@ -1,0 +1,12 @@
+---
+- name: Dispatch action on
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.restart
+    tasks_from: act_on
+  when: win_workman_action == "on"
+
+- name: Dispatch action if
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.restart
+    tasks_from: act_if
+  when: win_workman_action == "if"

@@ -1,0 +1,155 @@
+---
+# Runs an executable as SYSTEM with highest run level via a temporary Scheduled Task.
+# Required vars:
+#   win_workman_system_task_exe   - full path to the executable
+#   win_workman_system_task_name  - unique scheduled task name (cleaned up on exit)
+# Optional vars:
+#   win_workman_system_task_args    - argument string (default: "")
+#   win_workman_system_task_timeout - seconds to wait for completion (default: 180)
+# Result registered as: win_workman_run_as_system_result
+- name: Run command as SYSTEM via Scheduled Task
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$ExePath,
+        [string]$ExeArgs = "",
+        [string]$TaskName,
+        [int]$TimeoutSec = 180
+      )
+
+      $Ansible.Changed = $false
+      $Ansible.Failed = $false
+      $ErrorActionPreference = "Stop"
+
+      $logLines = New-Object System.Collections.Generic.List[string]
+
+      function Add-Info {
+        param([string]$Message)
+        $logLines.Add("[INFO] $Message")
+      }
+
+      function Add-WarnMsg {
+        param([string]$Message)
+        $logLines.Add("[WARN] $Message")
+      }
+
+      function Remove-TaskIfExists {
+        param([string]$Name)
+        $removed = $false
+        try {
+          $existing = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+          if ($existing) {
+            Add-Info "Removing existing scheduled task: $Name"
+            Unregister-ScheduledTask -TaskName $Name -Confirm:$false -ErrorAction Stop | Out-Null
+            $removed = $true
+          }
+        } catch {
+          Add-WarnMsg "Failed to remove existing task '$Name': $($_.Exception.Message)"
+        }
+        return $removed
+      }
+
+      $ExePath = [System.Environment]::ExpandEnvironmentVariables($ExePath)
+
+      $taskRemovedBefore = $false
+      $taskRemovedAfter  = $false
+      $taskRegistered    = $false
+      $taskStarted       = $false
+      $finished          = $false
+      $timeoutReached    = $false
+      $finalLastTaskResult = $null
+      $taskState         = $null
+      $failureMsg        = $null
+
+      try {
+        if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
+          throw "Executable not found: $ExePath"
+        }
+
+        Add-Info "Executable: $ExePath"
+        Add-Info "Arguments:  $ExeArgs"
+
+        $taskRemovedBefore = Remove-TaskIfExists -Name $TaskName
+
+        $action    = New-ScheduledTaskAction -Execute $ExePath -Argument $ExeArgs
+        $trigger   = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(1))
+        $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+        $settings  = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+
+        Add-Info "Registering scheduled task: $TaskName"
+        Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings | Out-Null
+        $taskRegistered = $true
+
+        Add-Info "Starting scheduled task..."
+        Start-ScheduledTask -TaskName $TaskName
+        $taskStarted = $true
+
+        $start = Get-Date
+        while (((Get-Date) - $start).TotalSeconds -lt $TimeoutSec) {
+          Start-Sleep -Seconds 2
+
+          $task = Get-ScheduledTask     -TaskName $TaskName -ErrorAction SilentlyContinue
+          $info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
+
+          if (-not $task -or -not $info) { break }
+
+          $taskState           = [string]$task.State
+          $finalLastTaskResult = [uint32]$info.LastTaskResult
+          Add-Info ("Task state: {0} | LastTaskResult: {1}" -f $taskState, $finalLastTaskResult)
+
+          if ($task.State -notin @("Running", "Queued")) {
+            $finished = $true
+            break
+          }
+        }
+
+        if (-not $finished) {
+          $timeoutReached = $true
+          Add-WarnMsg "Timeout reached while waiting for task completion."
+          throw "Timeout reached while waiting for scheduled task '$TaskName' to complete."
+        }
+
+        $finalInfo = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
+        if ($finalInfo) {
+          $finalLastTaskResult = [uint32]$finalInfo.LastTaskResult
+          Add-Info ("Final LastTaskResult: {0}" -f $finalLastTaskResult)
+        }
+
+        if ($null -ne $finalLastTaskResult -and $finalLastTaskResult -ne 0) {
+          throw "Scheduled task '$TaskName' completed with non-success LastTaskResult: $finalLastTaskResult"
+        }
+
+        $Ansible.Changed = $true
+      } catch {
+        $Ansible.Failed = $true
+        $failureMsg = $_.Exception.Message
+        Add-WarnMsg "Execution failed: $failureMsg"
+      } finally {
+        Add-Info "Removing scheduled task..."
+        $taskRemovedAfter = Remove-TaskIfExists -Name $TaskName
+      }
+
+      Add-Info "Done."
+
+      $Ansible.Result = @{
+        exe_path             = $ExePath
+        exe_args             = $ExeArgs
+        task_name            = $TaskName
+        timeout_seconds      = [int]$TimeoutSec
+        task_registered      = [bool]$taskRegistered
+        task_started         = [bool]$taskStarted
+        task_finished        = [bool]$finished
+        timeout_reached      = [bool]$timeoutReached
+        task_state           = $taskState
+        final_last_task_result = $finalLastTaskResult
+        task_removed_before  = [bool]$taskRemovedBefore
+        task_removed_after   = [bool]$taskRemovedAfter
+        logs                 = @($logLines)
+        message              = $failureMsg
+      }
+    parameters:
+      ExePath:    "{{ win_workman_system_task_exe }}"
+      ExeArgs:    "{{ win_workman_system_task_args | default('') }}"
+      TaskName:   "{{ win_workman_system_task_name }}"
+      TimeoutSec: "{{ win_workman_system_task_timeout | default(180) | int }}"
+  register: win_workman_run_as_system_result

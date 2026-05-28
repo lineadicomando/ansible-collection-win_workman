@@ -1,0 +1,206 @@
+---
+- name: Read saved LegalNoticeCaption exists flag
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Ansible\\WinMaint"
+    win_workman_winreg_name: "LegalNoticeCaptionExists"
+
+- name: Set saved LegalNoticeCaption exists fact
+  ansible.builtin.set_fact:
+    win_workman_banner_caption_restore_exists: "{{ win_workman_registry_read.result.exists | bool }}"
+    win_workman_banner_caption_had_value: >-
+      {{
+        (win_workman_registry_read.result.value | int) if (
+          win_workman_registry_read.result.exists | bool
+        ) else 0
+      }}
+
+- name: Read saved LegalNoticeCaption
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Ansible\\WinMaint"
+    win_workman_winreg_name: "LegalNoticeCaption"
+
+- name: Set saved LegalNoticeCaption fact
+  ansible.builtin.set_fact:
+    win_workman_banner_caption_restore_value: "{{ win_workman_registry_read.result.value if (win_workman_registry_read.result.exists | bool) else '' }}"
+
+- name: Read current LegalNoticeCaption
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+    win_workman_winreg_name: "LegalNoticeCaption"
+
+- name: Set current LegalNoticeCaption fact
+  ansible.builtin.set_fact:
+    win_workman_banner_caption_current_exists: "{{ win_workman_registry_read.result.exists | bool }}"
+    win_workman_banner_caption_current_value: "{{ win_workman_registry_read.result.value if (win_workman_registry_read.result.exists | bool) else '' }}"
+
+- name: Read saved LegalNoticeText exists flag
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Ansible\\WinMaint"
+    win_workman_winreg_name: "LegalNoticeTextExists"
+
+- name: Set saved LegalNoticeText exists fact
+  ansible.builtin.set_fact:
+    win_workman_banner_text_restore_exists: "{{ win_workman_registry_read.result.exists | bool }}"
+    win_workman_banner_text_had_value: >-
+      {{
+        (win_workman_registry_read.result.value | int) if (
+          win_workman_registry_read.result.exists | bool
+        ) else 0
+      }}
+
+- name: Read saved LegalNoticeText
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Ansible\\WinMaint"
+    win_workman_winreg_name: "LegalNoticeText"
+
+- name: Set saved LegalNoticeText fact
+  ansible.builtin.set_fact:
+    win_workman_banner_text_restore_value: "{{ win_workman_registry_read.result.value if (win_workman_registry_read.result.exists | bool) else '' }}"
+
+- name: Read current LegalNoticeText
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: registry_read
+  vars:
+    win_workman_winreg_path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+    win_workman_winreg_name: "LegalNoticeText"
+
+- name: Set current LegalNoticeText fact
+  ansible.builtin.set_fact:
+    win_workman_banner_text_current_exists: "{{ win_workman_registry_read.result.exists | bool }}"
+    win_workman_banner_text_current_value: "{{ win_workman_registry_read.result.value if (win_workman_registry_read.result.exists | bool) else '' }}"
+
+- name: Save LegalNoticeCaption recovery metadata
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: "{{ item.name }}"
+    data: "{{ item.data }}"
+    type: "{{ item.type }}"
+    state: present
+  loop:
+    - name: LegalNoticeCaptionExists
+      data: "{{ 1 if win_workman_banner_caption_current_exists else 0 }}"
+      type: dword
+    - name: LegalNoticeCaption
+      data: "{{ win_workman_banner_caption_current_value }}"
+      type: string
+  when:
+    - win_workman_mode_state == 'present'
+    - not (win_workman_banner_caption_restore_exists | bool)
+
+- name: Save LegalNoticeText recovery metadata
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: "{{ item.name }}"
+    data: "{{ item.data }}"
+    type: "{{ item.type }}"
+    state: present
+  loop:
+    - name: LegalNoticeTextExists
+      data: "{{ 1 if win_workman_banner_text_current_exists else 0 }}"
+      type: dword
+    - name: LegalNoticeText
+      data: "{{ win_workman_banner_text_current_value }}"
+      type: string
+  when:
+    - win_workman_mode_state == 'present'
+    - not (win_workman_banner_text_restore_exists | bool)
+
+- name: Set Banner Title
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeCaption
+    data: "{{ win_workman_mode_title }}"
+    type: string
+    state: present
+  when:
+    - win_workman_mode_state == 'present'
+
+- name: Set Banner Text
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeText
+    data: "{{ win_workman_mode_text }}"
+    type: string
+    state: present
+  when:
+    - win_workman_mode_state == 'present'
+
+- name: Restore LegalNoticeCaption
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeCaption
+    data: "{{ win_workman_banner_caption_restore_value }}"
+    type: string
+    state: present
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_banner_caption_had_value != 0
+
+- name: Remove LegalNoticeCaption
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeCaption
+    state: absent
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_banner_caption_had_value == 0
+
+- name: Restore LegalNoticeText
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeText
+    data: "{{ win_workman_banner_text_restore_value }}"
+    type: string
+    state: present
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_banner_text_had_value != 0
+
+- name: Remove LegalNoticeText
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeText
+    state: absent
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_banner_text_had_value == 0
+
+- name: Remove LegalNoticeCaption recovery metadata
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - LegalNoticeCaptionExists
+    - LegalNoticeCaption
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_banner_caption_restore_exists | bool
+
+- name: Remove LegalNoticeText recovery metadata
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Ansible\WinMaint
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - LegalNoticeTextExists
+    - LegalNoticeText
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_banner_text_restore_exists | bool

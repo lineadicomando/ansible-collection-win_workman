@@ -1,0 +1,2 @@
+display_name: pkg_utils (internal)
+notes: "Internal role. Provides reusable install/uninstall/download tasks consumed by all software roles via include_role tasks_from. Do not use directly."

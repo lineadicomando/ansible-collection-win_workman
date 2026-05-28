@@ -1,0 +1,14 @@
+---
+- name: Validate firefox-privacy argument
+  ansible.builtin.assert:
+    that:
+      - win_workman_task_argv[2] is defined
+      - win_workman_task_argv[2] in ['on', 'off']
+    fail_msg: "firefox-privacy requires an argument. Supported: on, off"
+
+- name: Set firefox privacy policy
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.firefox
+    tasks_from: privacy_handler
+  vars:
+    win_workman_firefox_policy_enabled: "{{ win_workman_task_argv[2] == 'on' }}"

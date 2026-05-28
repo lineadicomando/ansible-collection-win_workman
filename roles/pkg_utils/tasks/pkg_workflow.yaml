@@ -1,0 +1,42 @@
+---
+- name: Run action on
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_on
+  when:
+    - win_workman_action == "on"
+
+- name: Run action off
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_off
+  when:
+    - win_workman_action == "off"
+
+- name: Download only
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_download
+  when:
+    - win_workman_action == "download"
+
+- name: Copy only
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_copy
+  when:
+    - win_workman_action == "copy"
+
+- name: Get package information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_info
+  when:
+    - win_workman_action == "info"
+
+- name: Ensure package is present
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_is_present
+  when:
+    - win_workman_action == "is_present"

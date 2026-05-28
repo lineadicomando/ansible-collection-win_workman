@@ -1,0 +1,5 @@
+---
+- name: Restart Veyon Service
+  ansible.windows.win_service:
+    name: VeyonService
+    state: restarted

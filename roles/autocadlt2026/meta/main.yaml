@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
+  license: GPL-3.0-or-later
+  role_name: autocadlt2026
+  description: "AutoCAD LT 2026 package management (multi-locale)"
+  min_ansible_version: "2.20"
+  platforms:
+    - name: Windows
+      versions:
+        - all
+dependencies:
+  - role: lineadicomando.win_workman.pkg_utils
+allow_duplicates: false

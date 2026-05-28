@@ -1,0 +1,10 @@
+---
+- name: Disable secure SSH configuration
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.secure_ssh
+    tasks_from: secure_ssh_handler
+  vars:
+    win_workman_secure_ssh_manage_authorized_keys: false
+    win_workman_secure_ssh_enable_pubkey_auth: false
+    win_workman_secure_ssh_disable_password_auth: false
+    win_workman_secure_ssh_manage_allow_users: false

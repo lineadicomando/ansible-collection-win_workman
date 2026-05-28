@@ -1,0 +1,21 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Blender
+#      - Homepage:    https://www.blender.org/
+#      - Download:    https://www.blender.org/download/
+# ==============================================================================
+---
+win_workman_blender_schema:
+  name: Blender
+  package:
+    setup_file: blender-5.1.2-windows-x64.msi
+    searchName: "Blender"
+    version: "5.1.2"
+    product_id: "{9CB8CCE7-F0F8-418C-9FA1-B09BEE912FD0}"
+  files:
+    - filename: blender-5.1.2-windows-x64.msi
+      url: https://ftp.halifax.rwth-aachen.de/blender/release/Blender5.1/blender-5.1.2-windows-x64.msi
+      checksum: sha256:7d1bb468057a3ac8fd19809e90544f6064cc215053b7732cc8a1ccc83b651ab5
+
+win_workman_schema_role_name: lineadicomando.win_workman.blender
+win_workman_schema_dir: blender

@@ -1,0 +1,66 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Opera Browser
+#      - Homepage:    https://www.opera.com/
+#      - Download:    https://get.geo.opera.com/pub/opera/desktop/
+# ==============================================================================
+---
+win_workman_opera_version: "131.0.5877.55"
+
+win_workman_opera_before_act_ps_script: |
+  $Ansible.Changed = $false
+  $process = Get-Process -Name opera -ErrorAction SilentlyContinue
+  if ($process) {
+      Stop-Process -InputObject $process -Force:$true
+      $Ansible.Changed = $true
+  }
+
+win_workman_opera_program_file: "%ProgramFiles%"
+
+win_workman_opera_shortcut_arguments: >-
+  {{
+    (
+      ("--disable-search-engine-choice-screen " if win_workman_opera_shortcut_no_first_run | default(false) | bool else "") +
+      ("--no-default-browser-check " if win_workman_opera_shortcut_no_first_run | default(false) | bool else "") +
+      ("--no-first-run " if win_workman_opera_shortcut_no_first_run | default(false) | bool else "") +
+      (win_workman_opera_shortcut_url | default(''))
+    ) | trim
+  }}
+
+win_workman_opera_shortcuts_schema:
+  - description: "Opera"
+    src: "{{ win_workman_opera_program_file }}\\Opera\\opera.exe"
+    arguments: "{{ win_workman_opera_shortcut_arguments }}"
+    dest: "%Public%\\Desktop\\Browser Opera.lnk"
+    icon: "{{ win_workman_opera_program_file }}\\Opera\\opera.exe,0"
+    directory: "{{ win_workman_opera_program_file }}\\Opera\\"
+  - description: "Opera"
+    src: "{{ win_workman_opera_program_file }}\\Opera\\opera.exe"
+    arguments: "{{ win_workman_opera_shortcut_arguments }}"
+    dest: "%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\Browser Opera.lnk"
+    icon: "{{ win_workman_opera_program_file }}\\Opera\\opera.exe,0"
+    directory: "{{ win_workman_opera_program_file }}\\Opera\\"
+
+win_workman_opera_schema:
+  name: Opera Browser
+  package:
+    setup_file: "Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
+    version: "{{ win_workman_opera_version }}"
+    searchName: "Opera Stable*"
+    install_args: "/silent /install /launchopera 0 /setdefaultbrowser 0 /allusers=1"
+    uninstall_args: "/silent /uninstall /allusers=1"
+    before_uninstall_ps_script: "{{ win_workman_opera_before_act_ps_script }}"
+    cleanup_paths:
+      - "{{ win_workman_opera_program_file }}\\Opera"
+  files:
+    - filename: "Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
+      url: "https://download5.operacdn.com/ftp/pub/opera/desktop/{{ win_workman_opera_version }}/win/Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
+  shortcuts: >-
+    {{
+      win_workman_opera_shortcuts_schema if (
+        win_workman_opera_shortcuts | bool | default(false)
+      ) else []
+    }}
+
+win_workman_schema_role_name: lineadicomando.win_workman.opera
+win_workman_schema_dir: opera

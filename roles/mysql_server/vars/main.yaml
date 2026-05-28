@@ -1,0 +1,22 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        MySQL Server
+#      - Homepage:    https://www.mysql.com/
+#      - Download:    https://dev.mysql.com/downloads/mysql/
+# ==============================================================================
+---
+win_workman_mysql_server_schema:
+  name: MySQL Server
+  package:
+    setup_file: mysql-9.7.0-winx64.msi
+    searchName: "MySQL Server 9*"
+    version: "9.7.0"
+    provider: msi
+    uninstall_before_upgrade: true
+  files:
+    - filename: mysql-9.7.0-winx64.msi
+      url: https://cdn.mysql.com//Downloads/MySQL-9.7/mysql-9.7.0-winx64.msi
+      checksum: sha256:1c7c3584eb92405c2ac54b9bfc4f61bbd455ce55229b1af5e10b96939b75e9a7
+
+win_workman_schema_role_name: lineadicomando.win_workman.mysql_server
+win_workman_schema_dir: mysql_server
