@@ -2,7 +2,7 @@
 
 [![GitHub tag](https://img.shields.io/github/v/tag/lineadicomando/ansible-collection-win_workman?label=version)](https://github.com/lineadicomando/ansible-collection-win_workman/tags)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-blue)](./LICENSE)
-[![CI](https://github.com/lineadicomando/ansible-collection-win_workman/actions/workflows/ci.yml/badge.svg)](https://github.com/lineadicomando/ansible-collection-win_workman/actions/workflows/ci.yml)
+[![CI](https://github.com/lineadicomando/ansible-collection-win_workman/actions/workflows/lint.yml/badge.svg)](https://github.com/lineadicomando/ansible-collection-win_workman/actions/workflows/lint.yml)
 [![GitHub issues](https://img.shields.io/github/issues/lineadicomando/ansible-collection-win_workman)](https://github.com/lineadicomando/ansible-collection-win_workman/issues)
 
 
