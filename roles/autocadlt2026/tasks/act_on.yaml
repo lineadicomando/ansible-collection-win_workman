@@ -105,6 +105,7 @@
       param(
         [string]$ExePath,
         [string]$SearchName,
+        [string]$ManifestPath,
         [int]$TimeoutSec
       )
       $Ansible.Changed = $false
@@ -117,39 +118,48 @@
         }
 
         # The ODIS SFX bundle spawns db-bootstrap.exe and waits for it.
-        # db-bootstrap.exe updates ODIS metadata and can block for hours.
-        # We launch without -Wait, poll the registry for installation
-        # completion, then kill db-bootstrap.exe so the SFX can exit cleanly.
+        # db-bootstrap.exe writes ODIS metadata (bundleManifest.xml) needed
+        # by the uninstaller, and can block for hours on network calls.
+        # We launch without -Wait, poll until BOTH the registry entry and
+        # the ODIS bundle manifest are present, then kill db-bootstrap.exe
+        # so the SFX can exit cleanly.
         $proc = Start-Process -FilePath $ExePath -ArgumentList "-q" -PassThru -ErrorAction Stop
 
-        $start = Get-Date
-        $installed = $false
+        $start          = Get-Date
+        $acadInstalled  = $false
+        $manifestReady  = $false
 
         while (((Get-Date) - $start).TotalSeconds -lt $TimeoutSec) {
           Start-Sleep -Seconds 15
 
-          if ($proc.HasExited -and -not $installed) {
+          if ($proc.HasExited -and -not $acadInstalled) {
             if ($proc.ExitCode -notin @(0, $null)) {
               throw "Installer exited with code $($proc.ExitCode) before installation was detected"
             }
           }
 
-          $entry = Get-ItemProperty `
-            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' `
-            -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName -like $SearchName }
+          if (-not $acadInstalled) {
+            $entry = Get-ItemProperty `
+              'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' `
+              -ErrorAction SilentlyContinue |
+              Where-Object { $_.DisplayName -like $SearchName }
+            if ($entry) { $acadInstalled = $true }
+          }
 
-          if ($entry) {
-            $installed = $true
+          if ($acadInstalled -and (Test-Path -LiteralPath $ManifestPath)) {
+            $manifestReady = $true
             break
           }
         }
 
-        if (-not $installed) {
+        if (-not $acadInstalled) {
           throw "AutoCAD installation not detected after ${TimeoutSec}s"
         }
+        if (-not $manifestReady) {
+          throw "ODIS bundle manifest not written after ${TimeoutSec}s ($ManifestPath)"
+        }
 
-        # Installation confirmed — kill db-bootstrap.exe to unblock the SFX
+        # Both registry entry and ODIS manifest present — safe to stop db-bootstrap.exe
         Get-Process -Name 'db-bootstrap' -ErrorAction SilentlyContinue |
           Stop-Process -Force -ErrorAction SilentlyContinue
 
@@ -164,9 +174,10 @@
         $Ansible.Result = @{ msg = $_.Exception.Message }
       }
     parameters:
-      ExePath:    "{{ ansible_remote_tmp }}\\{{ win_workman_autodesk_setup_exe }}"
-      SearchName: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
-      TimeoutSec: 1800
+      ExePath:      "{{ ansible_remote_tmp }}\\{{ win_workman_autodesk_setup_exe }}"
+      SearchName:   "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
+      ManifestPath: "{{ win_workman_autodesk_bundle_manifest_path }}"
+      TimeoutSec:   1800
   when:
     - win_workman_needs_action | bool
     - not win_workman_autocad_stat.stat.exists
