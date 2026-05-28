@@ -1,7 +1,8 @@
+---
 display_name: Microsoft Account (block/unblock)
 custom_actions:
-  - name: on
+  - name: "on"
     description: Allow Microsoft account logon (unblock)
-  - name: off
+  - name: "off"
     description: Block Microsoft account logon via local policy
 notes: "Does not install software; manages a registry/policy setting only."

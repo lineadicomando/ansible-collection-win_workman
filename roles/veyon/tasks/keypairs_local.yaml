@@ -43,6 +43,7 @@
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048
           -out {{ win_workman_veyon_keypairs_dir }}/private/key.pem
       when: win_workman_veyon_keypair_state.stdout == "none"
+      changed_when: true
 
     - name: Generate public key from private key
       ansible.builtin.command:
@@ -52,6 +53,7 @@
           -pubout
           -out {{ win_workman_veyon_keypairs_dir }}/public/key.pem
       when: win_workman_veyon_keypair_state.stdout == "none"
+      changed_when: true
 
     - name: Validate keypair integrity
       ansible.builtin.shell: |

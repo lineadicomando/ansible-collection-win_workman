@@ -1,8 +1,9 @@
+---
 display_name: Secure SSH (OpenSSH hardening)
 custom_actions:
-  - name: on
+  - name: "on"
     description: Apply hardened OpenSSH configuration (pubkey auth, disable password auth)
-  - name: off
+  - name: "off"
     description: Revert SSH configuration to defaults
 defaults:
   - var: win_workman_secure_ssh_manage_authorized_keys

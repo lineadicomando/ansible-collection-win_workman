@@ -1,7 +1,8 @@
+---
 display_name: Windows OOBE
 custom_actions:
-  - name: on
+  - name: "on"
     description: Enable Windows Out-Of-Box Experience (OOBE) flow
-  - name: off
+  - name: "off"
     description: Suppress/skip OOBE on next logon
 notes: "Does not install software; manages registry keys that control the OOBE flow."

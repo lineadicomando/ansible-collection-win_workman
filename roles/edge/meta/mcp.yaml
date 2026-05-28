@@ -1,6 +1,7 @@
+---
 display_name: Microsoft Edge
 custom_actions:
-  - name: off
+  - name: "off"
     description: Remove Microsoft Edge (enterprise uninstall)
   - name: privacy
     description: Clear user data (history, cache, cookies) for all Edge profiles

@@ -1,3 +1,4 @@
+---
 display_name: Safe Exam Browser
 custom_actions:
   - name: deploy

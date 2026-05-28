@@ -1,8 +1,9 @@
+---
 display_name: Windows Autologon
 custom_actions:
-  - name: on
+  - name: "on"
     description: Enable automatic logon with specified credentials
-  - name: off
+  - name: "off"
     description: Disable automatic logon and clear stored credentials
 defaults:
   - var: win_workman_autologon_user

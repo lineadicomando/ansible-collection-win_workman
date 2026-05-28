@@ -1,8 +1,9 @@
+---
 display_name: Workstation Lock (maintenance mode)
 custom_actions:
-  - name: on
+  - name: "on"
     description: Engage maintenance mode — show lock screen, optionally force logoff all users
-  - name: off
+  - name: "off"
     description: Disengage maintenance mode and restore normal logon
 defaults:
   - var: win_workman_mode_title

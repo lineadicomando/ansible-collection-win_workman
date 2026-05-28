@@ -1,8 +1,9 @@
+---
 display_name: Wallpaper Management
 custom_actions:
-  - name: on
+  - name: "on"
     description: Deploy and set the configured wallpaper image
-  - name: off
+  - name: "off"
     description: Remove the deployed wallpaper and restore Windows default
   - name: set
     description: Apply a specific wallpaper profile without reinstalling

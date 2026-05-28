@@ -1,3 +1,4 @@
+---
 display_name: LibreOffice
 custom_actions:
   - name: rm_data

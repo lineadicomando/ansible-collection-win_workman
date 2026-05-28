@@ -87,8 +87,8 @@ win_workman_winrar_windows_lang_map:
   ja-JP: jp
   ko-KR: kr
   mn-MN: mn
-  nb-NO: no
-  nn-NO: no
+  nb-NO: "no"
+  nn-NO: "no"
   fa-IR: prs
   pt-BR: br
   pt-PT: pt

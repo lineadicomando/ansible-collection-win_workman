@@ -1,6 +1,7 @@
+---
 display_name: Disk Optimization
 custom_actions:
-  - name: on
+  - name: "on"
     description: Run disk optimization (TRIM for SSDs, defrag for HDDs) on target volumes
 defaults:
   - var: win_workman_optimize_volumes

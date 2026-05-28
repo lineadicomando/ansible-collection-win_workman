@@ -20,10 +20,12 @@
 - name: Compute staged key fingerprint on controller
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       openssl pkey {{ '-pubin' if not (win_workman_veyon_master | bool) else '' }}
       -in {{ win_workman_veyon_keypairs_dir }}/{{ 'private' if (win_workman_veyon_master | bool) else 'public' }}/key.pem
       -pubout -outform DER |
       openssl dgst -sha256 -hex
+    executable: /bin/bash
   delegate_to: localhost
   changed_when: false
   register: win_workman_veyon_staged_fp_result
@@ -65,10 +67,12 @@
 - name: Compute installed key fingerprint on controller
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       openssl pkey {{ '-pubin' if not (win_workman_veyon_master | bool) else '' }}
       -in /tmp/veyon_check_{{ inventory_hostname }}.pem
       -pubout -outform DER |
       openssl dgst -sha256 -hex
+    executable: /bin/bash
   delegate_to: localhost
   changed_when: false
   register: win_workman_veyon_installed_fp_result

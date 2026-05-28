@@ -32,16 +32,6 @@ regardless of what the task actually does.
 
 ---
 
-## Why not Chocolatey?
-
-Chocolatey is the de-facto standard for Windows package management in Ansible,
-but it depends on an external service: the public feed has rate limits and
-private feeds require a paid subscription. `win_workman` stores installers on
-a path you control (UNC share, local directory, S3 mount) and verifies them via
-checksum — fully air-gap friendly.
-
----
-
 ## Requirements
 
 | Dependency | Version |

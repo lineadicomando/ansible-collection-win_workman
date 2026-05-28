@@ -1,5 +1,6 @@
+---
 display_name: User Logoff
 custom_actions:
-  - name: on
+  - name: "on"
     description: Force logoff of all interactive user sessions
 notes: "Does not install software."

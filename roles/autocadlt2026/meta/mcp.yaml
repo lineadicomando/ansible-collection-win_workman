@@ -1,7 +1,8 @@
+---
 display_name: AutoCAD LT 2026
 custom_actions:
-  - name: on
+  - name: "on"
     description: Install AutoCAD LT 2026
-  - name: off
+  - name: "off"
     description: Uninstall AutoCAD LT 2026
 notes: "Uses explicit on/off actions instead of the standard pkg_utils flow."

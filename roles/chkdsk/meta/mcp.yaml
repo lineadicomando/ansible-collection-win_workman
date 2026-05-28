@@ -1,6 +1,7 @@
+---
 display_name: Check Disk (chkdsk)
 custom_actions:
-  - name: on
+  - name: "on"
     description: Schedule chkdsk on target volumes; runs on next reboot
 defaults:
   - var: win_workman_chkdsk_volumes

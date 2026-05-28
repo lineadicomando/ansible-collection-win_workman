@@ -1,3 +1,4 @@
+---
 display_name: Windows Image (DISM)
 custom_actions:
   - name: scan
