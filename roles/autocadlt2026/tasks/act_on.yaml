@@ -174,10 +174,10 @@
         $Ansible.Result = @{ msg = $_.Exception.Message }
       }
     parameters:
-      ExePath:      "{{ ansible_remote_tmp }}\\{{ win_workman_autodesk_setup_exe }}"
-      SearchName:   "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
+      ExePath: "{{ ansible_remote_tmp }}\\{{ win_workman_autodesk_setup_exe }}"
+      SearchName: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
       ManifestPath: "{{ win_workman_autodesk_bundle_manifest_path }}"
-      TimeoutSec:   1800
+      TimeoutSec: 1800
   when:
     - win_workman_needs_action | bool
     - not win_workman_autocad_stat.stat.exists
