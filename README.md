@@ -76,44 +76,101 @@ ansible-galaxy collection install -r requirements.yml
 ```
 
 Tasks are dash-separated strings: `<schema>[-<action>[-<arg>...]]`.
-The default action is `on` (install). See [Architecture](#architecture) for
-the full syntax.
+When the action token is omitted, each role uses its own default
+(`win_workman_{role}_schema.default_action`); most package roles default to
+`on` (install), `wu` defaults to `run`, `wim` to `check`.
+See [Architecture](#architecture) for the full syntax.
 
 ---
 
 ## Software catalog
 
-Ready-to-use schema roles, grouped by category. All support `on` (install),
-`off` (uninstall), `download`, and `info` actions.
+All catalog roles support the standard package actions: `on` (install), `off` (uninstall),
+`download`, `copy`, `info`, `is_present`. Additional role-specific actions are listed in the
+**Extra actions** column.
 
 ### Browsers
 
 | Role | Software | Extra actions |
 |---|---|---|
-| `chrome` | Google Chrome (Enterprise MSI, 32/64-bit) | `privacy-on`, `privacy-off`, `rm-profile` |
-| `firefox` | Mozilla Firefox (locale-aware) | `privacy-on`, `privacy-off`, `rm-profile` |
-| `edge` | Microsoft Edge (policy only, uninstall not supported) | `privacy-on`, `privacy-off`, `rm-profile` |
+| `chrome` | Google Chrome (Enterprise MSI) | `rm`, `privacy` |
+| `firefox` | Mozilla Firefox (locale-aware) | `rm`, `privacy` |
+| `edge` | Microsoft Edge (uninstall not supported) | `rm`, `privacy` |
 | `brave` | Brave Browser | — |
-| `seb` | Safe Exam Browser (Windows 3.x) | — |
+| `opera` | Opera Browser | — |
+| `vivaldi` | Vivaldi | — |
+| `seb` | Safe Exam Browser 3.x | `deploy`, `undeploy`, `config_key` |
 
 ### Developer tools
 
-`vscode` · `git` · `embarcadero_devcpp` · `orwell_devcpp` · `laragon` · `mysql_server`
-· `mysql_workbench` · `dbeaver` · `postman` · `python310` · `python311` · `python312`
-· `python313` · `python314`
+| Role | Software | Extra actions |
+|---|---|---|
+| `vscode` | Visual Studio Code | — |
+| `git` | Git | — |
+| `embarcadero_devcpp` | Embarcadero Dev-C++ | — |
+| `orwell_devcpp` | Orwell Dev-C++ | — |
+| `laragon` | Laragon | — |
+| `mysql_server` | MySQL Server | — |
+| `mysql_workbench` | MySQL Workbench | — |
+| `dbeaver` | DBeaver | — |
+| `postman` | Postman | — |
+| `netbeans` | Apache NetBeans | — |
+| `python310` | Python 3.10 | — |
+| `python311` | Python 3.11 | — |
+| `python312` | Python 3.12 | — |
+| `python313` | Python 3.13 | — |
+| `python314` | Python 3.14 | — |
 
 ### Graphics, CAD & Multimedia
 
-`gimp` · `inkscape` · `blender` · `sketchup2026` · `autocadlt2026_en` · `autocadlt2026_it`
-· `vlc` · `puredata`
+| Role | Software | Extra actions |
+|---|---|---|
+| `gimp` | GIMP | — |
+| `inkscape` | Inkscape | — |
+| `blender` | Blender | — |
+| `sketchup2026` | SketchUp 2026 | — |
+| `autocadlt2026` | AutoCAD LT 2026 (locale auto-detected) | — |
+| `tinycad` | TinyCAD | — |
+| `vlc` | VLC media player | — |
+| `puredata` | Pure Data | — |
 
 ### Education & Productivity
 
-`geogebra` · `geogebra5` · `libreoffice` · `zoom`
+| Role | Software | Extra actions |
+|---|---|---|
+| `geogebra` | GeoGebra Calculator Suite | — |
+| `geogebra5` | GeoGebra Classic 5 | — |
+| `libreoffice` | LibreOffice | `rm_data` |
+| `zoom` | Zoom | — |
+
+### Documents & Editors
+
+| Role | Software | Extra actions |
+|---|---|---|
+| `adobe_reader_dc` | Adobe Acrobat Reader DC | — |
+| `foxit_pdf_reader` | Foxit PDF Reader | — |
+| `notepadpp` | Notepad++ | — |
+| `winmerge` | WinMerge | — |
 
 ### Utilities & Runtimes
 
-`p7zip` · `windirstat` · `ntop` · `winfsp` · `vcredist14` · `virtiogt` · `nircmd`
+| Role | Software | Extra actions |
+|---|---|---|
+| `p7zip` | 7-Zip | — |
+| `peazip` | PeaZip | — |
+| `winrar` | WinRAR | — |
+| `filezilla` | FileZilla Client | — |
+| `winscp` | WinSCP | — |
+| `putty` | PuTTY | — |
+| `powertoys` | Microsoft PowerToys | — |
+| `rustdesk` | RustDesk | — |
+| `windirstat` | WinDirStat | — |
+| `ntop` | NTop | — |
+| `winfsp` | WinFsp | — |
+| `vcredist14` | Visual C++ Redistributable 14 | — |
+| `virtiogt` | VirtIO Win Guest Tools | — |
+| `nircmd` | NirCmd | — |
+| `patchcleaner` | PatchCleaner | — |
 
 > Contributions to the catalog are welcome. See [how schema roles work](#schema-roles).
 
@@ -129,11 +186,10 @@ dispatcher interface.
 | Role | Actions | Description |
 |---|---|---|
 | `optimize` | `on` | Volume optimisation and TRIM / defrag |
-| `wu` | `on`, `off`, `pause_on`, `pause_off`, `pause_max` | Windows Update control |
-| `wim` | `check`, `scan`, `repair` | DISM component store health |
+| `wu` | `run` *(default)*, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` | Windows Update control |
+| `wim` | `check` *(default)*, `scan`, `repair`, `on` *(alias for `check`)* | DISM component store health |
 | `sfc` | `on` | System File Checker |
 | `chkdsk` | `on` | Check Disk |
-| `patchcleaner` | `on`, `off`, `download` | WinSxS / superseded update cleanup |
 | `oobe` | `on`, `off` | Suppress Out-of-Box Experience prompts |
 | `widgets` | `on`, `off` | Windows 11 Widgets panel (news and interests) |
 | `wallpaper` | `on`, `off`, `set`, `reset`, `lock`, `unlock` | Wallpaper across all user profiles |
@@ -147,7 +203,7 @@ dispatcher interface.
 | `ms_account` | `on`, `off` | Block or allow Microsoft account sign-in |
 | `logoff` | `on` | Force logoff all interactive sessions |
 | `restart` | `on`, `if-pending` | Controlled system restart |
-| `shutdown` | `on` | Controlled system shutdown |
+| `shutdown` | `on`, `wait` | Controlled system shutdown |
 
 ### Network & Security
 
@@ -191,7 +247,8 @@ win_workman_tasks (list of strings)
 | `chrome-off` | `chrome` | `off` | — |
 | `veyon-config-student` | `veyon` | `config` | `student` |
 | `chrome-on-32bit` | `chrome` | `on` | `32bit` |
-| `wu-pause_on` | `wu` | `pause_on` | — |
+| `wu` | `wu` | *(default: `run`)* | — |
+| `wu-pause-14` | `wu` | `pause` | `14` |
 
 ### Schema roles
 
@@ -201,6 +258,7 @@ Each software role exposes a `win_workman_<schema>_schema` variable in
 ```yaml
 win_workman_vscode_schema:
   name: Visual Studio Code
+  default_action: !!str on      # action used when task string has no action token
   package:
     setup_file: VSCodeSetup-x64-1.108.2.exe
     searchName: "Microsoft Visual Studio Code"
@@ -225,7 +283,6 @@ define the schema variable and call `pkg_utils tasks_from: pkg_workflow`.
 | Variable | Default | Description |
 |---|---|---|
 | `win_workman_tasks` | `[]` | List of task strings for the dispatcher |
-| `win_workman_action_default` | `"on"` | Default action when omitted from the task string |
 | `win_workman_storage_path` | `~/win_workman_storage` | Controller-side path for installer storage |
 | `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Temp directory on the Windows target |
 | `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |

@@ -10,6 +10,7 @@ win_workman_laragon_version: "8.5.0.251006"
 
 win_workman_laragon_schema:
   name: Laragon
+  default_action: !!str on
   package:
     setup_file: "laragon-wamp-{{ win_workman_laragon_short_version }}.exe"
     searchName: "Laragon {{ win_workman_laragon_short_version }}"

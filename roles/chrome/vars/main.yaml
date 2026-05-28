@@ -65,6 +65,7 @@ win_workman_chrome_shortcuts_schema:
 
 win_workman_chrome_schema:
   name: Google Chrome
+  default_action: !!str on
   package:
     setup_file: "{{ win_workman_chrome_setup_filename[win_workman_chrome_arch] }}"
     searchName: "Google Chrome"

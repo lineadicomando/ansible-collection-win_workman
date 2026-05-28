@@ -1,6 +1,7 @@
 ---
 win_workman_lock_schema:
   name: Enable/Disable logins for maintenance
+  default_action: !!str on
 
 win_workman_schema_role_name: lineadicomando.win_workman.lock
 win_workman_schema_dir: lock

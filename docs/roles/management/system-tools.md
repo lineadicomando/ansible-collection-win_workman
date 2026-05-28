@@ -70,11 +70,13 @@ health operations.
 
 | Action | Description |
 |---|---|
-| `on` / `check` | Run `DISM /CheckHealth` |
+| `check` *(default)* | Run `DISM /CheckHealth` |
+| `on` | Alias for `check` |
 | `scan` | Run `DISM /ScanHealth` |
 | `repair` | Run `DISM /RestoreHealth` |
 
 No variables. Operations run against the live Windows image (`/Online`).
+Bare `wim` (no action token) defaults to `check`.
 
 > `repair` downloads missing files from Windows Update; the host must have
 > internet access or a local WSUS/WIM source.
@@ -152,6 +154,7 @@ Initiates a controlled system shutdown.
 | Action | Description |
 |---|---|
 | `on` | Shut down the system |
+| `wait` | Shut down the system and wait until the host goes offline; port probed is 22 (SSH), 5985 (WinRM HTTP), or 5986 (WinRM HTTPS) depending on `ansible_connection` and `ansible_winrm_scheme`. `ansible_port` takes precedence when set |
 
 No automatic restart delay — shutdown is immediate.
 

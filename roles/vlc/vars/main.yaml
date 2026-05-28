@@ -7,6 +7,7 @@
 ---
 win_workman_vlc_schema:
   name: VLC for Windows
+  default_action: !!str on
   package:
     setup_file: vlc-3.0.23-win64.exe
     searchName: "VLC media player"

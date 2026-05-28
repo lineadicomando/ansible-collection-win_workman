@@ -7,6 +7,7 @@
 ---
 win_workman_patchcleaner_schema:
   name: PatchCleaner
+  default_action: !!str on
   package:
     setup_dir: PatchCleaner
     setup_file: PatchCleaner.msi

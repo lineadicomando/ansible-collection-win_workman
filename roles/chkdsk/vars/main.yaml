@@ -1,6 +1,7 @@
 ---
 win_workman_chkdsk_schema:
   name: Chkdsk
+  default_action: !!str on
 
 win_workman_schema_role_name: lineadicomando.win_workman.chkdsk
 win_workman_schema_dir: chkdsk

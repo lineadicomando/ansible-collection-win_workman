@@ -15,6 +15,7 @@ Each software role exposes a `win_workman_<schema>_schema` variable in
 ```yaml
 win_workman_<schema>_schema:
   name: "Human-readable name"
+  default_action: !!str on      # action used when task string has no action token
 
   package:
     setup_file: installer.exe       # filename expected in storage/remote_tmp
@@ -46,6 +47,9 @@ For the difference between `registry` and `portable` providers see
 ---
 
 ## Actions (`pkg_workflow`)
+
+`pkg_workflow` validates the action against `win_workman_pkg_actions` and fails
+immediately with a clear error if an unknown action is passed.
 
 | Action | Task file | Description |
 |---|---|---|

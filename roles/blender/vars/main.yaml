@@ -7,6 +7,7 @@
 ---
 win_workman_blender_schema:
   name: Blender
+  default_action: !!str on
   package:
     setup_file: blender-5.1.2-windows-x64.msi
     searchName: "Blender"

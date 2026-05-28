@@ -7,6 +7,7 @@
 ---
 win_workman_orwell_devcpp_schema:
   name: Orwell Dev-Cpp
+  default_action: !!str on
   package:
     setup_file: Dev-Cpp_5.11_TDM-GCC_4.9.2_Setup.exe
     version: "5.11"

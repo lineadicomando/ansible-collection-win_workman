@@ -61,6 +61,7 @@ win_workman_edge_shortcuts_schema:
 
 win_workman_edge_schema:
   name: Microsoft Edge
+  default_action: !!str on
   package:
     setup_file: "{{ win_workman_edge_setup_file[win_workman_edge_arch] }}"
     searchName: "Microsoft Edge"

@@ -7,6 +7,7 @@
 ---
 win_workman_python312_schema:
   name: Python 3.12
+  default_action: !!str on
   package:
     setup_file: python-3.12.8-amd64.exe
     version: "3.12.8150.0"

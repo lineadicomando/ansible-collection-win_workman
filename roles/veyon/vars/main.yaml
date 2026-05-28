@@ -16,6 +16,7 @@ win_workman_veyon_master_args: >-
 
 win_workman_veyon_schema:
   name: Veyon
+  default_action: !!str on
   package:
     setup_file: veyon-4.10.3.0-win64-setup.exe
     searchName: "Veyon"

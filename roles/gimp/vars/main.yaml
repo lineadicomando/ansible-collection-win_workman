@@ -7,6 +7,7 @@
 ---
 win_workman_gimp_schema:
   name: The Gimp 3.2.4
+  default_action: !!str on
   package:
     setup_file: gimp-3.2.4-setup.exe
     install_args:

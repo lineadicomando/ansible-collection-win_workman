@@ -1,0 +1,5 @@
+---
+- name: Delegate action on to check
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wim
+    tasks_from: act_check

@@ -7,6 +7,7 @@
 ---
 win_workman_virtiogt_schema:
   name: VirtIO Win Guest Tools
+  default_action: !!str on
   package:
     setup_file: virtio-win-guest-tools.exe
     searchName: "Virtio-win-guest-tools"

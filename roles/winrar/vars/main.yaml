@@ -199,6 +199,7 @@ win_workman_winrar_shortcuts_schema: >-
 
 win_workman_winrar_schema:
   name: "WinRAR"
+  default_action: !!str on
   package:
     setup_file: "{{ win_workman_winrar_setup_filename }}"
     version: "{{ win_workman_winrar_version }}"

@@ -32,6 +32,7 @@ win_workman_brave_shortcuts_schema:
 
 win_workman_brave_schema:
   name: Brave Browser
+  default_action: !!str on
   package:
     setup_file: "brave_installer-x64.exe"
     searchName: "*Brave*"

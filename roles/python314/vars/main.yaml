@@ -7,6 +7,7 @@
 ---
 win_workman_python314_schema:
   name: Python 3.14
+  default_action: !!str on
   package:
     setup_file: python-3.14.3-amd64.exe
     version: "3.14.3150.0"

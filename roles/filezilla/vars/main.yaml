@@ -7,6 +7,7 @@
 ---
 win_workman_filezilla_schema:
   name: FileZilla Client
+  default_action: !!str on
   package:
     setup_file: FileZilla_3.70.5_win64-setup.exe
     searchName: "FileZilla*"

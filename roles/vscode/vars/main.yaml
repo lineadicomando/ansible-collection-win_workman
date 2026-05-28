@@ -15,6 +15,7 @@ win_workman_vscode_shortcuts_schema:
 
 win_workman_vscode_schema:
   name: Visual Studio Code
+  default_action: !!str on
   package:
     setup_file: VSCodeSetup-x64-1.121.0.exe
     searchName: "Microsoft Visual Studio Code"

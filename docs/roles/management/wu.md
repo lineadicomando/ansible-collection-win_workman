@@ -7,6 +7,8 @@ and inspect or adjust the maximum allowed pause duration.
 
 ## Actions
 
+> **Default action: `run`** — bare `wu` (no action token) runs pending updates.
+
 | Action | Description |
 |---|---|
 | `run` | Search, download, and install available updates; reboots if required |

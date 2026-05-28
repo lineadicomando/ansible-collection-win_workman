@@ -1,6 +1,7 @@
 ---
 win_workman_secure_ssh_schema:
   name: Secure SSH Connection
+  default_action: !!str on
 
 win_workman_schema_role_name: lineadicomando.win_workman.secure_ssh
 win_workman_schema_dir: secure_ssh

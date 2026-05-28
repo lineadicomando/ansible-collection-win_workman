@@ -10,6 +10,7 @@ win_workman_libreoffice_full_version: "26.2.3.2"
 
 win_workman_libreoffice_schema:
   name: LibreOffice
+  default_action: !!str on
   package:
     setup_file: "LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
     searchName: "LibreOffice {{ win_workman_libreoffice_full_version }}"

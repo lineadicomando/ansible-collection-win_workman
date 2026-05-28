@@ -7,6 +7,7 @@
 ---
 win_workman_vcredist14_schema:
   name: VC Redist 14
+  default_action: !!str on
   package:
     setup_file: vc_redist.x64.exe
     searchName: "Microsoft Visual C++*Redistributable*"

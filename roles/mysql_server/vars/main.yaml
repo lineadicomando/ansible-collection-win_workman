@@ -7,6 +7,7 @@
 ---
 win_workman_mysql_server_schema:
   name: MySQL Server
+  default_action: !!str on
   package:
     setup_file: mysql-9.7.0-winx64.msi
     searchName: "MySQL Server 9*"

@@ -7,6 +7,7 @@
 ---
 win_workman_ntop_schema:
   name: NTop
+  default_action: !!str on
   package:
     provider: portable
     path_dirs:

@@ -7,6 +7,7 @@
 ---
 win_workman_notepadpp_schema:
   name: Notepad++
+  default_action: !!str on
   package:
     setup_file: npp.8.9.5.Installer.x64.msi
     provider: msi

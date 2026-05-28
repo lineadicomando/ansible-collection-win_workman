@@ -11,6 +11,7 @@ win_workman_mysqlworkbench_checksum: sha256:f7a0f3c811bcec93456184bb252540cbae4e
 
 win_workman_mysql_workbench_schema:
   name: MySQL Workbench
+  default_action: !!str on
   package:
     setup_file: "{{ win_workman_mysqlworkbench_setupfile }}"
     searchName: "MySQL Workbench 8.0 CE"

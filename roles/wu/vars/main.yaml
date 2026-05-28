@@ -1,6 +1,7 @@
 ---
 win_workman_wu_schema:
   name: Windows Update
+  default_action: "run"
 
 win_workman_schema_role_name: lineadicomando.win_workman.wu
 win_workman_schema_dir: wu

@@ -40,6 +40,7 @@ win_workman_vivaldi_shortcuts_schema:
 
 win_workman_vivaldi_schema:
   name: Vivaldi
+  default_action: !!str on
   package:
     setup_file: "Vivaldi.7.9.3970.67.x64.exe"
     searchName: "Vivaldi"

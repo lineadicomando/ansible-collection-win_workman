@@ -30,6 +30,7 @@ win_workman_7zip_cleanup_paths:
 
 win_workman_p7zip_schema:
   name: "7-Zip 26.00"
+  default_action: !!str on
   package:
     provider: msi
     setup_file: "{{ win_workman_7zip_setup_filename[win_workman_7zip_arch] }}"

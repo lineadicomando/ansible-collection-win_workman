@@ -1,6 +1,7 @@
 ---
 win_workman_shutdown_schema:
   name: Shutdown
+  default_action: !!str on
 
 win_workman_schema_role_name: lineadicomando.win_workman.shutdown
 win_workman_schema_dir: shutdown

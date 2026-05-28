@@ -116,6 +116,7 @@ win_workman_autodesk_web_mobile_guid: "{5BF7551A-09A6-4BDD-AE1E-048104FB478C}"
 
 win_workman_autocadlt2026_schema:
   name: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].schema_name }}"
+  default_action: !!str on
   package:
     searchName: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
   files: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].files }}"

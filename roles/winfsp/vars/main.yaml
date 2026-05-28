@@ -7,6 +7,7 @@
 ---
 win_workman_winfsp_schema:
   name: WinFsp
+  default_action: !!str on
   package:
     setup_file: winfsp-2.1.25156.msi
     searchName: "WinFsp 2025"

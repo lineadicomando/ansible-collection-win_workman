@@ -7,6 +7,7 @@
 ---
 win_workman_dbeaver_schema:
   name: DBeaver
+  default_action: !!str on
   package:
     setup_file: dbeaver-ce-26.0.4-windows-x86_64.exe
     searchName: "DBeaver*"

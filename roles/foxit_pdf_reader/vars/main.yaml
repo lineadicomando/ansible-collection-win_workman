@@ -30,6 +30,7 @@ win_workman_foxit_pdf_reader_uninstall_script: |
 
 win_workman_foxit_pdf_reader_schema:
   name: Foxit PDF Reader
+  default_action: !!str on
   package:
     setup_file: FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
     searchName: "Foxit PDF Reader"

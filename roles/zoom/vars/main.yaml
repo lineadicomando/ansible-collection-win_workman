@@ -7,6 +7,7 @@
 ---
 win_workman_zoom_schema:
   name: Zoom
+  default_action: !!str on
   package:
     setup_file: ZoomInstallerFull64bit.msi
     searchName: "Zoom Workplace (64-bit)"

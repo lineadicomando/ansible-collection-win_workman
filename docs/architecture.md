@@ -37,14 +37,14 @@ win_workman_tasks (list of strings)
 | Token | Position | Description |
 |---|---|---|
 | `schema` | `argv[0]` | Name of the target schema role |
-| `action` | `argv[1]` | Operation to perform (default: `win_workman_action_default`) |
+| `action` | `argv[1]` | Operation to perform; if omitted, the role uses its own `win_workman_{role}_schema.default_action` |
 | `arg1…` | `argv[2+]` | Role-specific arguments (e.g. Veyon mode) |
 
 ### Examples
 
 | Task string | Schema | Action | Args |
 |---|---|---|---|
-| `chrome` | `chrome` | *(default)* | — |
+| `chrome` | `chrome` | *(default: `on`)* | — |
 | `chrome-on` | `chrome` | `on` | — |
 | `chrome-off` | `chrome` | `off` | — |
 | `veyon-on-student` | `veyon` | `on` | `student` |
@@ -60,7 +60,7 @@ The filter produces one dict per task:
 {
   "task":   "veyon-config-teacher",   # original string
   "schema": "veyon",                  # argv[0]
-  "act":    "config",                 # argv[1] or action_default
+  "act":    "config",                 # argv[1], or "" if omitted — default applied at role level
   "argc":   3,                        # len(argv)
   "argv":   ["veyon", "config", "teacher"]
 }
@@ -94,22 +94,22 @@ Some roles extend the standard set with their own actions or support a subset:
 | `firefox` | `on`, `off`, `privacy-on`, `privacy-off`, `rm-profile` |
 | `edge` | `privacy-on`, `privacy-off`, `rm-profile` (uninstall not supported) |
 | `wallpaper` | `set`, `reset`, `lock`, `unlock` |
-| `wu` | `on`, `off`, `pause_on`, `pause_off`, `pause_max` |
+| `wu` | `run` *(default)*, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` |
 | `veyon` | `on`, `off`, `config` |
 | `lock` | `on`, `off` |
 | `autologon` | `on`, `off` |
 | `secure_ssh` | `on`, `off` |
 | `ms_account` | `on`, `off` |
 | `oobe` | `on`, `off` |
-| `seb` | `on`, `off` (schema-based package) |
-| `patchcleaner` | `on`, `off`, `download`, `copy`, `info` (schema-based package) |
+| `seb` | `on`, `off`, `deploy`, `undeploy`, `config_key` |
 | `chkdsk` | `on` |
 | `sfc` | `on` |
 | `logoff` | `on` |
 | `restart` | `on` |
-| `shutdown` | `on` |
+| `shutdown` | `on`, `wait` |
 | `ping` | `on` |
 | `wol` | `on` |
+| `wim` | `check` *(default)*, `scan`, `repair`, `on` *(alias for `check`)* |
 
 ---
 
@@ -170,7 +170,6 @@ These variables are meaningful across the whole collection.
 | Variable | Default | Description |
 |---|---|---|
 | `win_workman_tasks` | `[]` | List of task strings for the dispatcher |
-| `win_workman_action_default` | `"on"` | Fallback action when a task string has no action token |
 | `win_workman_storage_path` | `~/win_workman_storage` | Path (controller-side) where installers are stored |
 | `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Temp directory on the Windows target |
 | `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |

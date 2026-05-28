@@ -7,6 +7,7 @@
 ---
 win_workman_postman_schema:
   name: Postman
+  default_action: !!str on
   package:
     provider: portable
     uninstall_before_upgrade: true

@@ -7,6 +7,7 @@
 ---
 win_workman_windirstat_schema:
   name: WinDirStat
+  default_action: !!str on
   package:
     setup_file: WinDirStat-x64.msi
     provider: msi

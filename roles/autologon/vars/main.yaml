@@ -1,6 +1,7 @@
 ---
 win_workman_autologon_schema:
   name: Auto Logon
+  default_action: !!str on
 
 win_workman_schema_role_name: lineadicomando.win_workman.autologon
 win_workman_schema_dir: autologon

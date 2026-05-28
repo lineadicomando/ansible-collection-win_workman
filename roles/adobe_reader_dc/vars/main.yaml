@@ -7,6 +7,7 @@
 ---
 win_workman_adobe_reader_dc_schema:
   name: Adobe Acrobat Reader DC
+  default_action: !!str on
   package:
     setup_file: AcroRdrDCx642600121367_MUI.exe
     searchName: "Adobe Acrobat (64-bit)"

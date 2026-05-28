@@ -8,6 +8,7 @@
 ---
 win_workman_sketchup2026_schema:
   name: SketchUp
+  default_action: !!str on
   package:
     setup_file: SketchUp-2026-1-189-46.exe
     searchName: "SketchUp 2026"

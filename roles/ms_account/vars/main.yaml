@@ -1,6 +1,7 @@
 ---
 win_workman_ms_account_schema:
   name: Microsoft Account
+  default_action: !!str on
 
 win_workman_schema_role_name: lineadicomando.win_workman.ms_account
 win_workman_schema_dir: ms_account

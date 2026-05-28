@@ -1,42 +1,5 @@
 ---
-- name: Dispatch action on
+- name: Dispatch action {{ win_workman_action or win_workman_wallpaper_schema.default_action }}
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.wallpaper
-    tasks_from: act_on
-  when: win_workman_action == "on"
-
-- name: Dispatch action off
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.wallpaper
-    tasks_from: act_off
-  when: win_workman_action == "off"
-
-- name: Dispatch action set
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.wallpaper
-    tasks_from: act_set
-  when: win_workman_action == "set"
-
-- name: Dispatch action reset
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.wallpaper
-    tasks_from: act_reset
-  when: win_workman_action == "reset"
-
-- name: Dispatch action lock
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.wallpaper
-    tasks_from: act_lock
-  when: win_workman_action == "lock"
-
-- name: Dispatch action unlock
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.wallpaper
-    tasks_from: act_unlock
-  when: win_workman_action == "unlock"
-
-- name: Dispatch action clear_history
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.wallpaper
-    tasks_from: act_clear_history
-  when: win_workman_action == "clear_history"
+    tasks_from: "act_{{ win_workman_action or win_workman_wallpaper_schema.default_action }}"

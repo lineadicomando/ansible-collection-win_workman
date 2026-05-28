@@ -45,6 +45,7 @@ win_workman_seb_shortcuts_schema:
 
 win_workman_seb_schema:
   name: "Safe Exam Browser"
+  default_action: !!str on
   package:
     setup_file: "{{ win_workman_seb_setup_filename[win_workman_seb_arch] }}"
     searchName: "Safe Exam Browser*"

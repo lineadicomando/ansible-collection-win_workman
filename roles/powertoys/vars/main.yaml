@@ -7,6 +7,7 @@
 ---
 win_workman_powertoys_schema:
   name: Microsoft PowerToys
+  default_action: !!str on
   package:
     setup_file: PowerToysSetup-0.99.1-x64.exe
     searchName: "PowerToys (Preview)"

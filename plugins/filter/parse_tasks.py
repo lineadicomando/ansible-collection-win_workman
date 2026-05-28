@@ -12,27 +12,19 @@ DOCUMENTATION = r"""
     - Converts a string or list of strings such as C(chrome-off) or
       C(veyon-on-master) into a list of dicts with keys
       C(task), C(schema), C(act), C(argc), C(argv).
-    - A bare schema name like C(7zip) maps to C(act=on) (the default action).
+    - A bare schema name like C(7zip) sets C(act) to an empty string; each
+      schema role resolves its own default action via its schema vars.
   options:
     value:
       description: Task string or list of task strings.
       type: raw
       required: true
-    action_default:
-      description: Default action when none is specified.
-      type: str
-      required: false
-      default: "on"
 """
 
 EXAMPLES = r"""
 - name: Parse task list
   ansible.builtin.set_fact:
     parsed: "{{ win_workman_tasks | lineadicomando.win_workman.parse_tasks }}"
-
-- name: Parse with custom default action
-  ansible.builtin.set_fact:
-    parsed: "{{ win_workman_tasks | lineadicomando.win_workman.parse_tasks('off') }}"
 """
 
 RETURN = r"""
@@ -41,14 +33,14 @@ RETURN = r"""
       List of dicts, each with keys:
         task   (str):       original input string
         schema (str):       first token (before first dash)
-        act    (str):       second token, or action_default if absent
+        act    (str):       second token, or empty string if absent
         argc   (int):       number of dash-separated tokens
         argv   (list[str]): all tokens
     type: list
 """
 
 
-def parse_tasks(value, action_default="on"):
+def parse_tasks(value):
     if isinstance(value, str):
         raw = [value]
     elif hasattr(value, "__iter__"):
@@ -63,7 +55,7 @@ def parse_tasks(value, action_default="on"):
         argv = item.split("-")
         argc = len(argv)
         schema = argv[0]
-        act = argv[1] if argc > 1 else str(action_default)
+        act = argv[1] if argc > 1 else ""
         result.append(
             {
                 "task": item,

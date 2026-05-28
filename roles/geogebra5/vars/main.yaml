@@ -7,6 +7,7 @@
 ---
 win_workman_geogebra5_schema:
   name: GeoGebra Classic 5
+  default_action: !!str on
   package:
     setup_file: GeoGebra-Windows-Installer-5-4-919-1.msi
     searchName: "GeoGebra 5"

@@ -43,6 +43,7 @@ win_workman_opera_shortcuts_schema:
 
 win_workman_opera_schema:
   name: Opera Browser
+  default_action: !!str on
   package:
     setup_file: "Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
     version: "{{ win_workman_opera_version }}"
