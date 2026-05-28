@@ -100,12 +100,73 @@
     - not win_workman_autocad_stat.stat.exists
 
 - name: Install "{{ win_workman_autodesk_bundle_display_name }}"
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: start_process
-  vars:
-    win_workman_exec_path: "{{ ansible_remote_tmp }}\\{{ win_workman_autodesk_setup_exe }}"
-    win_workman_exec_args: "-q"
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$ExePath,
+        [string]$SearchName,
+        [int]$TimeoutSec
+      )
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $ErrorActionPreference = "Stop"
+
+      try {
+        if (-not (Test-Path -LiteralPath $ExePath)) {
+          throw "Installer not found: $ExePath"
+        }
+
+        # The ODIS SFX bundle spawns db-bootstrap.exe and waits for it.
+        # db-bootstrap.exe updates ODIS metadata and can block for hours.
+        # We launch without -Wait, poll the registry for installation
+        # completion, then kill db-bootstrap.exe so the SFX can exit cleanly.
+        $proc = Start-Process -FilePath $ExePath -ArgumentList "-q" -PassThru -ErrorAction Stop
+
+        $start = Get-Date
+        $installed = $false
+
+        while (((Get-Date) - $start).TotalSeconds -lt $TimeoutSec) {
+          Start-Sleep -Seconds 15
+
+          if ($proc.HasExited -and -not $installed) {
+            if ($proc.ExitCode -notin @(0, $null)) {
+              throw "Installer exited with code $($proc.ExitCode) before installation was detected"
+            }
+          }
+
+          $entry = Get-ItemProperty `
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' `
+            -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like $SearchName }
+
+          if ($entry) {
+            $installed = $true
+            break
+          }
+        }
+
+        if (-not $installed) {
+          throw "AutoCAD installation not detected after ${TimeoutSec}s"
+        }
+
+        # Installation confirmed — kill db-bootstrap.exe to unblock the SFX
+        Get-Process -Name 'db-bootstrap' -ErrorAction SilentlyContinue |
+          Stop-Process -Force -ErrorAction SilentlyContinue
+
+        # Wait up to 60s for the SFX parent to exit cleanly
+        $proc.WaitForExit(60000) | Out-Null
+
+        $Ansible.Changed = $true
+        $Ansible.Result  = @{ exit_code = $proc.ExitCode }
+
+      } catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{ msg = $_.Exception.Message }
+      }
+    parameters:
+      ExePath:    "{{ ansible_remote_tmp }}\\{{ win_workman_autodesk_setup_exe }}"
+      SearchName: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
+      TimeoutSec: 1800
   when:
     - win_workman_needs_action | bool
     - not win_workman_autocad_stat.stat.exists

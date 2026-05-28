@@ -51,7 +51,7 @@
       - "AdskAccessUIHost"
       - "AdskIdentityManager"
     win_workman_kill_force: true
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Stop "Autodesk Access Service Host"
   ansible.windows.win_service:
@@ -59,7 +59,7 @@
     state: stopped
     start_mode: disabled
   failed_when: false
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Stop "Autodesk Genuine Service"
   ansible.windows.win_service:
@@ -67,7 +67,7 @@
     state: stopped
     start_mode: disabled
   failed_when: false
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Kill "Autodesk Genuine Service" process
   ansible.builtin.include_role:
@@ -77,26 +77,26 @@
     win_workman_kill_process_name:
       - "GenuineService"
     win_workman_kill_force: true
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Uninstall "AutoCAD Open in Desktop"
   ansible.windows.win_package:
     product_id: "{{ win_workman_autodesk_open_in_desktop_guid }}"
     state: absent
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Uninstall "Salva su Autodesk Web & Mobile"
   ansible.windows.win_package:
     product_id: "{{ win_workman_autodesk_web_mobile_guid }}"
     state: absent
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Uninstall "Autodesk Genuine Service"
   ansible.windows.win_package:
     product_id: "{{ win_workman_autodesk_genuine_service_guid }}"
     state: absent
   failed_when: false
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Detect "Autodesk Access"
   ansible.builtin.include_role:
@@ -105,7 +105,7 @@
   vars:
     win_workman_detect_sw_args:
       name_like: "Autodesk Access"
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Uninstall "Autodesk Access"
   ansible.builtin.include_role:
@@ -120,7 +120,7 @@
       -x "{{ win_workman_autodesk_manifest_xsd_path }}"
       --manifest_type package
   when:
-    - win_workman_task_argv[2] == 'full'
+    - "'full' in win_workman_task_argv"
     - win_workman_detect_sw.result.id is defined
     - win_workman_detect_sw.result.id is not none
     - win_workman_detect_sw.result.id == win_workman_autodesk_access_guid
@@ -131,16 +131,16 @@
     state: absent
     provider: registry
     arguments: "--mode unattended"
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Remove residual "C:\\Program Files\\Autodesk"
   ansible.windows.win_file:
     path: "C:\\Program Files\\Autodesk"
     state: absent
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"
 
 - name: Remove residual "C:\\ProgramData\\Autodesk"
   ansible.windows.win_file:
     path: "C:\\ProgramData\\Autodesk"
     state: absent
-  when: win_workman_task_argv[2] == 'full'
+  when: "'full' in win_workman_task_argv"

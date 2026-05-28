@@ -12,7 +12,7 @@
     tasks_from: act_on
   vars:
     win_workman_schema: "{{ win_workman_autocadlt2026_schema }}"
-  when: win_workman_action == "on"
+  when: win_workman_action in ["on", ""]
 
 - name: Dispatch action off
   ansible.builtin.include_role:
@@ -29,5 +29,4 @@
   vars:
     win_workman_schema: "{{ win_workman_autocadlt2026_schema }}"
   when:
-    - win_workman_action != "on"
-    - win_workman_action != "off"
+    - win_workman_action not in ["on", "off", ""]
