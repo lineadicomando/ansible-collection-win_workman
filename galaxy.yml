@@ -4,7 +4,7 @@ name: win_workman
 version: 0.1.0
 readme: README.md
 authors:
-  - Alessandro Gagliano <alessandro.gagliano@gmail.com>
+  - Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
 description: >
   Schema-driven Windows software and system management collection.
   Provides a dispatcher role and per-software schema roles with download,
