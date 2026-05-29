@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+---
+# Win Workman task dispatcher.
+# Invokable by FQCN: ansible-playbook lineadicomando.win_workman.win_workman
+# The task list is passed as extra-vars (JSON):
+#
+#   ansible-playbook lineadicomando.win_workman.win_workman \
+#     -e '{"t": "chrome,chrome-info"}'
+#
+# t: comma-separated list of tasks (e.g. "chrome", "chrome-off,vlc-on")
+
+- name: Win Workman dispatcher
+  hosts: all
+  gather_facts: false
+  vars:
+    t: ""
+  tasks:
+    - name: Normalize t into list
+      ansible.builtin.set_fact:
+        t_list: >-
+          {{
+             t.split(',') if (
+                 t is string and ',' in t
+             ) else ( [t] if (
+                 t is string and t|length > 0
+             ) else t )
+          }}
+      when:
+        - t != ''
+
+    - name: Run win_workman tasks
+      ansible.builtin.import_role:
+        name: lineadicomando.win_workman.dispatcher
+      vars:
+        win_workman_tasks: "{{ t_list }}"
+      when:
+        - t_list is defined

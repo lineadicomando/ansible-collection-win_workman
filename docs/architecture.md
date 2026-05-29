@@ -26,6 +26,17 @@ win_workman_tasks (list of strings)
   pkg_utils — download / install / uninstall / info / …
 ```
 
+## Entry points
+
+| Entry point | How to call | When to use |
+|---|---|---|
+| `lineadicomando.win_workman.dispatcher` role | `roles:` block in a playbook | Standard playbook usage |
+| `lineadicomando.win_workman.win_workman` playbook (FQCN) | `ansible-playbook lineadicomando.win_workman.win_workman` | CLI / MCP server |
+
+The collection playbook (`playbooks/win_workman.yaml`) accepts `t` as a
+comma-separated extra-var string, normalises it into a list, and delegates to
+`dispatcher`. It is the entry point used by the [MCP server](mcp.md).
+
 ---
 
 ## Task string syntax

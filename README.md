@@ -216,6 +216,29 @@ dispatcher interface.
 
 ---
 
+## MCP integration
+
+The collection includes an optional MCP (Model Context Protocol) server that
+lets AI assistants (Claude Desktop, Claude Code) query role information and
+execute tasks directly.
+
+```json
+{
+  "mcpServers": {
+    "win-workman": {
+      "command": "python",
+      "args": ["/path/to/ansible-collection-win_workman/mcp/server.py"],
+      "env": { "ANSIBLE_PROJECT_ROOT": "/path/to/your/ansible-project" }
+    }
+  }
+}
+```
+
+See [`docs/mcp.md`](docs/mcp.md) for setup instructions, tool reference, and
+the `meta/mcp.yaml` role manifest format.
+
+---
+
 ## Architecture
 
 The collection is built around a **dispatcher + schema** pattern:

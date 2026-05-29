@@ -56,6 +56,7 @@ The collection has two distinct role families:
 | File | Contents |
 |---|---|
 | [architecture.md](architecture.md) | Dispatcher+schema pattern, task string syntax, actions, pkg_utils pipeline |
+| [mcp.md](mcp.md) | MCP server — tools, manifest format, Claude Desktop wiring |
 | [roles/core/dispatcher.md](roles/core/dispatcher.md) | `dispatcher` — entry point |
 | [roles/core/pkg_utils.md](roles/core/pkg_utils.md) | `pkg_utils` — package schema format and operations |
 | [roles/catalog/chrome.md](roles/catalog/chrome.md) | `chrome` — arch selection, shortcuts, privacy, rm_data |
