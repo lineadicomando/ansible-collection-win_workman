@@ -35,6 +35,26 @@
       name: SyncDisabled
       type: dword
       data: 1
+    # Prevent users from adding new Chrome profiles via the profile menu (avatar button).
+    # https://chromeenterprise.google/policies/#BrowserAddPersonEnabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: BrowserAddPersonEnabled
+      type: dword
+      data: 0
+    # Hide the profile picker at startup; Chrome opens the default profile directly.
+    # Values: 0 = available (default), 1 = disabled, 2 = forced always shown.
+    # https://chromeenterprise.google/policies/#ProfilePickerOnStartupAvailability
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: ProfilePickerOnStartupAvailability
+      type: dword
+      data: 1
+    # Disable guest browsing mode, which creates an anonymous temporary profile with no
+    # persistent data and bypasses the normal profile restrictions above.
+    # https://chromeenterprise.google/policies/#BrowserGuestModeEnabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: BrowserGuestModeEnabled
+      type: dword
+      data: 0
     # Disable the first run experience.
     - path: "{{ win_workman_chrome_policy_path }}"
       name: HideFirstRunExperience
@@ -102,6 +122,12 @@
       name: BrowserSignin
     - path: "{{ win_workman_chrome_policy_path }}"
       name: SyncDisabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: BrowserAddPersonEnabled
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: ProfilePickerOnStartupAvailability
+    - path: "{{ win_workman_chrome_policy_path }}"
+      name: BrowserGuestModeEnabled
     - path: "{{ win_workman_chrome_policy_path }}"
       name: HideFirstRunExperience
     - path: "{{ win_workman_chrome_policy_path }}"
