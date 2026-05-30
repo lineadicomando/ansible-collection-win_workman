@@ -34,12 +34,12 @@ win_workman_edge_setup_file:
   32bit: MicrosoftEdgeEnterpriseX86.msi
 
 win_workman_edge_url:
-  64bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/53d457a0-d60c-48b7-bf76-cb781dd16beb/MicrosoftEdgeEnterpriseX64.msi
-  32bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/4fe3f73f-77e7-4f8f-ad2a-465bd7218e7a/MicrosoftEdgeEnterpriseX86.msi
+  64bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/1e31b6ea-8368-4a80-b494-2ffa12a70507/MicrosoftEdgeEnterpriseX64.msi
+  32bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/e50790e3-cf2e-4023-a596-00ac90788516/MicrosoftEdgeEnterpriseX86.msi
 
 win_workman_edge_checksum:
-  64bit: sha256:a10e95215d860f76932d815eb2b2d12084a420bf9270afd32fb4500429cbea7a
-  32bit: sha256:8343ba6d67b296c62a96661798313437201002fa4983ffa3bab0ba42356ce9e6
+  64bit: sha256:022d78c7b2dfbe62dc97a1e5b6f7e373b2c90d91a484a98548928575c0aa2ac4
+  32bit: sha256:24566ecb7bc9128193c3d93b82e50bcd0c5ba9241960b683b81fe48262a646a7
 
 win_workman_edge_program_file:
   64bit: "%ProgramFiles%"
@@ -65,7 +65,7 @@ win_workman_edge_schema:
   package:
     setup_file: "{{ win_workman_edge_setup_file[win_workman_edge_arch] }}"
     searchName: "Microsoft Edge"
-    version: 148.0.3967.70
+    version: 148.0.3967.96
     before_install_ps_script: "{{ win_workman_edge_before_act_ps_script }}"
   files:
     - filename: "{{ win_workman_edge_setup_file[win_workman_edge_arch] }}"
