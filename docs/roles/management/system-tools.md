@@ -149,14 +149,23 @@ for the host to come back online.
 
 ## shutdown
 
-Initiates a controlled system shutdown.
+Initiates a controlled system shutdown with configurable delay. Supports
+aborting a pending shutdown and waiting for the host to go offline.
 
 | Action | Description |
 |---|---|
-| `on` | Shut down the system |
-| `wait` | Shut down the system and wait until the host goes offline; port probed is 22 (SSH), 5985 (WinRM HTTP), or 5986 (WinRM HTTPS) depending on `ansible_connection` and `ansible_winrm_scheme`. `ansible_port` takes precedence when set |
+| `on` *(default)* | Shut down the system after `win_workman_shutdown_timeout` seconds; skipped if the SSH port is not reachable |
+| `abort` | Abort a pending shutdown previously scheduled with `on` |
+| `a` | Alias for `abort` |
+| `wait` | Shut down the system and block until the host goes offline |
 
-No automatic restart delay — shutdown is immediate.
+The port monitored by `wait` is resolved in order: `ansible_port` → 22
+(SSH) → 5986 (WinRM HTTPS) → 5985 (WinRM HTTP), based on
+`ansible_connection` and `ansible_winrm_scheme`.
+
+| Variable | Default | Description |
+|---|---|---|
+| `win_workman_shutdown_timeout` | `30` | Seconds before the system shuts down (passed to `shutdown /t`) |
 
 ---
 

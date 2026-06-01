@@ -12,7 +12,7 @@
 - name: Shutdown system if reachable
   ansible.windows.win_powershell:
     script: |
-      shutdown /s /t 10 /f
+      shutdown /s /t {{ win_workman_shutdown_timeout }} /f
   when:
     - win_workman_shutdown_ssh_check is defined
     - win_workman_shutdown_ssh_check.state is defined

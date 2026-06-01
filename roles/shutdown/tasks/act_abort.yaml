@@ -1,0 +1,6 @@
+---
+- name: Abort shutdown system
+  ansible.windows.win_powershell:
+    script: |
+      shutdown /a
+  failed_when: false

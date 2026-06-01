@@ -2,5 +2,11 @@
 display_name: System Shutdown
 custom_actions:
   - name: "on"
-    description: Shut down the host immediately
-notes: "Does not install software."
+    description: "Shut down the host (delay: win_workman_shutdown_timeout seconds, default 30)"
+  - name: abort
+    description: Abort a pending shutdown previously scheduled with 'on'
+  - name: a
+    description: Alias for 'abort'
+  - name: wait
+    description: Shut down the host and wait until it goes offline
+notes: "Does not install software. Override delay with -e win_workman_shutdown_timeout=<seconds>."

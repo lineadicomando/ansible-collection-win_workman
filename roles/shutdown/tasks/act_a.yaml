@@ -1,0 +1,5 @@
+---
+- name: Trigger abort shutdown
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.shutdown
+    tasks_from: act_abort

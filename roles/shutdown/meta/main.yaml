@@ -3,7 +3,7 @@ galaxy_info:
   author: Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
   license: GPL-3.0-or-later
   role_name: shutdown
-  description: "shutdown management"
+  description: "Shutdown Windows hosts with configurable delay and abort/wait support"
   min_ansible_version: "2.20"
   platforms:
     - name: Windows
