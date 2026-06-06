@@ -6,7 +6,7 @@
     data: "{{ win_workman_gcpw_domains_allowed_to_login }}"
     type: String
 
-- name: Reboot after GCPW install or upgrade
+- name: Reboot after GCPW install or upgrade # noqa: no-handler
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
     tasks_from: restart
