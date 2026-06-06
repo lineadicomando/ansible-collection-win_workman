@@ -1,0 +1,22 @@
+---
+# Install a role dependency while preserving the caller's schema context.
+#
+# Variables:
+#   win_workman_dep_role   (required) fully-qualified role name to install
+#   win_workman_dep_action (optional, default: "on") action to pass to the role
+
+- name: Save schema context
+  ansible.builtin.set_fact:
+    _win_workman_saved_schema_role_name: "{{ win_workman_schema_role_name | default('') }}"
+    _win_workman_saved_schema_dir: "{{ win_workman_schema_dir | default('') }}"
+
+- name: "Install dependency: {{ win_workman_dep_role }}"
+  ansible.builtin.include_role:
+    name: "{{ win_workman_dep_role }}"
+  vars:
+    win_workman_action: "{{ win_workman_dep_action | default('on') }}"
+
+- name: Restore schema context
+  ansible.builtin.set_fact:
+    win_workman_schema_role_name: "{{ _win_workman_saved_schema_role_name }}"
+    win_workman_schema_dir: "{{ _win_workman_saved_schema_dir }}"
