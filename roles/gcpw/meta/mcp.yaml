@@ -1,0 +1,13 @@
+---
+display_name: "Google Credential Provider for Windows (GCPW)"
+defaults:
+  - var: win_workman_gcpw_domains_allowed_to_login
+    type: str
+    default: ""
+    description: >-
+      Comma-separated list of Google Workspace domains allowed to sign in
+      (required for the 'on' action; e.g. 'example.com' or 'school.edu,other.edu')
+notes: >-
+  Accepts '32bit' task argument for 32-bit installer.
+  win_workman_gcpw_domains_allowed_to_login must be set to a valid domain list
+  before running the 'on' action — the role fails if absent or malformed.

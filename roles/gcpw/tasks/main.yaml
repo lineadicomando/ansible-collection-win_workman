@@ -1,0 +1,30 @@
+---
+- name: Validate win_workman_gcpw_domains_allowed_to_login
+  ansible.builtin.fail:
+    msg: >-
+      win_workman_gcpw_domains_allowed_to_login is required for the 'on' action
+      and must be a valid domain or comma-separated list of domains
+      (e.g. 'example.com' or 'school.edu,other.edu').
+      Current value: '{{ win_workman_gcpw_domains_allowed_to_login | default("") }}'
+  when:
+    - win_workman_action | default('on', true) == 'on'
+    - not (win_workman_gcpw_domains_allowed_to_login | default('') | string | trim)
+      or not (win_workman_gcpw_domains_allowed_to_login | default('') | regex_search('^[a-zA-Z0-9][a-zA-Z0-9\-]*\.[a-zA-Z]{2,}'))
+
+- name: Install chrome
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: install_dep
+  vars:
+    win_workman_dep_role: lineadicomando.win_workman.chrome
+  when: win_workman_action | default('on', true) == 'on'
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_gcpw_schema }}"
+    win_workman_schema_hooks:
+      after_install: true
+      after_uninstall: true

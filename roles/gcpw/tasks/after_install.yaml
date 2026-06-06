@@ -1,0 +1,13 @@
+---
+- name: Set domains_allowed_to_login registry key
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Google\GCPW
+    name: domains_allowed_to_login
+    data: "{{ win_workman_gcpw_domains_allowed_to_login }}"
+    type: String
+
+- name: Reboot after GCPW install or upgrade
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: restart
+  when: win_workman_install_result.changed | default(false) | bool

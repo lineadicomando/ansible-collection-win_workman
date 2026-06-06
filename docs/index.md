@@ -110,6 +110,7 @@ The collection has two distinct role families:
 | [roles/catalog/rustdesk.md](roles/catalog/rustdesk.md) | `rustdesk` — open-source remote desktop |
 | [roles/catalog/seb.md](roles/catalog/seb.md) | `seb` — Safe Exam Browser install and client settings generation |
 | [roles/catalog/veyon.md](roles/catalog/veyon.md) | `veyon` — classroom management agent |
+| [roles/catalog/gcpw.md](roles/catalog/gcpw.md) | `gcpw` — Google Credential Provider for Windows install and domain configuration |
 | [roles/catalog/patchcleaner.md](roles/catalog/patchcleaner.md) | `patchcleaner` — WinSxS / superseded update cleanup |
 | [roles/management/optimize.md](roles/management/optimize.md) | `optimize` — volume optimisation and defrag |
 | [roles/management/wu.md](roles/management/wu.md) | `wu` — Windows Update enable/disable/pause/policy |
@@ -142,7 +143,7 @@ The collection has two distinct role families:
 [`adobe_reader_dc`](roles/catalog/adobe_reader_dc.md) · [`foxit_pdf_reader`](roles/catalog/foxit_pdf_reader.md) · [`p7zip`](roles/catalog/p7zip.md) · [`peazip`](roles/catalog/peazip.md) · [`powertoys`](roles/catalog/powertoys.md) · [`windirstat`](roles/catalog/windirstat.md) · [`ntop`](roles/catalog/ntop.md) · [`nircmd`](roles/catalog/nircmd.md) · [`winfsp`](roles/catalog/winfsp.md) · [`putty`](roles/catalog/putty.md) · [`winscp`](roles/catalog/winscp.md) · [`filezilla`](roles/catalog/filezilla.md) · [`vcredist14`](roles/catalog/vcredist14.md) · [`virtiogt`](roles/catalog/virtiogt.md) · [`patchcleaner`](roles/catalog/patchcleaner.md) · [`rustdesk`](roles/catalog/rustdesk.md)
 
 ### Catalog — Classroom & Lab
-[`veyon`](roles/catalog/veyon.md)
+[`veyon`](roles/catalog/veyon.md) · [`gcpw`](roles/catalog/gcpw.md)
 
 ### Management — System & OS
 [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim)
