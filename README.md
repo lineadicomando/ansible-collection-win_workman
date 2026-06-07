@@ -142,6 +142,8 @@ All catalog roles support the standard package actions: `on` (install), `off` (u
 | `geogebra5` | GeoGebra Classic 5 | — |
 | `libreoffice` | LibreOffice | `rm_data` |
 | `zoom` | Zoom | — |
+| `googledrive` | Google Drive | — |
+| `gcpw` | Google Credential Provider for Windows | — |
 
 ### Documents & Editors
 
@@ -283,14 +285,14 @@ win_workman_vscode_schema:
   name: Visual Studio Code
   default_action: !!str on      # action used when task string has no action token
   package:
-    setup_file: VSCodeSetup-x64-1.108.2.exe
+    setup_file: VSCodeSetup-x64-1.121.0.exe
     searchName: "Microsoft Visual Studio Code"
-    version: "1.108.2"
+    version: "1.121.0"
     provider: registry          # registry | portable
     install_args: [/VERYSILENT]
     uninstall_args: [/VERYSILENT]
   files:
-    - filename: VSCodeSetup-x64-1.108.2.exe
+    - filename: VSCodeSetup-x64-1.121.0.exe
       url: https://…
       checksum: sha256:…
 ```
@@ -309,7 +311,7 @@ define the schema variable and call `pkg_utils tasks_from: pkg_workflow`.
 | `win_workman_storage_path` | `~/win_workman_storage` | Controller-side path for installer storage |
 | `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Temp directory on the Windows target |
 | `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |
-| `win_workman_restart_timeout` | `180` | Seconds to wait after a reboot |
+| `win_workman_restart_timeout` | `600` | Seconds to wait after a reboot |
 | `win_workman_restart` | `true` | Allow roles to trigger a reboot when needed |
 
 Role-specific variables follow the pattern `win_workman_<schema>_*`.
