@@ -3,4 +3,3 @@ win_workman_autologon_schema:
   name: Auto Logon
   role: lineadicomando.win_workman.autologon
   default_action: !!str on
-

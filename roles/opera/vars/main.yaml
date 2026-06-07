@@ -63,4 +63,3 @@ win_workman_opera_schema:
         win_workman_opera_shortcuts | bool | default(false)
       ) else []
     }}
-

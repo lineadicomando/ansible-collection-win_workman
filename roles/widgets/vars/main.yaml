@@ -3,4 +3,3 @@ win_workman_widgets_schema:
   name: Windows Widgets
   role: lineadicomando.win_workman.widgets
   default_action: !!str on
-

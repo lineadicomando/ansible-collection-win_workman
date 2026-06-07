@@ -21,4 +21,3 @@ win_workman_winfsp_schema:
     - name: VirtioFsSvc
       start_mode: auto
       state: started
-

@@ -3,4 +3,3 @@ win_workman_wim_schema:
   name: Windows image health management
   role: lineadicomando.win_workman.wim
   default_action: !!str check
-

@@ -6,4 +6,3 @@ win_workman_secure_ssh_schema:
 
 win_workman_secure_ssh_auth_keys_path: C:\ProgramData\ssh\administrators_authorized_keys
 win_workman_secure_ssh_config_path: C:\ProgramData\ssh\sshd_config
-

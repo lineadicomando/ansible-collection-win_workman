@@ -3,4 +3,3 @@ win_workman_chkdsk_schema:
   name: Chkdsk
   role: lineadicomando.win_workman.chkdsk
   default_action: !!str on
-

@@ -3,4 +3,3 @@ win_workman_shutdown_schema:
   name: Shutdown
   role: lineadicomando.win_workman.shutdown
   default_action: !!str on
-

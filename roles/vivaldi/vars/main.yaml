@@ -69,4 +69,3 @@ win_workman_vivaldi_schema:
         win_workman_vivaldi_shortcuts | bool | default(false)
       ) else []
     }}
-

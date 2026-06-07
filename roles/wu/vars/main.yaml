@@ -3,4 +3,3 @@ win_workman_wu_schema:
   name: Windows Update
   role: lineadicomando.win_workman.wu
   default_action: "run"
-

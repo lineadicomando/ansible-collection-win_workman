@@ -32,4 +32,3 @@ win_workman_netbeans_schema:
   #     dest: '%Public%\Desktop\Apache NetBeans 30.lnk'
   #     icon: '%ProgramFiles%\Apache NetBeans\bin\netbeans64.exe,0'
   #     directory: '%ProgramFiles%\Apache NetBeans\bin'
-

@@ -18,4 +18,3 @@ win_workman_geogebra5_schema:
     - filename: GeoGebra-Windows-Installer-5-4-919-1.msi
       url: https://download.geogebra.org/installers/5.4/GeoGebra-Windows-Installer-5-4-919-1.msi
       checksum: sha256:03aa45a5fc2b3e61a67815e3923bd8814a3070bc91b2b589bd247d1eac02ecf8
-

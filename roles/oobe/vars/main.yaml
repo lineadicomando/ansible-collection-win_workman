@@ -3,4 +3,3 @@ win_workman_oobe_schema:
   name: Out Of Box Experience
   role: lineadicomando.win_workman.oobe
   default_action: !!str on
-

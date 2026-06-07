@@ -18,4 +18,3 @@ win_workman_nircmd_schema:
       url: https://www.nirsoft.net/utils/nircmd-x64.zip
       dest_dir: NirCmd
       extract: 7z
-

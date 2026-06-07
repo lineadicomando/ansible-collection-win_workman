@@ -17,4 +17,3 @@ win_workman_ntop_schema:
     - filename: NTop.exe
       url: https://github.com/gsass1/NTop/releases/download/v0.3.21/NTop.exe
       dest_dir: NTop
-

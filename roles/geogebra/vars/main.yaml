@@ -18,4 +18,3 @@ win_workman_geogebra_schema:
     - filename: GeoGebra-Windows-Installer-6-0-919-1.msi
       url: https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-919-1.msi
       checksum: sha256:a79ab68d95e051abab4269a52afc218bbd1ba8c5885be5f789d61a3fff2d193b
-

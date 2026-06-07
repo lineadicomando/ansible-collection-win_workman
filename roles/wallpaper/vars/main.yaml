@@ -65,4 +65,3 @@ win_workman_wallpaper_registry_entries_clear_history:
 win_workman_wallpaper_cache_paths:
   - AppData\Roaming\Microsoft\Windows\Themes\TranscodedWallpaper
   - AppData\Roaming\Microsoft\Windows\Themes\CachedFiles
-

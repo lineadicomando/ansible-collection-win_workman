@@ -3,4 +3,3 @@ win_workman_logoff_schema:
   name: Logoff
   role: lineadicomando.win_workman.logoff
   default_action: !!str on
-

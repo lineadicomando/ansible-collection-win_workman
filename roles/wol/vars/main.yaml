@@ -3,4 +3,3 @@ win_workman_wol_schema:
   name: Wake-on-LAN
   role: lineadicomando.win_workman.wol
   default_action: !!str on
-

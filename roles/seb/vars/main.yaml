@@ -64,4 +64,3 @@ win_workman_seb_schema:
         win_workman_seb_shortcuts | bool | default(false)
       ) else []
     }}
-

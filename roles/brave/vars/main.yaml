@@ -50,4 +50,3 @@ win_workman_brave_schema:
         win_workman_brave_shortcuts | bool | default(false)
       ) else []
     }}
-

@@ -22,4 +22,3 @@ win_workman_puredata_schema:
       url: https://msp.ucsd.edu/Software/pd-0.56-2.windows-installer.exe
       checksum: sha256:e61c908b3954ea4fab44bd23851c8a64cb07116e34fb91fa559a08d2d7f5648f
       validate_certs: false
-

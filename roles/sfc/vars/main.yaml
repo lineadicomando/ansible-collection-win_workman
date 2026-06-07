@@ -3,4 +3,3 @@ win_workman_sfc_schema:
   name: Sfc
   role: lineadicomando.win_workman.sfc
   default_action: !!str on
-

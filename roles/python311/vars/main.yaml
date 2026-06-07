@@ -37,4 +37,3 @@ win_workman_python311_schema:
       dest: '%Public%\Desktop\IDLE (Python 3.11 64-bit).lnk'
       icon: '%SystemRoot%\Installer\{57AC2A86-EC99-4E9C-9FF9-15DAA88D1FAE}\idle.exe,0'
       directory: '%ProgramFiles%\Python311'
-

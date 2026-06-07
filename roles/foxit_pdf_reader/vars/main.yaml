@@ -49,4 +49,3 @@ win_workman_foxit_pdf_reader_schema:
       url: https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.1.1/FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
       checksum: sha256:a730326133337d8b7e49745e014fc4e8309a11f2a631061175cb29c37407b2df
   shortcuts: []
-

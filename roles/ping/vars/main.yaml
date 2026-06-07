@@ -3,4 +3,3 @@ win_workman_ping_schema:
   name: Win PING
   role: lineadicomando.win_workman.ping
   default_action: !!str on
-

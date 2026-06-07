@@ -118,4 +118,3 @@ win_workman_autocadlt2026_schema:
   package:
     searchName: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].search_name }}"
   files: "{{ win_workman_autocadlt2026_locale_data[win_workman_autocadlt2026_lang].files }}"
-

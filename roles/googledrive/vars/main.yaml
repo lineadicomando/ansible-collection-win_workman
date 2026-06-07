@@ -22,4 +22,3 @@ win_workman_googledrive_schema:
     - filename: GoogleDriveSetup.exe
       url: https://dl.google.com/drive-file-stream/GoogleDriveSetup.exe
   shortcuts: []
-

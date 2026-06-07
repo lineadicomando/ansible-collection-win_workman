@@ -18,4 +18,3 @@ win_workman_vcredist14_schema:
   files:
     - filename: vc_redist.x64.exe
       url: https://aka.ms/vc14/vc_redist.x64.exe
-

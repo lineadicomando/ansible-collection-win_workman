@@ -25,4 +25,3 @@ win_workman_putty_schema:
       dest: '%Public%\Desktop\PuTTY.lnk'
       icon: '%ProgramFiles%\PuTTY\putty.exe,0'
       directory: '%ProgramFiles%\PuTTY'
-

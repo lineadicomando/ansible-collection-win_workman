@@ -27,4 +27,3 @@ win_workman_dbeaver_schema:
       dest: '%Public%\Desktop\DBeaver.lnk'
       icon: '%ProgramFiles%\DBeaver\dbeaver.exe,0'
       directory: '%ProgramFiles%\DBeaver'
-

@@ -24,4 +24,3 @@ win_workman_patchcleaner_schema:
       checksum: sha256:6472de894c5cb6050fd80cdd893b8772aef71f8bdb5c65a0175cf7cbb90e6ec6
       extract: 7z
       dest_dir: PatchCleaner
-

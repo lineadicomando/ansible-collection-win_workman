@@ -3,4 +3,3 @@ win_workman_restart_schema:
   name: Restart
   role: lineadicomando.win_workman.restart
   default_action: !!str on
-

@@ -37,4 +37,3 @@ win_workman_python310_schema:
       dest: '%Public%\Desktop\IDLE (Python 3.10 64-bit).lnk'
       icon: '%SystemRoot%\Installer\{6108D417-E511-4AFC-A24D-7CEE1DC9D3EE}\idle.exe,0'
       directory: '%ProgramFiles%\Python310'
-

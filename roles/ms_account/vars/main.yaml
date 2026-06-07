@@ -3,4 +3,3 @@ win_workman_ms_account_schema:
   name: Microsoft Account
   role: lineadicomando.win_workman.ms_account
   default_action: !!str on
-

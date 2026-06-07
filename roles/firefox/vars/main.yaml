@@ -215,4 +215,3 @@ win_workman_firefox_schema:
         win_workman_firefox_shortcuts | bool | default(false)
       ) else []
     }}
-

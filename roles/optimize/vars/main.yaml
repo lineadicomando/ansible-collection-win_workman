@@ -3,4 +3,3 @@ win_workman_optimize_schema:
   name: Volume Optimizations
   role: lineadicomando.win_workman.optimize
   default_action: !!str on
-

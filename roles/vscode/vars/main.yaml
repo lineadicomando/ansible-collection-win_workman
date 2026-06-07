@@ -37,4 +37,3 @@ win_workman_vscode_schema:
         win_workman_vscode_shortcuts | bool | default(false)
       ) else []
     }}
-

@@ -83,4 +83,3 @@ win_workman_chrome_schema:
         win_workman_chrome_shortcuts | bool | default(false)
       ) else []
     }}
-

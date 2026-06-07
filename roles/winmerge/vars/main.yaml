@@ -26,4 +26,3 @@ win_workman_winmerge_schema:
       url: https://github.com/WinMerge/winmerge/releases/download/v2.16.56/WinMerge-2.16.56-x64-Setup.exe
       checksum: sha256:51840b2f7b6227f6b88acfb10b0fefdecf3ecf959b665ad7fefc372fb1e8bc60
   shortcuts: []
-

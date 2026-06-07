@@ -78,4 +78,3 @@ win_workman_edge_schema:
         win_workman_edge_shortcuts | bool | default(false)
       ) else []
     }}
-
