@@ -171,9 +171,6 @@ win_workman_winrar_after_install_ps_script: |
     Set-ItemProperty -Path $key -Name $_.Key -Value $_.Value
   }
 
-win_workman_schema_role_name: lineadicomando.win_workman.winrar
-win_workman_schema_dir: winrar
-
 _win_workman_winrar_shortcut_desktop:
   description: "WinRAR"
   src: "%ProgramFiles%\\WinRAR\\WinRAR.exe"
@@ -199,6 +196,7 @@ win_workman_winrar_shortcuts_schema: >-
 
 win_workman_winrar_schema:
   name: "WinRAR"
+  role: lineadicomando.win_workman.winrar
   default_action: !!str on
   package:
     setup_file: "{{ win_workman_winrar_setup_filename }}"
@@ -214,3 +212,4 @@ win_workman_winrar_schema:
     - filename: "{{ win_workman_winrar_setup_filename }}"
       url: "{{ win_workman_winrar_url }}"
   shortcuts: "{{ win_workman_winrar_shortcuts_schema }}"
+

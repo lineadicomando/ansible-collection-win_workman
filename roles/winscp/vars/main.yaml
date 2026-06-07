@@ -7,6 +7,7 @@
 ---
 win_workman_winscp_schema:
   name: WinSCP
+  role: lineadicomando.win_workman.winscp
   default_action: !!str on
   package:
     setup_file: WinSCP-6.3.8.msi
@@ -25,5 +26,3 @@ win_workman_winscp_schema:
       icon: '%ProgramFiles%\WinSCP\WinSCP.exe,0'
       directory: '%ProgramFiles%\WinSCP'
 
-win_workman_schema_role_name: lineadicomando.win_workman.winscp
-win_workman_schema_dir: winscp

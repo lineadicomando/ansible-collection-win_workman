@@ -1,7 +1,6 @@
 ---
 win_workman_restart_schema:
   name: Restart
+  role: lineadicomando.win_workman.restart
   default_action: !!str on
 
-win_workman_schema_role_name: lineadicomando.win_workman.restart
-win_workman_schema_dir: restart

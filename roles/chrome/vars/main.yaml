@@ -65,6 +65,7 @@ win_workman_chrome_shortcuts_schema:
 
 win_workman_chrome_schema:
   name: Google Chrome
+  role: lineadicomando.win_workman.chrome
   default_action: !!str on
   package:
     setup_file: "{{ win_workman_chrome_setup_filename[win_workman_chrome_arch] }}"
@@ -83,5 +84,3 @@ win_workman_chrome_schema:
       ) else []
     }}
 
-win_workman_schema_role_name: lineadicomando.win_workman.chrome
-win_workman_schema_dir: chrome

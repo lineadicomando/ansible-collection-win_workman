@@ -7,6 +7,7 @@
 ---
 win_workman_winmerge_schema:
   name: WinMerge
+  role: lineadicomando.win_workman.winmerge
   default_action: !!str on
   package:
     setup_file: WinMerge-2.16.56-x64-Setup.exe
@@ -26,5 +27,3 @@ win_workman_winmerge_schema:
       checksum: sha256:51840b2f7b6227f6b88acfb10b0fefdecf3ecf959b665ad7fefc372fb1e8bc60
   shortcuts: []
 
-win_workman_schema_role_name: lineadicomando.win_workman.winmerge
-win_workman_schema_dir: winmerge

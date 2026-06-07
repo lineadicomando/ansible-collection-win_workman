@@ -40,6 +40,7 @@ win_workman_vivaldi_shortcuts_schema:
 
 win_workman_vivaldi_schema:
   name: Vivaldi
+  role: lineadicomando.win_workman.vivaldi
   default_action: !!str on
   package:
     setup_file: "Vivaldi.7.9.3970.67.x64.exe"
@@ -69,5 +70,3 @@ win_workman_vivaldi_schema:
       ) else []
     }}
 
-win_workman_schema_role_name: lineadicomando.win_workman.vivaldi
-win_workman_schema_dir: vivaldi

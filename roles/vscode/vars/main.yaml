@@ -15,6 +15,7 @@ win_workman_vscode_shortcuts_schema:
 
 win_workman_vscode_schema:
   name: Visual Studio Code
+  role: lineadicomando.win_workman.vscode
   default_action: !!str on
   package:
     setup_file: VSCodeSetup-x64-1.121.0.exe
@@ -37,5 +38,3 @@ win_workman_vscode_schema:
       ) else []
     }}
 
-win_workman_schema_role_name: lineadicomando.win_workman.vscode
-win_workman_schema_dir: vscode

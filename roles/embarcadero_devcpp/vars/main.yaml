@@ -7,6 +7,7 @@
 ---
 win_workman_embarcadero_devcpp_schema:
   name: Embarcadero Dev-Cpp
+  role: lineadicomando.win_workman.embarcadero_devcpp
   default_action: !!str on
   package:
     setup_file: Embarcadero_Dev-Cpp_6.3_TDM-GCC_9.2_Setup.exe
@@ -33,5 +34,3 @@ win_workman_embarcadero_devcpp_schema:
     - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Embarcadero Dev-C++'
     - '%ProgramFiles%\Embarcadero\Dev-Cpp'
 
-win_workman_schema_role_name: lineadicomando.win_workman.embarcadero_devcpp
-win_workman_schema_dir: embarcadero_devcpp

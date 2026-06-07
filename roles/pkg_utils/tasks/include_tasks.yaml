@@ -14,9 +14,9 @@
 
 - name: "Run schema hook: {{ win_workman_schema_tasks }}"
   ansible.builtin.include_role:
-    name: "{{ win_workman_schema_role_name }}"
+    name: "{{ win_workman_schema.role }}"
     tasks_from: "{{ win_workman_schema_tasks }}"
   when:
-    - win_workman_schema_role_name is defined
-    - win_workman_schema_role_name | length > 0
+    - win_workman_schema.role is defined
+    - win_workman_schema.role | length > 0
     - (win_workman_schema_hooks | default({}))[win_workman_schema_tasks] | default(false) | bool

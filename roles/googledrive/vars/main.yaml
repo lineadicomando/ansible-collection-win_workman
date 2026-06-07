@@ -1,0 +1,25 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Google Drive
+#      - Homepage:    https://www.google.com/drive/download/
+#      - Download:    https://dl.google.com/drive-file-stream/GoogleDriveSetup.exe
+# ==============================================================================
+---
+win_workman_googledrive_schema:
+  name: Google Drive
+  role: lineadicomando.win_workman.googledrive
+  default_action: !!str on
+  package:
+    setup_file: GoogleDriveSetup.exe
+    searchName: "Google Drive"
+    provider: registry
+    install_args:
+      - --silent
+      - --skip_launch_new
+    uninstall_args:
+      - --silent
+  files:
+    - filename: GoogleDriveSetup.exe
+      url: https://dl.google.com/drive-file-stream/GoogleDriveSetup.exe
+  shortcuts: []
+

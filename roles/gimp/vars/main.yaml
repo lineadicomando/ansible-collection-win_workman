@@ -7,6 +7,7 @@
 ---
 win_workman_gimp_schema:
   name: The Gimp 3.2.4
+  role: lineadicomando.win_workman.gimp
   default_action: !!str on
   package:
     setup_file: gimp-3.2.4-setup.exe
@@ -33,5 +34,3 @@ win_workman_gimp_schema:
       url: https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.4-setup.exe
       checksum: sha256:ec31d757dd82831d201ffcf47ffeac4175df739e0c02d5122e89aeeadfb988cc
 
-win_workman_schema_role_name: lineadicomando.win_workman.gimp
-win_workman_schema_dir: gimp

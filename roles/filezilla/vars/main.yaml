@@ -7,6 +7,7 @@
 ---
 win_workman_filezilla_schema:
   name: FileZilla Client
+  role: lineadicomando.win_workman.filezilla
   default_action: !!str on
   package:
     setup_file: FileZilla_3.70.5_win64-setup.exe
@@ -20,5 +21,3 @@ win_workman_filezilla_schema:
       url: "https://dl3.cdn.filezilla-project.org/client/FileZilla_3.70.5_win64-setup.exe?h=kBUoiPcYCsPE-Ha5_FCrrw&x=1779043046"
       checksum: "sha256:8a0c4e23f4c2f130d9651afbc7c265e5a1ce6e106ac60f4d876763971a84b7f6"
 
-win_workman_schema_role_name: lineadicomando.win_workman.filezilla
-win_workman_schema_dir: filezilla

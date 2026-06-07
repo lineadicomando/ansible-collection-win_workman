@@ -7,6 +7,7 @@
 ---
 win_workman_peazip_schema:
   name: PeaZip
+  role: lineadicomando.win_workman.peazip
   default_action: !!str on
   package:
     setup_file: peazip-11.1.0.WIN64.exe
@@ -25,5 +26,3 @@ win_workman_peazip_schema:
       url: https://github.com/peazip/PeaZip/releases/download/11.1.0/peazip-11.1.0.WIN64.exe
       checksum: sha256:36ed5ebf33568bfbb5b7a752a7c35f7852a3bca605536a7d1d6a054037e804c1
 
-win_workman_schema_role_name: lineadicomando.win_workman.peazip
-win_workman_schema_dir: peazip

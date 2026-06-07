@@ -7,6 +7,7 @@
 ---
 win_workman_nircmd_schema:
   name: NirCmd
+  role: lineadicomando.win_workman.nircmd
   default_action: !!str on
   package:
     provider: portable
@@ -18,5 +19,3 @@ win_workman_nircmd_schema:
       dest_dir: NirCmd
       extract: 7z
 
-win_workman_schema_role_name: lineadicomando.win_workman.nircmd
-win_workman_schema_dir: nircmd

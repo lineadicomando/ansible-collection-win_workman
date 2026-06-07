@@ -7,6 +7,7 @@
 ---
 win_workman_dbeaver_schema:
   name: DBeaver
+  role: lineadicomando.win_workman.dbeaver
   default_action: !!str on
   package:
     setup_file: dbeaver-ce-26.0.4-windows-x86_64.exe
@@ -27,5 +28,3 @@ win_workman_dbeaver_schema:
       icon: '%ProgramFiles%\DBeaver\dbeaver.exe,0'
       directory: '%ProgramFiles%\DBeaver'
 
-win_workman_schema_role_name: lineadicomando.win_workman.dbeaver
-win_workman_schema_dir: dbeaver

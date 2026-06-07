@@ -7,6 +7,7 @@
 ---
 win_workman_python311_schema:
   name: Python 3.11
+  role: lineadicomando.win_workman.python311
   default_action: !!str on
   package:
     setup_file: python-3.11.9-amd64.exe
@@ -37,5 +38,3 @@ win_workman_python311_schema:
       icon: '%SystemRoot%\Installer\{57AC2A86-EC99-4E9C-9FF9-15DAA88D1FAE}\idle.exe,0'
       directory: '%ProgramFiles%\Python311'
 
-win_workman_schema_role_name: lineadicomando.win_workman.python311
-win_workman_schema_dir: python311

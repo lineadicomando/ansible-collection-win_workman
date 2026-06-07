@@ -3,7 +3,7 @@
   ansible.builtin.fail:
     msg: >-
       Unknown action '{{ win_workman_action or win_workman_schema.default_action }}'
-      for schema '{{ win_workman_schema_dir }}'.
+      for schema '{{ win_workman_schema.name }}'.
       Valid actions: {{ win_workman_pkg_actions | join(', ') }}.
   when: (win_workman_action or win_workman_schema.default_action) not in win_workman_pkg_actions
 

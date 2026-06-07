@@ -7,6 +7,7 @@
 ---
 win_workman_mysql_server_schema:
   name: MySQL Server
+  role: lineadicomando.win_workman.mysql_server
   default_action: !!str on
   package:
     setup_file: mysql-9.7.0-winx64.msi
@@ -19,5 +20,3 @@ win_workman_mysql_server_schema:
       url: https://cdn.mysql.com//Downloads/MySQL-9.7/mysql-9.7.0-winx64.msi
       checksum: sha256:1c7c3584eb92405c2ac54b9bfc4f61bbd455ce55229b1af5e10b96939b75e9a7
 
-win_workman_schema_role_name: lineadicomando.win_workman.mysql_server
-win_workman_schema_dir: mysql_server

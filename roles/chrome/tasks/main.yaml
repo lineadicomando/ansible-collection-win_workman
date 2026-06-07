@@ -1,9 +1,4 @@
 ---
-- name: Set schema role context
-  ansible.builtin.set_fact:
-    win_workman_schema_role_name: lineadicomando.win_workman.chrome
-    win_workman_schema_dir: chrome
-
 - name: Dispatch action rm
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.chrome

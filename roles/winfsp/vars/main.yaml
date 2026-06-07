@@ -7,6 +7,7 @@
 ---
 win_workman_winfsp_schema:
   name: WinFsp
+  role: lineadicomando.win_workman.winfsp
   default_action: !!str on
   package:
     setup_file: winfsp-2.1.25156.msi
@@ -21,5 +22,3 @@ win_workman_winfsp_schema:
       start_mode: auto
       state: started
 
-win_workman_schema_role_name: lineadicomando.win_workman.winfsp
-win_workman_schema_dir: winfsp

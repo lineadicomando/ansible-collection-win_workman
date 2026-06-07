@@ -30,6 +30,7 @@ win_workman_7zip_cleanup_paths:
 
 win_workman_p7zip_schema:
   name: "7-Zip 26.00"
+  role: lineadicomando.win_workman.p7zip
   default_action: !!str on
   package:
     provider: msi
@@ -43,5 +44,3 @@ win_workman_p7zip_schema:
       url: "{{ win_workman_7zip_url[win_workman_7zip_arch] }}"
       checksum: "{{ win_workman_7zip_checksum[win_workman_7zip_arch] }}"
 
-win_workman_schema_role_name: lineadicomando.win_workman.p7zip
-win_workman_schema_dir: p7zip

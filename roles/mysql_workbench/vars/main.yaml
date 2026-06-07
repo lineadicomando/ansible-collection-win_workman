@@ -11,6 +11,7 @@ win_workman_mysqlworkbench_checksum: sha256:f7a0f3c811bcec93456184bb252540cbae4e
 
 win_workman_mysql_workbench_schema:
   name: MySQL Workbench
+  role: lineadicomando.win_workman.mysql_workbench
   default_action: !!str on
   package:
     setup_file: "{{ win_workman_mysqlworkbench_setupfile }}"
@@ -29,5 +30,4 @@ win_workman_mysql_workbench_schema:
       dest: '%Public%\Desktop\MySQL Workbench 8.0 CE.lnk'
       icon: '%SystemRoot%\Installer\{4B4BE791-7CB2-414A-9800-2868358F03CA}\WBIcon.exe,0'
       directory: '%ProgramFiles%\MySQL\MySQL Workbench 8.0 CE\'
-win_workman_schema_role_name: lineadicomando.win_workman.mysql_workbench
-win_workman_schema_dir: mysql_workbench
+

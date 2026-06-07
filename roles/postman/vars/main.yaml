@@ -7,6 +7,7 @@
 ---
 win_workman_postman_schema:
   name: Postman
+  role: lineadicomando.win_workman.postman
   default_action: !!str on
   package:
     provider: portable
@@ -83,5 +84,3 @@ win_workman_postman_schema:
       icon: "{{ win_workman_portable_path }}\\Postman\\lib\\net45\\Postman.exe,0"
       directory: "{{ win_workman_portable_path }}\\Postman\\"
 
-win_workman_schema_role_name: lineadicomando.win_workman.postman
-win_workman_schema_dir: postman

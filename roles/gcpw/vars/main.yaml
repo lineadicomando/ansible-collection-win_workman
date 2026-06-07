@@ -22,6 +22,7 @@ win_workman_gcpw_url:
 
 win_workman_gcpw_schema:
   name: Google Credential Provider for Windows
+  role: lineadicomando.win_workman.gcpw
   default_action: !!str on
   package:
     setup_file: "{{ win_workman_gcpw_setup_filename[win_workman_gcpw_arch] }}"
@@ -35,5 +36,3 @@ win_workman_gcpw_schema:
       url: "{{ win_workman_gcpw_url[win_workman_gcpw_arch] }}"
   shortcuts: []
 
-win_workman_schema_role_name: lineadicomando.win_workman.gcpw
-win_workman_schema_dir: gcpw

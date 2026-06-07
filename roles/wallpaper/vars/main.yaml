@@ -1,10 +1,8 @@
 ---
 win_workman_wallpaper_schema:
   name: Set Wallpaper
+  role: lineadicomando.win_workman.wallpaper
   default_action: !!str on
-
-win_workman_schema_role_name: lineadicomando.win_workman.wallpaper
-win_workman_schema_dir: wallpaper
 
 win_workman_wallpaper_registry_entries_set:
   - path: HKLM:\ANSIBLE\Control Panel\Desktop
@@ -67,3 +65,4 @@ win_workman_wallpaper_registry_entries_clear_history:
 win_workman_wallpaper_cache_paths:
   - AppData\Roaming\Microsoft\Windows\Themes\TranscodedWallpaper
   - AppData\Roaming\Microsoft\Windows\Themes\CachedFiles
+

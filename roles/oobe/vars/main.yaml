@@ -1,7 +1,6 @@
 ---
 win_workman_oobe_schema:
   name: Out Of Box Experience
+  role: lineadicomando.win_workman.oobe
   default_action: !!str on
 
-win_workman_schema_role_name: lineadicomando.win_workman.oobe
-win_workman_schema_dir: oobe

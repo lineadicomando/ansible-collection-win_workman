@@ -7,6 +7,7 @@
 ---
 win_workman_ntop_schema:
   name: NTop
+  role: lineadicomando.win_workman.ntop
   default_action: !!str on
   package:
     provider: portable
@@ -17,5 +18,3 @@ win_workman_ntop_schema:
       url: https://github.com/gsass1/NTop/releases/download/v0.3.21/NTop.exe
       dest_dir: NTop
 
-win_workman_schema_role_name: lineadicomando.win_workman.ntop
-win_workman_schema_dir: ntop

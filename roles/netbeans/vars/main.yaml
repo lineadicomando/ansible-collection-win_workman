@@ -7,6 +7,7 @@
 ---
 win_workman_netbeans_schema:
   name: Apache NetBeans
+  role: lineadicomando.win_workman.netbeans
   default_action: !!str on
   package:
     setup_file: Apache-NetBeans-30.exe
@@ -32,5 +33,3 @@ win_workman_netbeans_schema:
   #     icon: '%ProgramFiles%\Apache NetBeans\bin\netbeans64.exe,0'
   #     directory: '%ProgramFiles%\Apache NetBeans\bin'
 
-win_workman_schema_role_name: lineadicomando.win_workman.netbeans
-win_workman_schema_dir: netbeans

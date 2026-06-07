@@ -7,6 +7,7 @@
 ---
 win_workman_puredata_schema:
   name: Pure Data
+  role: lineadicomando.win_workman.puredata
   default_action: !!str on
   package:
     setup_file: pd-0.56-2.windows-installer.exe
@@ -22,5 +23,3 @@ win_workman_puredata_schema:
       checksum: sha256:e61c908b3954ea4fab44bd23851c8a64cb07116e34fb91fa559a08d2d7f5648f
       validate_certs: false
 
-win_workman_schema_role_name: lineadicomando.win_workman.puredata
-win_workman_schema_dir: puredata

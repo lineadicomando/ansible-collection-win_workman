@@ -7,6 +7,7 @@
 ---
 win_workman_git_schema:
   name: Git
+  role: lineadicomando.win_workman.git
   default_action: !!str on
   package:
     setup_file: Git-2.54.0-64-bit.exe
@@ -25,5 +26,3 @@ win_workman_git_schema:
       url: https://github.com/git-for-windows/git/releases/download/v2.54.0.windows.1/Git-2.54.0-64-bit.exe
       checksum: sha256:2b96e7854f0520f0f6b709c21041d9801b1be44d5e1a0d9fa621b2fbc40f1983
 
-win_workman_schema_role_name: lineadicomando.win_workman.git
-win_workman_schema_dir: git

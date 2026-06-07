@@ -1,7 +1,6 @@
 ---
 win_workman_optimize_schema:
   name: Volume Optimizations
+  role: lineadicomando.win_workman.optimize
   default_action: !!str on
 
-win_workman_schema_role_name: lineadicomando.win_workman.optimize
-win_workman_schema_dir: optimize

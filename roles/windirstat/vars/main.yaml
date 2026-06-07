@@ -7,6 +7,7 @@
 ---
 win_workman_windirstat_schema:
   name: WinDirStat
+  role: lineadicomando.win_workman.windirstat
   default_action: !!str on
   package:
     setup_file: WinDirStat-x64.msi
@@ -18,5 +19,3 @@ win_workman_windirstat_schema:
       url: https://github.com/windirstat/windirstat/releases/download/release/v2.2.2/WinDirStat-x64.msi
       checksum: sha256:029cc7158d5e2d475243b36ae207921d8205c1296e24c2cab13f142aefba473d
 
-win_workman_schema_role_name: lineadicomando.win_workman.windirstat
-win_workman_schema_dir: windirstat

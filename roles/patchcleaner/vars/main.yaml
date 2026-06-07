@@ -7,6 +7,7 @@
 ---
 win_workman_patchcleaner_schema:
   name: PatchCleaner
+  role: lineadicomando.win_workman.patchcleaner
   default_action: !!str on
   package:
     setup_dir: PatchCleaner
@@ -24,5 +25,3 @@ win_workman_patchcleaner_schema:
       extract: 7z
       dest_dir: PatchCleaner
 
-win_workman_schema_role_name: lineadicomando.win_workman.patchcleaner
-win_workman_schema_dir: patchcleaner

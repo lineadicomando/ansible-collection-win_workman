@@ -61,6 +61,7 @@ win_workman_edge_shortcuts_schema:
 
 win_workman_edge_schema:
   name: Microsoft Edge
+  role: lineadicomando.win_workman.edge
   default_action: !!str on
   package:
     setup_file: "{{ win_workman_edge_setup_file[win_workman_edge_arch] }}"
@@ -78,5 +79,3 @@ win_workman_edge_schema:
       ) else []
     }}
 
-win_workman_schema_role_name: lineadicomando.win_workman.edge
-win_workman_schema_dir: edge

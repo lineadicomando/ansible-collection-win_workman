@@ -43,6 +43,7 @@ win_workman_opera_shortcuts_schema:
 
 win_workman_opera_schema:
   name: Opera Browser
+  role: lineadicomando.win_workman.opera
   default_action: !!str on
   package:
     setup_file: "Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
@@ -63,5 +64,3 @@ win_workman_opera_schema:
       ) else []
     }}
 
-win_workman_schema_role_name: lineadicomando.win_workman.opera
-win_workman_schema_dir: opera

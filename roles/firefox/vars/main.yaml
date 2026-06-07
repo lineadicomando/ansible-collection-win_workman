@@ -161,9 +161,6 @@ win_workman_firefox_arch: >-
     ) else "win64"
   }}
 
-win_workman_schema_role_name: lineadicomando.win_workman.firefox
-win_workman_schema_dir: firefox
-
 win_workman_firefox_lang: >-
   {{
     (
@@ -199,6 +196,7 @@ win_workman_firefox_shortcuts_schema:
 
 win_workman_firefox_schema:
   name: "Mozilla Firefox"
+  role: lineadicomando.win_workman.firefox
   default_action: !!str on
   package:
     setup_file: "{{ win_workman_firefox_setup_filename }}"
@@ -217,3 +215,4 @@ win_workman_firefox_schema:
         win_workman_firefox_shortcuts | bool | default(false)
       ) else []
     }}
+

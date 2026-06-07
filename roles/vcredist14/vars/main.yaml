@@ -7,6 +7,7 @@
 ---
 win_workman_vcredist14_schema:
   name: VC Redist 14
+  role: lineadicomando.win_workman.vcredist14
   default_action: !!str on
   package:
     setup_file: vc_redist.x64.exe
@@ -18,5 +19,3 @@ win_workman_vcredist14_schema:
     - filename: vc_redist.x64.exe
       url: https://aka.ms/vc14/vc_redist.x64.exe
 
-win_workman_schema_role_name: lineadicomando.win_workman.vcredist14
-win_workman_schema_dir: vcredist14
