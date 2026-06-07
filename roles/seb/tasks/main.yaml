@@ -14,6 +14,7 @@
   when:
     - win_workman_action == "config_key"
 
+# win_workman_dep: lineadicomando.win_workman.vcredist14
 - name: Install dependency vcredist14
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.vcredist14

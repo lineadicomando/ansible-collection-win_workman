@@ -11,6 +11,7 @@
     - not (win_workman_gcpw_domains_allowed_to_login | default('') | string | trim)
       or not (win_workman_gcpw_domains_allowed_to_login | default('') | regex_search('^[a-zA-Z0-9][a-zA-Z0-9\-]*\.[a-zA-Z]{2,}'))
 
+# win_workman_dep: lineadicomando.win_workman.googledrive
 - name: Install Chrome
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.googledrive
@@ -20,6 +21,7 @@
     - win_workman_action | default('on', true) == 'on'
     - "'nodep' not in (win_workman_task_argv | default([]))"
 
+# win_workman_dep: lineadicomando.win_workman.chrome
 - name: Install Google Drive
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.chrome
