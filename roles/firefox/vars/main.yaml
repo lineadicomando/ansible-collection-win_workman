@@ -5,7 +5,7 @@
 #      - Download:    https://www.firefox.com/it/download/all/desktop-release/
 # ==============================================================================
 ---
-win_workman_firefox_version: "150.0.2"
+win_workman_firefox_version: "151.0.3"
 
 win_workman_firefox_allowed_langs:
   - "it"
