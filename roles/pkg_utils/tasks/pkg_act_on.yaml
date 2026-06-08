@@ -378,6 +378,7 @@
     state: present
     provider: "{{ win_workman_install_provider }}"
     arguments: "{{ win_workman_install_args | default(omit) }}"
+    expected_return_code: "{{ win_workman_schema.package.expected_return_code | default(omit) }}"
   when:
     - win_workman_needs_action | bool
     - not (win_workman_pkg_portable | bool)
