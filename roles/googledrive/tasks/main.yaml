@@ -15,3 +15,13 @@
     tasks_from: pkg_workflow
   vars:
     win_workman_schema: "{{ win_workman_googledrive_schema }}"
+
+- name: Configure Google Drive auto-start at login
+  ansible.windows.win_regedit:
+    path: HKLM:\Software\Google\DriveFS
+    name: AutoStartOnLogin
+    type: dword
+    data: 1
+  when:
+    - win_workman_action | default('on', true) == 'on'
+    - win_workman_googledrive_auto_start | default(true) | bool
