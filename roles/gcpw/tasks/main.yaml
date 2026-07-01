@@ -12,17 +12,17 @@
       or not (win_workman_gcpw_domains_allowed_to_login | default('') | regex_search('^[a-zA-Z0-9][a-zA-Z0-9\-]*\.[a-zA-Z]{2,}'))
 
 # win_workman_dep: lineadicomando.win_workman.googledrive
-- name: Install Chrome
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.googledrive
-  vars:
-    win_workman_action: "on"
-  when:
-    - win_workman_action | default('on', true) == 'on'
-    - "'nodep' not in (win_workman_task_argv | default([]))"
+# - name: Install Coogle Drive
+#   ansible.builtin.include_role:
+#     name: lineadicomando.win_workman.googledrive
+#   vars:
+#     win_workman_action: "on"
+#   when:
+#     - win_workman_action | default('on', true) == 'on'
+#     - "'nodep' not in (win_workman_task_argv | default([]))"
 
 # win_workman_dep: lineadicomando.win_workman.chrome
-- name: Install Google Drive
+- name: Install Google Chrome
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.chrome
   vars:
