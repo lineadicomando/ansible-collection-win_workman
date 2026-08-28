@@ -3,7 +3,7 @@ import json
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import TextContent, Tool
+from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, PaginatedRequestParams, CallToolRequestParams
 
 from roles import get_role_info, list_roles
 from runner import build_wm_command, format_command, run_command
@@ -11,8 +11,7 @@ from runner import build_wm_command, format_command, run_command
 app = Server("win-workman")
 
 
-@app.list_tools()
-async def list_tools() -> list[Tool]:
+def _get_tools() -> list[Tool]:
     return [
         Tool(
             name="get_role_info",
@@ -81,18 +80,26 @@ async def list_tools() -> list[Tool]:
     ]
 
 
-@app.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+async def handle_list_tools(params: PaginatedRequestParams) -> ListToolsResult:
+    return ListToolsResult(tools=_get_tools())
+
+
+async def handle_call_tool(params: CallToolRequestParams) -> CallToolResult:
+    name = params.name
+    arguments = params.arguments or {}
+
     if name == "get_role_info":
         role = arguments.get("role", "")
         try:
             data = get_role_info(role)
         except FileNotFoundError as e:
-            return [TextContent(type="text", text=f"Error: {e}")]
-        return [TextContent(type="text", text=json.dumps(data, indent=2))]
+            return CallToolResult(content=[TextContent(type="text", text=f"Error: {e}")])
+        return CallToolResult(content=[TextContent(type="text", text=json.dumps(data, indent=2))])
 
     if name == "run_tasks":
-        t: list[str] = arguments["t"]
+        t: list[str] = arguments.get("t", [])
+        if not t:
+            return CallToolResult(content=[TextContent(type="text", text="Error: t (tasks) is required")])
         l: str = arguments.get("l", "all")
         inventory: str = arguments.get("inventory", "school")
         preview: bool = arguments.get("preview", False)
@@ -100,15 +107,19 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         cmd = build_wm_command(t, l, inventory)
 
         if preview:
-            return [TextContent(
+            return CallToolResult(content=[TextContent(
                 type="text",
                 text=f"Command to run:\n\n  {format_command(cmd)}\n\nNo command executed.",
-            )]
+            )])
 
         output = await asyncio.to_thread(run_command, cmd)
-        return [TextContent(type="text", text=output)]
+        return CallToolResult(content=[TextContent(type="text", text=output)])
 
-    return [TextContent(type="text", text=f"Unknown tool: {name}")]
+    return CallToolResult(content=[TextContent(type="text", text=f"Unknown tool: {name}")])
+
+
+app.add_request_handler("tools/list", PaginatedRequestParams, handle_list_tools)
+app.add_request_handler("tools/call", CallToolRequestParams, handle_call_tool)
 
 
 async def main():
