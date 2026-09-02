@@ -1,0 +1,203 @@
+---
+- name: Resolve requested sections
+  ansible.builtin.set_fact:
+    win_workman_sysinfo_requested_sections: >-
+      {{
+        (win_workman_task.argv[2:] | map('lower') | list)
+        if (
+          win_workman_task is defined
+          and (win_workman_task.argv | default([]) | length) > 2
+        )
+        else (win_workman_sysinfo_sections | map('lower') | list)
+      }}
+
+- name: Validate requested sections
+  ansible.builtin.assert:
+    that:
+      - win_workman_sysinfo_requested_sections | length > 0
+      - >-
+        win_workman_sysinfo_requested_sections
+        | difference(win_workman_sysinfo_known_sections) | length == 0
+    fail_msg: >-
+      Unknown sysinfo section(s):
+      {{ win_workman_sysinfo_requested_sections | difference(win_workman_sysinfo_known_sections) | join(', ') }}.
+      Available: {{ win_workman_sysinfo_known_sections | join(', ') }}
+    quiet: true
+
+- name: Collect system information
+  ansible.windows.win_powershell:
+    parameters:
+      SectionsJson: "{{ win_workman_sysinfo_requested_sections | to_json }}"
+    script: |
+      param(
+        [string]$SectionsJson
+      )
+
+      # Sections are collected with plain if/try blocks rather than helper
+      # functions: under win_powershell a function's $script: scope is not the
+      # scope holding $result, so a function-based collector silently yields {}.
+      $ErrorActionPreference = "Stop"
+      $Ansible.Changed = $false
+      $Ansible.Failed = $false
+
+      # Windows PowerShell 5.1 does not enumerate the array returned by
+      # ConvertFrom-Json: @(...) would yield a single Object[] element and every
+      # -contains test would fail. The [string[]] cast flattens it properly.
+      $sections = [string[]]@()
+      if (-not [string]::IsNullOrWhiteSpace($SectionsJson)) {
+        $sections = [string[]](ConvertFrom-Json -InputObject $SectionsJson)
+      }
+
+      $result = [ordered]@{}
+
+      # Shared CIM instances, fetched once and only when a section needs them.
+      $cimOs = $null
+      $cimCs = $null
+      if ($sections -contains "os") {
+        $cimOs = Get-CimInstance Win32_OperatingSystem
+      }
+      if (($sections -contains "identity") -or ($sections -contains "hw")) {
+        $cimCs = Get-CimInstance Win32_ComputerSystem
+      }
+
+      if ($sections -contains "os") {
+        try {
+          $cv = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+          $displayVersion = $cv.DisplayVersion
+          if ([string]::IsNullOrWhiteSpace($displayVersion)) { $displayVersion = $cv.ReleaseId }
+          if ([string]::IsNullOrWhiteSpace($displayVersion)) { $displayVersion = "unknown" }
+
+          $ubr = 0
+          if ($null -ne $cv.UBR) { $ubr = [int]$cv.UBR }
+          $currentBuild = [int]$cv.CurrentBuild
+
+          # CurrentVersion\ProductName still reports "Windows 10 Pro" on Windows 11:
+          # Win32_OperatingSystem.Caption is the reliable name, and the build number
+          # is the authoritative discriminator (>= 22000 means Windows 11).
+          $major = 10
+          if ($currentBuild -ge 22000) { $major = 11 }
+
+          # Lab machines are usually up for hours, not days: a days-only figure
+          # would round to 0 for a whole morning of lessons.
+          $uptime = (Get-Date) - $cimOs.LastBootUpTime
+          # TimeSpan components, not [int] casts: PowerShell rounds rather than
+          # truncates, so [int]0.7 would report 44 minutes of uptime as "1h".
+          if ($uptime.TotalDays -ge 1) {
+            $uptimeText = "{0}d {1}h" -f $uptime.Days, $uptime.Hours
+          } else {
+            $uptimeText = "{0}h {1}m" -f $uptime.Hours, $uptime.Minutes
+          }
+
+          $result["os"] = [ordered]@{
+            caption         = ([string]$cimOs.Caption).Trim()
+            major           = $major
+            display_version = [string]$displayVersion
+            build           = "$currentBuild.$ubr"
+            build_number    = $currentBuild
+            ubr             = $ubr
+            architecture    = [string]$cimOs.OSArchitecture
+            install_date    = $cimOs.InstallDate.ToString("yyyy-MM-dd")
+            last_boot       = $cimOs.LastBootUpTime.ToString("yyyy-MM-dd HH:mm")
+            uptime          = $uptimeText
+            uptime_days     = [math]::Round($uptime.TotalDays, 1)
+            uptime_hours    = [math]::Round($uptime.TotalHours, 1)
+            locale          = (Get-Culture).Name
+          }
+        } catch {
+          $result["os"] = [ordered]@{ error = $_.Exception.Message }
+        }
+      }
+
+      if ($sections -contains "identity") {
+        try {
+          $loggedOn = ""
+          if ($cimCs.UserName) { $loggedOn = [string]$cimCs.UserName }
+
+          $result["identity"] = [ordered]@{
+            hostname       = [string]$env:COMPUTERNAME
+            part_of_domain = [bool]$cimCs.PartOfDomain
+            domain         = [string]$cimCs.Domain
+            workgroup      = [string]$cimCs.Workgroup
+            logged_on_user = $loggedOn
+          }
+        } catch {
+          $result["identity"] = [ordered]@{ error = $_.Exception.Message }
+        }
+      }
+
+      if ($sections -contains "hw") {
+        try {
+          $bios = Get-CimInstance Win32_BIOS
+          $cpu = @(Get-CimInstance Win32_Processor)[0]
+
+          $result["hw"] = [ordered]@{
+            manufacturer = ([string]$cimCs.Manufacturer).Trim()
+            model        = ([string]$cimCs.Model).Trim()
+            serial       = ([string]$bios.SerialNumber).Trim()
+            bios_version = [string]$bios.SMBIOSBIOSVersion
+            cpu          = ([string]$cpu.Name).Trim()
+            cpu_cores    = [int]$cpu.NumberOfCores
+            cpu_threads  = [int]$cpu.NumberOfLogicalProcessors
+            ram_gb       = [math]::Round($cimCs.TotalPhysicalMemory / 1GB, 1)
+          }
+        } catch {
+          $result["hw"] = [ordered]@{ error = $_.Exception.Message }
+        }
+      }
+
+      if ($sections -contains "disk") {
+        try {
+          # DriveType 3 = local fixed disk; network and removable drives are noise here.
+          $disks = @()
+          foreach ($vol in @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3")) {
+            $size = [double]$vol.Size
+            $free = [double]$vol.FreeSpace
+            $freePct = 0
+            if ($size -gt 0) { $freePct = [math]::Round(($free / $size) * 100, 1) }
+
+            $disks += [ordered]@{
+              device   = [string]$vol.DeviceID
+              label    = [string]$vol.VolumeName
+              size_gb  = [math]::Round($size / 1GB, 1)
+              free_gb  = [math]::Round($free / 1GB, 1)
+              free_pct = $freePct
+            }
+          }
+          $result["disk"] = $disks
+        } catch {
+          $result["disk"] = @([ordered]@{ error = $_.Exception.Message })
+        }
+      }
+
+      if ($sections -contains "net") {
+        try {
+          $adapters = @()
+          foreach ($nic in @(Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True")) {
+            $ipv4 = @($nic.IPAddress | Where-Object { $_ -notmatch ":" })
+            $ip = ""
+            if ($ipv4.Count -gt 0) { $ip = [string]$ipv4[0] }
+            $gateway = ""
+            if ($nic.DefaultIPGateway) { $gateway = [string]@($nic.DefaultIPGateway)[0] }
+
+            $adapters += [ordered]@{
+              description = [string]$nic.Description
+              mac         = [string]$nic.MACAddress
+              ip          = $ip
+              gateway     = $gateway
+              dhcp        = [bool]$nic.DHCPEnabled
+            }
+          }
+          $result["net"] = $adapters
+        } catch {
+          $result["net"] = @([ordered]@{ error = $_.Exception.Message })
+        }
+      }
+
+      $Ansible.Result = $result
+  register: win_workman_sysinfo_raw
+  changed_when: false
+
+- name: Set sysinfo fact
+  ansible.builtin.set_fact:
+    win_workman_sysinfo: "{{ win_workman_sysinfo_raw.result }}"

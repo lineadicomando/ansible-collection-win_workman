@@ -1,0 +1,13 @@
+---
+- name: Collect OS information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.sysinfo
+    tasks_from: collect
+  vars:
+    win_workman_sysinfo_sections:
+      - os
+
+- name: Report OS information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.sysinfo
+    tasks_from: report

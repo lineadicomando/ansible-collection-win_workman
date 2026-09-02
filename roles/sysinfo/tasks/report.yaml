@@ -1,0 +1,70 @@
+---
+- name: System information
+  ansible.builtin.debug:
+    msg: "{{ win_workman_sysinfo_segments | select | join(' | ') }}"
+  vars:
+    _os: "{{ win_workman_sysinfo.os | default({}) }}"
+    _id: "{{ win_workman_sysinfo.identity | default({}) }}"
+    _hw: "{{ win_workman_sysinfo.hw | default({}) }}"
+    _sys_disk: >-
+      {{
+        (win_workman_sysinfo.disk | default([]))
+        | selectattr('device', 'equalto', 'C:') | list | first | default({})
+      }}
+    _net: "{{ (win_workman_sysinfo.net | default([])) | first | default({}) }}"
+    win_workman_sysinfo_segments:
+      - >-
+        {{
+          (_os.caption ~ ' ' ~ _os.display_version ~ ' build ' ~ _os.build
+           ~ ' (up ' ~ _os.uptime ~ ')')
+          if (_os.caption is defined) else ''
+        }}
+      - >-
+        {{
+          (('domain ' ~ _id.domain) if (_id.part_of_domain | default(false) | bool)
+           else ('workgroup ' ~ _id.workgroup))
+          if (_id.hostname is defined) else ''
+        }}
+      - >-
+        {{
+          (_hw.manufacturer ~ ' ' ~ _hw.model ~ ', ' ~ (_hw.ram_gb | string) ~ ' GB RAM')
+          if (_hw.model is defined) else ''
+        }}
+      - >-
+        {{
+          (_sys_disk.device ~ ' ' ~ (_sys_disk.free_gb | string) ~ '/'
+           ~ (_sys_disk.size_gb | string) ~ ' GB free (' ~ (_sys_disk.free_pct | string) ~ '%)')
+          if (_sys_disk.device is defined) else ''
+        }}
+      - >-
+        {{
+          (_net.ip ~ ' ' ~ _net.mac) if (_net.ip is defined and _net.ip | length > 0) else ''
+        }}
+
+- name: OS version distribution
+  ansible.builtin.debug:
+    msg: >-
+      {{ win_workman_sysinfo_version }}: {{ win_workman_sysinfo_version_hosts | length }} host(s)
+      — {{ win_workman_sysinfo_version_hosts | join(', ') }}
+  vars:
+    _reported: >-
+      {{
+        ansible_play_hosts | map('extract', hostvars)
+        | selectattr('win_workman_sysinfo.os.display_version', 'defined') | list
+      }}
+    win_workman_sysinfo_version_hosts: >-
+      {{
+        _reported
+        | selectattr('win_workman_sysinfo.os.display_version', 'equalto', win_workman_sysinfo_version)
+        | map(attribute='inventory_hostname') | list
+      }}
+  loop: >-
+    {{
+      ansible_play_hosts | map('extract', hostvars)
+      | selectattr('win_workman_sysinfo.os.display_version', 'defined')
+      | map(attribute='win_workman_sysinfo.os.display_version')
+      | unique | sort | list
+    }}
+  loop_control:
+    loop_var: win_workman_sysinfo_version
+  run_once: true

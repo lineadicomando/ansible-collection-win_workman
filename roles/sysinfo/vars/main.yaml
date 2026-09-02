@@ -1,0 +1,13 @@
+---
+win_workman_sysinfo_schema:
+  name: System Information
+  role: lineadicomando.win_workman.sysinfo
+  default_action: !!str on
+
+# Sections implemented by the collector. Used to validate user input.
+win_workman_sysinfo_known_sections:
+  - os
+  - identity
+  - hw
+  - disk
+  - net

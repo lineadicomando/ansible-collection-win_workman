@@ -1,0 +1,14 @@
+---
+# Sections collected when the task string carries no explicit section list.
+win_workman_sysinfo_sections:
+  - os
+  - identity
+  - hw
+  - disk
+  - net
+
+# Controller-side destination for the "save" action. ansible-playbook chdirs
+# into the playbook directory, so a relative default would land inside the
+# collection: the path must be absolute. Override with -e or group_vars to
+# collect the report elsewhere.
+win_workman_sysinfo_dest: "/tmp/win_workman_sysinfo.json"

@@ -1,0 +1,31 @@
+---
+- name: Collect system information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.sysinfo
+    tasks_from: collect
+
+- name: Write aggregated sysinfo report
+  ansible.builtin.copy:
+    content: "{{ win_workman_sysinfo_report | to_nice_json }}"
+    dest: "{{ win_workman_sysinfo_dest }}"
+    mode: "0644"
+  vars:
+    _reported: >-
+      {{
+        ansible_play_hosts | map('extract', hostvars)
+        | selectattr('win_workman_sysinfo', 'defined') | list
+      }}
+    win_workman_sysinfo_report: >-
+      {{
+        dict(
+          _reported | map(attribute='inventory_hostname') | list
+          | zip(_reported | map(attribute='win_workman_sysinfo') | list)
+        )
+      }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Report saved file
+  ansible.builtin.debug:
+    msg: "sysinfo report written to {{ win_workman_sysinfo_dest }}"
+  run_once: true

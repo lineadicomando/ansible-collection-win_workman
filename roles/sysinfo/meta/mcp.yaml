@@ -1,0 +1,34 @@
+---
+display_name: System Information
+custom_actions:
+  - name: "on"
+    description: >-
+      Collect system information and print a per-host line plus an aggregated
+      summary (default action). Optional args select sections, e.g.
+      'sysinfo-on-os-disk'
+  - name: os
+    description: Collect only the OS section (Windows edition, DisplayVersion, build, uptime)
+  - name: full
+    description: Collect and dump the whole information dictionary for each host
+  - name: save
+    description: Collect and write an aggregated JSON report to win_workman_sysinfo_dest on the controller
+defaults:
+  - var: win_workman_sysinfo_sections
+    type: list
+    default: ["os", "identity", "hw", "disk", "net"]
+    description: >-
+      Sections collected when the task string carries no explicit section list.
+      Available sections: os, identity, hw, disk, net
+  - var: win_workman_sysinfo_dest
+    type: str
+    default: "/tmp/win_workman_sysinfo.json"
+    description: >-
+      Controller-side path for the JSON report written by the 'save' action.
+      Must be absolute: a relative path resolves against the collection
+      playbook directory, not the project directory
+notes: >-
+  Read-only: never changes state on the target. Collects everything in a single
+  PowerShell round-trip and does not rely on gathered facts. Results are exposed
+  as the win_workman_sysinfo fact, so other roles can branch on OS build or
+  hardware. Sections can be narrowed per task, e.g. 'sysinfo-on-os' for a fast
+  Windows version check across a lab.

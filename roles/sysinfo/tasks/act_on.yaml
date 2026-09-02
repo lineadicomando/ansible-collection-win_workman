@@ -1,0 +1,10 @@
+---
+- name: Collect system information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.sysinfo
+    tasks_from: collect
+
+- name: Report system information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.sysinfo
+    tasks_from: report

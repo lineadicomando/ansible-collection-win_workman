@@ -114,6 +114,7 @@ The collection has two distinct role families:
 | [roles/catalog/patchcleaner.md](roles/catalog/patchcleaner.md) | `patchcleaner` — WinSxS / superseded update cleanup |
 | [roles/management/optimize.md](roles/management/optimize.md) | `optimize` — volume optimisation and defrag |
 | [roles/management/wu.md](roles/management/wu.md) | `wu` — Windows Update enable/disable/pause/policy |
+| [roles/management/sysinfo.md](roles/management/sysinfo.md) | `sysinfo` — system information and statistics collection |
 | [roles/management/wallpaper.md](roles/management/wallpaper.md) | `wallpaper` — set/reset/lock/unlock across all profiles |
 | [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
 | [roles/management/autologon.md](roles/management/autologon.md) | `autologon` — automatic logon configuration |
@@ -146,7 +147,7 @@ The collection has two distinct role families:
 [`veyon`](roles/catalog/veyon.md) · [`gcpw`](roles/catalog/gcpw.md)
 
 ### Management — System & OS
-[`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim)
+[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim)
 
 ### Management — Session & Access
 [`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown)
