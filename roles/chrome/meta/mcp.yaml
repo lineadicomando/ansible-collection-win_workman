@@ -2,9 +2,19 @@
 display_name: Google Chrome
 custom_actions:
   - name: privacy
-    description: Clear user data (history, cache, cookies) for all Chrome profiles
+    description: >-
+      Requires an 'on' or 'off' argument (chrome-privacy-on). Applies or removes
+      lockdown policies under HKLM\SOFTWARE\Policies\Google\Chrome. 'on'
+      disables sign-in, sync, guest mode, profile creation, password manager,
+      autofill, telemetry and extension installs, and clears cookies, cache and
+      history on browser exit. 'off' removes those policies. Does not delete
+      existing profile data.
   - name: rm
-    description: Remove the Chrome profile directory for a specific user
+    description: >-
+      Requires the 'profile' argument (chrome-rm-profile). Force-closes Chrome,
+      then deletes AppData\Local\Google\Chrome for every local user profile on
+      the host and removes per-profile Chrome desktop shortcuts. Affects all
+      local users, not a single one.
 defaults:
   - var: win_workman_chrome_shortcuts
     type: bool

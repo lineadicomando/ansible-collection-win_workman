@@ -6,20 +6,26 @@ from mcp.server.context import ServerRequestContext
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, PaginatedRequestParams, CallToolRequestParams
 
-from roles import get_role_info, list_roles
+from roles import get_role_info, list_roles, pkg_actions
 from runner import build_wm_command, format_command, run_command
 
 app = Server("win-workman")
 
 
 def _get_tools() -> list[Tool]:
+    actions, default_action = pkg_actions()
+    common_actions = ", ".join(
+        f"{a} (default)" if a == default_action else a for a in actions
+    )
     return [
         Tool(
             name="get_role_info",
             description=(
-                "Returns display name, custom actions, configurable defaults, and notes "
-                "for a single win_workman role. Call this before run_tasks when you need "
-                "to know what actions a role supports or which extra vars it accepts."
+                "Returns display name, common package actions, custom actions, configurable "
+                "defaults, and notes for a single win_workman role. Call this before run_tasks "
+                "when you need to know what actions a role supports or which extra vars it "
+                "accepts. Common actions carry 'handled_by': 'pkg_utils' for the shared "
+                "implementation, or the role name when the role reimplements that action."
             ),
             inputSchema={
                 "type": "object",
@@ -39,7 +45,9 @@ def _get_tools() -> list[Tool]:
                 "via playbooks/win_wm.yaml. "
                 f"Available roles: {', '.join(list_roles())}. "
                 "Task format: <role> or <role>-<action> (e.g. chrome, chrome-off, chkdsk). "
-                "Common actions: on (default/install), off (remove), info, download, is_present."
+                f"Common actions for package roles: {common_actions}. "
+                "Roles may add custom actions or reimplement a common one: "
+                "call get_role_info for the full list of a given role."
             ),
             inputSchema={
                 "type": "object",

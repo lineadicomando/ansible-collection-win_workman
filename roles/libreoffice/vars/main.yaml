@@ -5,8 +5,36 @@
 #      - Download:    https://www.libreoffice.org/download/download-libreoffice/
 # ==============================================================================
 ---
-win_workman_libreoffice_version: "26.2.3"
-win_workman_libreoffice_full_version: "26.2.3.2"
+# Release branch: "still" (default, the one TDF recommends for institutions) or
+# "fresh". Select fresh per task with the 'fresh' argument, e.g.
+# libreoffice-on-fresh, libreoffice-info-fresh, libreoffice-download-fresh.
+win_workman_libreoffice_branch: >-
+  {{
+    "fresh" if (
+      "fresh" in (win_workman_task_argv | default([]))
+    ) else "still"
+  }}
+
+win_workman_libreoffice_branch_version:
+  still: "26.2.6"
+  fresh: "26.8.0"
+
+# MSI ProductVersion: it is what ends up in the uninstall registry DisplayName,
+# so searchName below depends on it.
+win_workman_libreoffice_branch_full_version:
+  still: "26.2.6.3"
+  fresh: "26.8.0.3"
+
+# TDF publishes no checksum file, only a detached GPG signature. These are the
+# sha256 of the MSI whose .asc verifies against the LibreOffice Build Team key
+# C283 9ECA D940 8FBE 9531  C3E9 F434 A1EF AFEE AEA3.
+win_workman_libreoffice_branch_checksum:
+  still: sha256:f9877032fd908beb9c0ddf06df4af5c2e85f419c42e14876c4cce5aae5fb2660
+  fresh: sha256:4aa6c6e1895f4055104effcb556bd3362d20c6ad707c149543304f395ef9db95
+
+win_workman_libreoffice_version: "{{ win_workman_libreoffice_branch_version[win_workman_libreoffice_branch] }}"
+win_workman_libreoffice_full_version: >-
+  {{ win_workman_libreoffice_branch_full_version[win_workman_libreoffice_branch] }}
 
 win_workman_libreoffice_schema:
   name: LibreOffice
@@ -19,4 +47,4 @@ win_workman_libreoffice_schema:
   files:
     - filename: "LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
       url: "https://www.mirrorservice.org/sites/download.documentfoundation.org/tdf/libreoffice/stable/{{ win_workman_libreoffice_version }}/win/x86_64/LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
-      checksum: sha256:468d1fb3880af3bcddac002e9054155912c70b45d105bfa1c82036f33456133d
+      checksum: "{{ win_workman_libreoffice_branch_checksum[win_workman_libreoffice_branch] }}"

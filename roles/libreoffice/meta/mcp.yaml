@@ -3,3 +3,7 @@ display_name: LibreOffice
 custom_actions:
   - name: rm_data
     description: Remove LibreOffice user profile data (resets per-user settings)
+notes: >-
+  Accepts the 'fresh' task argument (libreoffice-on-fresh, libreoffice-info-fresh):
+  installs the Fresh branch instead of the default Still branch. Still is the
+  branch The Document Foundation recommends for institutional deployments.
