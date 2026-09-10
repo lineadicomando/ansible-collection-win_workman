@@ -35,3 +35,7 @@ win_workman_veyon_schema:
     - filename: veyon-4.11.2.0-win64-setup.exe
       url: https://github.com/veyon/veyon/releases/download/v4.11.2/veyon-4.11.2.0-win64-setup.exe
       checksum: sha256:7ec3f0689f995fe7c79d3f5b106e85dade089ab24f534e92a168543197f0e428
+  services:
+    - name: VeyonService
+      start_mode: auto
+      state: started
