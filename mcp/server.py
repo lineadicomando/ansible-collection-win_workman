@@ -121,7 +121,8 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
                 text=f"Command to run:\n\n  {format_command(cmd)}\n\nNo command executed.",
             )])
 
-        output = await asyncio.to_thread(run_command, cmd)
+        label = f"win_wm-{'_'.join(t)}-{l}"
+        output = await asyncio.to_thread(run_command, cmd, label)
         return CallToolResult(content=[TextContent(type="text", text=output)])
 
     return CallToolResult(content=[TextContent(type="text", text=f"Unknown tool: {name}")])
