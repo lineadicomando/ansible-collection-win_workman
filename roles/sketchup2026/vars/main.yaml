@@ -4,6 +4,7 @@
 #      - Homepage:    https://sketchup.trimble.com
 #      - Download:    https://help.sketchup.com/en/downloading-sketchup
 #      - Doc:         https://help.sketchup.com/en/sketchup/performing-silent-install-sketchup
+#      - Release:     https://help.sketchup.com/en/release-notes
 # ==============================================================================
 ---
 win_workman_sketchup2026_schema:
@@ -11,14 +12,14 @@ win_workman_sketchup2026_schema:
   role: lineadicomando.win_workman.sketchup2026
   default_action: !!str on
   package:
-    setup_file: SketchUp-2026-1-189-46.exe
+    setup_file: SketchUp-2026-2-243-76.exe
     searchName: "SketchUp 2026"
-    version: "26.1.189.46"
+    version: "26.2.243.76"
     provider: registry
     product_id: "{bf48c79b-90c4-5ce8-8235-2a1dec3593bf}"
     install_args: "/silent /FEATURES=it"
     uninstall_args: "/silent"
   files:
-    - filename: SketchUp-2026-1-189-46.exe
-      url: https://download.sketchup.com/SketchUp-2026-1-189-46.exe
-      checksum: sha256:efde02ab9f235ffdc9a31465fcd709ff91bdcecd5c12f4313e4c4ae39ae57575
+    - filename: SketchUp-2026-2-243-76.exe
+      url: https://download.sketchup.com/SketchUp-2026-2-243-76.exe
+      checksum: sha256:ce889af6ad084e01c59a43ba121f7bfbe52e77736ed32cfebade166aecfffc5a
