@@ -1,0 +1,7 @@
+---
+# NOTE: this only removes the pre-fill file. It does NOT release the license seat:
+# Trimble documents seat removal only through Help > License > Remove License.
+- name: Remove activation_info.txt
+  ansible.windows.win_file:
+    path: '{{ win_workman_sketchup2026_activation_info_dest }}'
+    state: absent

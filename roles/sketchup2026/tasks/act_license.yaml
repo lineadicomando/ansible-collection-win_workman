@@ -1,0 +1,38 @@
+---
+- name: Assert license credentials are set
+  ansible.builtin.assert:
+    that:
+      - win_workman_sketchup2026_serial_number | length > 0
+      - win_workman_sketchup2026_auth_code | length > 0
+    fail_msg: >-
+      Set win_workman_sketchup2026_serial_number and win_workman_sketchup2026_auth_code
+      (vault) before running the 'license' action.
+
+- name: Ensure SketchUp program data directory exists
+  ansible.windows.win_file:
+    path: '{{ win_workman_sketchup2026_program_data_dir }}'
+    state: directory
+
+- name: Deploy activation_info.txt
+  ansible.windows.win_copy:
+    dest: '{{ win_workman_sketchup2026_activation_info_dest }}'
+    content: |
+      {{
+        {
+          'serial_number': win_workman_sketchup2026_serial_number,
+          'auth_code': win_workman_sketchup2026_auth_code,
+        }
+        | combine(
+            {'allow_reactivation': 'true'}
+            if win_workman_sketchup2026_allow_reactivation | bool else {}
+          )
+        | to_nice_json
+      }}
+  no_log: true
+
+- name: Report deployed license file
+  ansible.builtin.debug:
+    msg: >-
+      activation_info.txt deployed to {{ win_workman_sketchup2026_activation_info_dest }}.
+      SketchUp still has to be opened once on the workstation: that first launch picks
+      up the file and activates the license without asking anything.

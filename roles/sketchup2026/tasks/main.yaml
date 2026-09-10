@@ -1,4 +1,14 @@
 ---
+- name: Deploy classic/network license pre-fill file
+  ansible.builtin.include_tasks: act_license.yaml
+  when:
+    - win_workman_action == "license"
+
+- name: Remove classic/network license pre-fill file
+  ansible.builtin.include_tasks: act_unlicense.yaml
+  when:
+    - win_workman_action == "unlicense"
+
 # win_workman_dep: lineadicomando.win_workman.vcredist14
 - name: Install dependency vcredist14
   ansible.builtin.include_role:
@@ -13,3 +23,4 @@
     tasks_from: pkg_workflow
   vars:
     win_workman_schema: "{{ win_workman_sketchup2026_schema }}"
+  when: win_workman_action not in ["license", "unlicense"]

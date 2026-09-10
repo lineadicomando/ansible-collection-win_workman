@@ -1,0 +1,15 @@
+---
+# Directory where SketchUp looks for the classic/network license pre-fill file.
+win_workman_sketchup2026_program_data_dir: 'C:\ProgramData\SketchUp\SketchUp 2026'
+
+# https://help.sketchup.com/en/admin/managing-network-license
+win_workman_sketchup2026_activation_info_dest: >-
+  {{ win_workman_sketchup2026_program_data_dir }}\activation_info.txt
+
+# Classic/network license credentials. Keep these in a vault, never in vars.yaml.
+win_workman_sketchup2026_serial_number: ''
+win_workman_sketchup2026_auth_code: ''
+
+# Lets SketchUp re-activate the same license when it expires or is renewed,
+# without redeploying the file.
+win_workman_sketchup2026_allow_reactivation: true
