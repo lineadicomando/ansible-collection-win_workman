@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-from runlog import run_logged
+from runlog import NotifyFn, RunStatus, read_log, run_logged_async, start_logged
 
 
 def _project_root() -> Path:
@@ -22,13 +22,27 @@ def build_wm_command(t: list[str], l: str = "all", inventory: str = "school") ->
     return cmd
 
 
-def run_command(cmd: list[str], label: str = "win_wm") -> str:
+async def run_command(
+    cmd: list[str],
+    label: str = "win_wm",
+    notify: NotifyFn | None = None,
+) -> str:
     """Run an ansible-playbook command, streaming its output to a log file."""
-    result = run_logged(cmd, _project_root(), label)
+    result = await run_logged_async(cmd, _project_root(), label, notify)
     output = result.output
     if result.returncode != 0:
         output += f"\n[exit code {result.returncode}]"
     return f"{output}\n[log] {result.log_path}"
+
+
+def start_run(cmd: list[str], label: str = "win_wm") -> Path:
+    """Start an ansible-playbook command in the background; return its log path."""
+    return start_logged(cmd, _project_root(), label)
+
+
+def run_status(run: str = "latest", since_line: int = 0, max_lines: int = 200) -> RunStatus:
+    """Read a run's log, whether it is still going or already finished."""
+    return read_log(_project_root(), run, since_line, max_lines)
 
 
 def format_command(cmd: list[str]) -> str:

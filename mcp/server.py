@@ -7,7 +7,8 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, PaginatedRequestParams, CallToolRequestParams
 
 from roles import get_role_info, list_roles, pkg_actions
-from runner import build_wm_command, format_command, run_command
+from runlog import NotifyFn, format_status
+from runner import build_wm_command, format_command, run_command, run_status, start_run
 
 app = Server("win-workman")
 
@@ -82,11 +83,76 @@ def _get_tools() -> list[Tool]:
                         ),
                         "default": False,
                     },
+                    "background": {
+                        "type": "boolean",
+                        "description": (
+                            "If true, start the run and return its run id immediately "
+                            "instead of waiting for it to finish, then follow it with "
+                            "run_status. Use this for runs over a whole lab, which take "
+                            "minutes, so their output can be reported as it arrives."
+                        ),
+                        "default": False,
+                    },
                 },
                 "required": ["t"],
             },
         ),
+        Tool(
+            name="run_status",
+            description=(
+                "Read the log of a run started with background=true: the new output "
+                "since a given line, and whether the run is still going. "
+                "Poll this to follow a lab-wide run while it runs."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "run": {
+                        "type": "string",
+                        "description": (
+                            "Run id, as returned by a background run. "
+                            "'latest' (the default) is the most recent run."
+                        ),
+                        "default": "latest",
+                    },
+                    "since_line": {
+                        "type": "integer",
+                        "description": (
+                            "Line to resume from: pass the since_line the previous "
+                            "call reported, to get only what is new."
+                        ),
+                        "default": 0,
+                    },
+                    "max_lines": {
+                        "type": "integer",
+                        "description": "Most lines to return in one call.",
+                        "default": 200,
+                    },
+                },
+            },
+        ),
     ]
+
+
+def _progress_notifier(ctx: ServerRequestContext) -> NotifyFn | None:
+    """Relay a run's output as progress notifications, if the client wants them.
+
+    Clients opt in per request by sending a progress token; without one there
+    is nobody to notify and the run streams to its log file only.
+    """
+    token = (ctx.meta or {}).get("progress_token")
+    if token is None:
+        return None
+
+    async def notify(progress: int, message: str) -> None:
+        await ctx.session.send_progress_notification(
+            progress_token=token,
+            progress=progress,
+            message=message,
+            related_request_id=ctx.request_id,
+        )
+
+    return notify
 
 
 async def handle_list_tools(ctx: ServerRequestContext, params: PaginatedRequestParams) -> ListToolsResult:
@@ -122,8 +188,31 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
             )])
 
         label = f"win_wm-{'_'.join(t)}-{l}"
-        output = await asyncio.to_thread(run_command, cmd, label)
+
+        if arguments.get("background", False):
+            path = start_run(cmd, label)
+            return CallToolResult(content=[TextContent(
+                type="text",
+                text=(
+                    f"Started run {path.name}\n"
+                    f"[log] {path}\n\n"
+                    f'Follow it with run_status(run="{path.name}", since_line=0).'
+                ),
+            )])
+
+        output = await run_command(cmd, label, _progress_notifier(ctx))
         return CallToolResult(content=[TextContent(type="text", text=output)])
+
+    if name == "run_status":
+        try:
+            status = run_status(
+                arguments.get("run", "latest"),
+                int(arguments.get("since_line", 0)),
+                int(arguments.get("max_lines", 200)),
+            )
+        except FileNotFoundError as e:
+            return CallToolResult(content=[TextContent(type="text", text=f"Error: {e}")])
+        return CallToolResult(content=[TextContent(type="text", text=format_status(status))])
 
     return CallToolResult(content=[TextContent(type="text", text=f"Unknown tool: {name}")])
 
