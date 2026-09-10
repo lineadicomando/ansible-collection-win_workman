@@ -298,17 +298,38 @@
   when:
     - win_workman_needs_action | bool
 
+- name: Stop declared services before install
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: services_stop
+  when:
+    - win_workman_needs_action | bool
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_schema.services is defined
+    - win_workman_schema.services is not none
+
+# pkg_act_off resets win_workman_operation and win_workman_needs_action to
+# describe the uninstall it performs, so the install workflow state is saved
+# here and restored right after.
+- name: Save install workflow state
+  ansible.builtin.set_fact:
+    win_workman_install_operation: "{{ win_workman_operation }}"
+    win_workman_install_needs_action: "{{ win_workman_needs_action }}"
+
 - name: Uninstall before upgrade/downgrade
-  ansible.windows.win_package:
-    product_id: "{{ win_workman_product_id }}"
-    state: absent
-    provider: "{{ win_workman_provider }}"
-    arguments: "{{ win_workman_schema.package.uninstall_args | default([]) }}"
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_off
   when:
     - win_workman_uninstall_before_upgrade | bool
     - win_workman_is_present | default(false) | bool
     - win_workman_operation in ['upgrade', 'downgrade']
     - not (win_workman_pkg_portable | bool)
+
+- name: Restore install workflow state
+  ansible.builtin.set_fact:
+    win_workman_operation: "{{ win_workman_install_operation }}"
+    win_workman_needs_action: "{{ win_workman_install_needs_action }}"
 
 - name: Get install argv
   ansible.builtin.set_fact:

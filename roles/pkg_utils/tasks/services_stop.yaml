@@ -1,0 +1,27 @@
+---
+# Stop the services declared in win_workman_schema.services before the package
+# is uninstalled or installed, so that the installer can replace files that are
+# locked by running service processes. Silent installers usually skip locked
+# files without reporting an error, which leaves a mix of old and new binaries
+# behind. The services are brought back to their declared state by the
+# 'Services' task of pkg_act_on.
+
+- name: Query declared services
+  ansible.windows.win_service_info:
+    name: "{{ win_workman_schema_service.name }}"
+  loop: "{{ win_workman_schema.services }}"
+  loop_control:
+    loop_var: win_workman_schema_service
+    label: "{{ win_workman_schema_service.name }}"
+  register: win_workman_schema_services_state
+
+- name: Stop declared services
+  ansible.windows.win_service:
+    name: "{{ win_workman_schema_service_state.win_workman_schema_service.name }}"
+    state: stopped
+  loop: "{{ win_workman_schema_services_state.results | default([]) }}"
+  loop_control:
+    loop_var: win_workman_schema_service_state
+    label: "{{ win_workman_schema_service_state.win_workman_schema_service.name }}"
+  when:
+    - win_workman_schema_service_state.exists | default(false) | bool
