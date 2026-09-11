@@ -62,6 +62,7 @@ comma-separated extra-var string, normalises it into a list, and delegates to
 | `veyon-config-teacher` | `veyon` | `config` | `teacher` |
 | `python312-download` | `python312` | `download` | — |
 | `wallpaper-set` | `wallpaper` | `set` | — |
+| `display_scale-set-150` | `display_scale` | `set` | `150` |
 
 ### Parsed object
 
@@ -105,6 +106,7 @@ Some roles extend the standard set with their own actions or support a subset:
 | `firefox` | `on`, `off`, `privacy-on`, `privacy-off`, `rm-profile` |
 | `edge` | `privacy-on`, `privacy-off`, `rm-profile` (uninstall not supported) |
 | `wallpaper` | `set`, `reset`, `lock`, `unlock` |
+| `display_scale` | `set` *(default)*, `reset`, `on` *(alias for `set`)*, `off` *(alias for `reset`)*, `info` |
 | `wu` | `run` *(default)*, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` |
 | `veyon` | `on`, `off`, `config` |
 | `lock` | `on`, `off` |

@@ -1,0 +1,36 @@
+---
+display_name: Display Scaling
+custom_actions:
+  - name: set
+    description: >-
+      Apply a display scale percentage (default action). The percentage can be
+      passed as task argument, e.g. display_scale-set-150
+  - name: reset
+    description: Restore the scale recommended by the display driver
+  - name: "on"
+    description: Alias for 'set' — applies win_workman_display_scale_percent
+  - name: "off"
+    description: Alias for 'reset'
+  - name: info
+    description: Report the scale configured in every user profile without changing it
+defaults:
+  - var: win_workman_display_scale_percent
+    type: int
+    default: 100
+    description: >-
+      Scale percentage applied when no argument is given. Supported values:
+      100, 125, 150, 175, 200, 225, 250, 300, 350, 400
+  - var: win_workman_display_scale_profiles_include_default
+    type: bool
+    default: true
+    description: Apply the scale to the default user profile (new user template)
+  - var: win_workman_display_scale_clear_per_monitor
+    type: bool
+    default: true
+    description: >-
+      Remove per-monitor overrides (PerMonitorSettings) so the global scale
+      takes effect on every display
+notes: >-
+  The scale is a per-user setting written into each profile hive, so it applies
+  at the next logon. Profiles of users currently logged in are skipped: the
+  action forces a logoff first. A reboot is not required.

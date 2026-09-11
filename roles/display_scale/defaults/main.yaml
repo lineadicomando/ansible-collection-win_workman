@@ -1,0 +1,5 @@
+---
+win_workman_display_scale_percent: 100
+win_workman_display_scale_profiles_include_default: true
+win_workman_display_scale_clear_per_monitor: true
+win_workman_action: ""

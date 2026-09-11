@@ -1,0 +1,53 @@
+# ==============================================================================
+#  Display Scaling (Impostazioni > Schermo > Scalabilita e layout)
+#      - HKCU\Control Panel\Desktop\LogPixels       DPI globale (96 = 100%)
+#      - HKCU\Control Panel\Desktop\Win8DpiScaling  1 = usa LogPixels, 0 = DPI consigliato
+#      - HKCU\Control Panel\Desktop\PerMonitorSettings  override per singolo monitor
+# ==============================================================================
+---
+win_workman_display_scale_schema:
+  name: Display Scaling
+  role: lineadicomando.win_workman.display_scale
+  default_action: set
+
+# Percentuali offerte dal pannello Impostazioni di Windows 11.
+win_workman_display_scale_supported:
+  - 100
+  - 125
+  - 150
+  - 175
+  - 200
+  - 225
+  - 250
+  - 300
+  - 350
+  - 400
+
+# L'argomento del task string (display_scale-set-150) vince sulla variabile.
+win_workman_display_scale_requested: >-
+  {{
+    (win_workman_task_argv | default([]))[2]
+    if ((win_workman_task_argv | default([]) | length) > 2)
+    else win_workman_display_scale_percent
+  }}
+
+win_workman_display_scale_dpi: >-
+  {{ ((win_workman_display_scale_requested | int) * 96 / 100) | round | int }}
+
+win_workman_display_scale_per_monitor_path: HKLM:\ANSIBLE\Control Panel\Desktop\PerMonitorSettings
+
+win_workman_display_scale_registry_entries_set:
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: LogPixels
+    data: "{{ win_workman_display_scale_dpi }}"
+    type: dword
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: Win8DpiScaling
+    data: "{{ 1 if (win_workman_display_scale_requested | int) != 100 else 0 }}"
+    type: dword
+
+win_workman_display_scale_registry_entries_reset:
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: LogPixels
+  - path: HKLM:\ANSIBLE\Control Panel\Desktop
+    name: Win8DpiScaling
