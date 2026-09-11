@@ -1,0 +1,74 @@
+---
+# Autodesk's ODIS uninstaller spawns helpers that outlive it - ADPClientService,
+# the desktop analytics client, is started right at the end to report the
+# uninstall and then lingers. pkg_utils/start_process uses Start-Process -Wait,
+# which in PowerShell 5.1 does not simply WaitForExit() on the process it
+# launched: it waits for the whole job object, every descendant included. The
+# task therefore hangs for as long as the stray helper lives, long after the
+# uninstall itself has finished. Wait on the uninstaller process alone instead.
+- name: Run the ODIS uninstaller for {{ win_workman_odis_label }}
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$ExePath,
+        [string]$ExeArgs,
+        [string]$SuccessExitCodesJson,
+        [int]$TimeoutSec
+      )
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $ErrorActionPreference = "Stop"
+
+      $successExitCodes = @(
+        ConvertFrom-Json -InputObject $SuccessExitCodesJson | ForEach-Object { [int]$_ }
+      )
+
+      if (-not (Test-Path -LiteralPath $ExePath)) {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{ msg = "Uninstaller not found: $ExePath" }
+        return
+      }
+
+      $started = Get-Date
+      try {
+        # No -Wait on purpose: see the comment above this task.
+        $proc = Start-Process -FilePath $ExePath -ArgumentList $ExeArgs -PassThru -ErrorAction Stop
+      } catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{ msg = "Exception while starting the uninstaller: " + $_.Exception.Message }
+        return
+      }
+
+      if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          msg         = "Uninstaller still running after ${TimeoutSec}s"
+          process_id  = [int]$proc.Id
+        }
+        return
+      }
+
+      $exitCode = [int]$proc.ExitCode
+      $Ansible.Result = @{
+        exit_code       = $exitCode
+        elapsed_seconds = [int]((Get-Date) - $started).TotalSeconds
+      }
+
+      if ($successExitCodes -notcontains $exitCode) {
+        $Ansible.Failed = $true
+        $Ansible.Result.msg = "Uninstaller returned non-success exit code: $exitCode"
+        return
+      }
+
+      $Ansible.Changed = $true
+    parameters:
+      ExePath: "{{ win_workman_odis_exec_path }}"
+      ExeArgs: >-
+        {{
+          (win_workman_odis_exec_args | join(' '))
+          if (win_workman_odis_exec_args is iterable and win_workman_odis_exec_args is not string)
+          else (win_workman_odis_exec_args | string)
+        }}
+      SuccessExitCodesJson: "{{ win_workman_odis_success_exit_codes | to_json }}"
+      TimeoutSec: "{{ win_workman_odis_timeout | default(1800) | int }}"
+  register: win_workman_odis_uninstall_result

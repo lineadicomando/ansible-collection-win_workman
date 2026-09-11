@@ -47,7 +47,8 @@ discovers the removal path at run time instead of pinning a GUID in `vars/`:
 2. **Locate the bundle** — scan `C:\ProgramData\Autodesk\ODIS\metadata\*\bundleManifest.xml`
    for the manifest naming AutoCAD LT 2023; derive the bundle GUID and the
    matching `SetupRes\manifest.xsd` (falling back to the AdODIS copy).
-3. **Uninstall** — `AdODIS\V1\Installer.exe -i uninstall -q --trigger_point system -m <manifest> -x <xsd>`.
+3. **Uninstall** — `AdODIS\V1\Installer.exe -i uninstall -q --trigger_point system -m <manifest> -x <xsd>`,
+   waiting on the uninstaller process alone (see Notes).
 4. **Fallback** — if no ODIS manifest survives but the registry still carries an
    uninstall string, run that instead, adding the silent flag if missing.
 5. **Verify** — re-detect and fail if the product is still registered.
@@ -70,6 +71,7 @@ found, the role fails with an explicit message rather than guessing.
 | `win_workman_autocadlt2023_install_path` | `C:\Program Files\Autodesk\AutoCAD LT 2023` | Install directory, used as a presence hint |
 | `win_workman_autocadlt2023_kill_processes` | `[acadlt]` | Processes force-closed before uninstalling |
 | `win_workman_autocadlt2023_success_exit_codes` | `[0, 1604, 3010]` | Uninstaller exit codes treated as success |
+| `win_workman_autocadlt2023_uninstall_timeout` | `1800` | Seconds to wait for the uninstaller before failing |
 
 These live in `vars/` and normally need no override.
 
@@ -85,5 +87,12 @@ These live in `vars/` and normally need no override.
   Autodesk product remains.
 - The role force-closes `acadlt.exe` before uninstalling; make sure nobody is
   drawing on the target machines.
+- The role does **not** use `pkg_utils/start_process` for the uninstall. That
+  helper runs `Start-Process -Wait`, which in PowerShell 5.1 waits for the whole
+  job object rather than the launched process, and Autodesk's uninstaller ends
+  by spawning `ADPClientService.exe` (desktop analytics) which outlives it — the
+  task would hang for minutes after the removal had already succeeded. The role
+  starts the uninstaller with `-PassThru` and calls `WaitForExit()` on that
+  process only, with `win_workman_autocadlt2023_uninstall_timeout` as a ceiling.
 - Licensing is not touched: the 2023 license entry is removed with its bundle,
   and `autocadlt2026` registers its own afterwards.

@@ -32,3 +32,7 @@ win_workman_autocadlt2023_odis_metadata_path: "C:\\ProgramData\\Autodesk\\ODIS\\
 # 1604 = "installation suspended, incomplete", returned by the ODIS uninstaller
 # when a reboot is required to finish. 3010 = soft reboot required.
 win_workman_autocadlt2023_success_exit_codes: [0, 1604, 3010]
+
+# The ODIS uninstall of AutoCAD LT 2023 takes a couple of minutes on a healthy
+# host; the ceiling is there to fail loudly instead of hanging forever.
+win_workman_autocadlt2023_uninstall_timeout: 1800
