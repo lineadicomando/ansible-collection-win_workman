@@ -1,0 +1,5 @@
+---
+- name: Apply the configured display scale
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.display_scale
+    tasks_from: act_set

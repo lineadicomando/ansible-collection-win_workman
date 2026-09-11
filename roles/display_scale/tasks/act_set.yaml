@@ -1,0 +1,45 @@
+---
+- name: Validate the requested scale percentage
+  ansible.builtin.assert:
+    that:
+      - win_workman_display_scale_requested | int in win_workman_display_scale_supported
+    fail_msg: >-
+      Unsupported scale percentage '{{ win_workman_display_scale_requested }}'.
+      Supported values: {{ win_workman_display_scale_supported | join(', ') }}.
+    success_msg: "Scale {{ win_workman_display_scale_requested }}% -> LogPixels {{ win_workman_display_scale_dpi }}"
+
+- name: Logoff interactive sessions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: logoff
+  when: win_workman_display_scale_profiles_target is not defined
+
+- name: Ensure display scale target profiles are collected
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.display_scale
+    tasks_from: display_scale_profiles
+  when:
+    - win_workman_display_scale_profiles_target is not defined
+
+- name: Drop per-monitor scale overrides so the global value applies
+  ansible.windows.win_regedit:
+    hive: "{{ (item.HiveMounted | default(false) | bool) | ternary(omit, item.HivePath) }}"
+    path: "{{ item.HiveRoot ~ (win_workman_display_scale_per_monitor_path | replace('HKLM:\\ANSIBLE', '')) }}"
+    state: absent
+    delete_key: true
+  loop: "{{ win_workman_display_scale_profiles_target }}"
+  loop_control:
+    label: "{{ item.LocalPath }}"
+  when: win_workman_display_scale_clear_per_monitor | bool
+
+- name: Apply the scale to offline profiles and the Default profile
+  ansible.windows.win_regedit:
+    hive: "{{ (item.0.HiveMounted | default(false) | bool) | ternary(omit, item.0.HivePath) }}"
+    path: "{{ item.0.HiveRoot ~ (item.1.path | replace('HKLM:\\ANSIBLE', '')) }}"
+    name: "{{ item.1.name }}"
+    data: "{{ item.1.data }}"
+    type: "{{ item.1.type }}"
+    state: present
+  loop: "{{ win_workman_display_scale_profiles_target | product(win_workman_display_scale_registry_entries_set) | list }}"
+  loop_control:
+    label: "{{ item.0.LocalPath }} -> {{ item.1.name }}={{ item.1.data }}"

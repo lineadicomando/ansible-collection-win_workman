@@ -1,0 +1,176 @@
+---
+- name: Report the display scale configured in every user profile
+  ansible.windows.win_powershell:
+    parameters:
+      IncludeDefault: "{{ win_workman_display_scale_profiles_include_default | bool }}"
+    script: |
+      param(
+        [bool]$IncludeDefault = $true
+      )
+
+      $Ansible.Changed = $false
+      $Ansible.Failed = $false
+
+      function Read-DpiValues {
+        param([string]$KeyRoot)
+
+        $desktop = "$KeyRoot\Control Panel\Desktop"
+        $logPixels = $null
+        $win8 = $null
+        $perMonitor = @()
+
+        try {
+          $props = Get-ItemProperty -LiteralPath $desktop -ErrorAction Stop
+          if ($null -ne $props.LogPixels) { $logPixels = [int]$props.LogPixels }
+          if ($null -ne $props.Win8DpiScaling) { $win8 = [int]$props.Win8DpiScaling }
+        }
+        catch {
+          # Desktop key missing: profile never customised
+        }
+
+        try {
+          foreach ($monitorKey in Get-ChildItem -LiteralPath "$desktop\PerMonitorSettings" -ErrorAction Stop) {
+            $dpiValue = $null
+            try {
+              $dpiValue = (Get-ItemProperty -LiteralPath $monitorKey.PSPath -Name DpiValue -ErrorAction Stop).DpiValue
+            }
+            catch {
+              $dpiValue = $null
+            }
+            $perMonitor += [pscustomobject]@{ Monitor = $monitorKey.PSChildName; DpiValue = $dpiValue }
+          }
+        }
+        catch {
+          # No per-monitor overrides
+        }
+
+        $percent = $null
+        if ($null -ne $logPixels -and $logPixels -gt 0) {
+          $percent = [int][math]::Round(($logPixels * 100) / 96)
+        }
+
+        $effective = 'recommended'
+        if ($win8 -eq 1 -and $null -ne $percent) {
+          $effective = "$percent%"
+        }
+
+        return [pscustomobject]@{
+          LogPixels           = $logPixels
+          Win8DpiScaling      = $win8
+          Percent             = $percent
+          Effective           = $effective
+          PerMonitorOverrides = @($perMonitor)
+        }
+      }
+
+      $targets = @()
+
+      $cimProfiles = @()
+      try {
+        $cimProfiles = Get-CimInstance -ClassName Win32_UserProfile -ErrorAction Stop |
+          Where-Object { $_.LocalPath -and -not $_.Special -and $_.SID -match '^S-1-5-21-' }
+      }
+      catch {
+        $cimProfiles = @()
+      }
+
+      foreach ($userProfile in $cimProfiles) {
+        $name = Split-Path -Leaf $userProfile.LocalPath
+        try {
+          $sidObj = New-Object System.Security.Principal.SecurityIdentifier($userProfile.SID)
+          $name = $sidObj.Translate([System.Security.Principal.NTAccount]).Value
+        }
+        catch {
+          # SID not resolvable: keep the folder name
+        }
+        $targets += [pscustomobject]@{
+          Name      = $name
+          SID       = $userProfile.SID
+          LocalPath = $userProfile.LocalPath
+        }
+      }
+
+      if ($IncludeDefault) {
+        $defaultPath = $null
+        try {
+          $profileList = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction Stop
+          if ($profileList.Default) {
+            $defaultPath = [Environment]::ExpandEnvironmentVariables($profileList.Default)
+          }
+        }
+        catch {
+          $defaultPath = $null
+        }
+        if ($defaultPath) {
+          $targets += [pscustomobject]@{ Name = 'Default'; SID = $null; LocalPath = $defaultPath }
+        }
+      }
+
+      $rows = @()
+      $tempHive = 'WIN_WORKMAN_DPI'
+
+      foreach ($target in $targets) {
+        $mounted = $false
+        $keyRoot = $null
+        $loadedHere = $false
+
+        if ($target.SID) {
+          $mounted = Test-Path -LiteralPath "Registry::HKEY_USERS\$($target.SID)"
+        }
+
+        if ($mounted) {
+          $keyRoot = "Registry::HKEY_USERS\$($target.SID)"
+        }
+        else {
+          $hivePath = Join-Path $target.LocalPath 'NTUSER.DAT'
+          if (Test-Path -LiteralPath $hivePath) {
+            $null = & reg.exe load "HKU\$tempHive" $hivePath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              $keyRoot = "Registry::HKEY_USERS\$tempHive"
+              $loadedHere = $true
+            }
+          }
+        }
+
+        if (-not $keyRoot) {
+          $rows += [pscustomobject]@{
+            Name      = $target.Name
+            LocalPath = $target.LocalPath
+            HiveState = 'unavailable'
+            Effective = $null
+          }
+          continue
+        }
+
+        $values = Read-DpiValues -KeyRoot $keyRoot
+
+        if ($loadedHere) {
+          [gc]::Collect()
+          [gc]::WaitForPendingFinalizers()
+          $null = & reg.exe unload "HKU\$tempHive" 2>&1
+        }
+
+        $rows += [pscustomobject]@{
+          Name                = $target.Name
+          LocalPath           = $target.LocalPath
+          HiveState           = $(if ($mounted) { 'loaded' } else { 'offline' })
+          LogPixels           = $values.LogPixels
+          Win8DpiScaling      = $values.Win8DpiScaling
+          Percent             = $values.Percent
+          Effective           = $values.Effective
+          PerMonitorOverrides = $values.PerMonitorOverrides
+        }
+      }
+
+      $Ansible.Result = @{ profiles = @($rows) }
+  register: win_workman_display_scale_info
+
+- name: Show the display scale per profile
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.Name }} [{{ item.HiveState }}]: {{ item.Effective | default('unknown') }}
+      {{ '(per-monitor overrides: ' ~ (item.PerMonitorOverrides | default([]) | length) ~ ')'
+         if (item.PerMonitorOverrides | default([]) | length) > 0 else '' }}
+  loop: "{{ win_workman_display_scale_info.result.profiles | default([]) }}"
+  loop_control:
+    label: "{{ item.Name }}"

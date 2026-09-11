@@ -116,6 +116,7 @@ The collection has two distinct role families:
 | [roles/management/wu.md](roles/management/wu.md) | `wu` — Windows Update enable/disable/pause/policy |
 | [roles/management/sysinfo.md](roles/management/sysinfo.md) | `sysinfo` — system information and statistics collection |
 | [roles/management/wallpaper.md](roles/management/wallpaper.md) | `wallpaper` — set/reset/lock/unlock across all profiles |
+| [roles/management/display_scale.md](roles/management/display_scale.md) | `display_scale` — display scaling percentage across all profiles |
 | [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
 | [roles/management/autologon.md](roles/management/autologon.md) | `autologon` — automatic logon configuration |
 | [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `secure_ssh`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
@@ -156,4 +157,4 @@ The collection has two distinct role families:
 [`secure_ssh`](roles/management/system-tools.md#secure_ssh) · [`wol`](roles/management/system-tools.md#wol) · [`ping`](roles/management/system-tools.md#ping)
 
 ### Management — UX & Appearance
-[`wallpaper`](roles/management/wallpaper.md) · [`widgets`](roles/management/system-tools.md#widgets)
+[`wallpaper`](roles/management/wallpaper.md) · [`display_scale`](roles/management/display_scale.md) · [`widgets`](roles/management/system-tools.md#widgets)
