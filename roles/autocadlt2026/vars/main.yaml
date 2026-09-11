@@ -62,7 +62,7 @@ win_workman_autocadlt2026_default_lang: >-
     ) | default('en', true)
   }}
 
-# Explicit override via task argv (e.g. autocadlt2026[it]) takes priority.
+# Explicit override via task argv (e.g. autocadlt2026-on-it) takes priority.
 win_workman_autocadlt2026_lang: >-
   {{
     (
@@ -89,7 +89,6 @@ win_workman_autodesk_pit_path: "{{ win_workman_autodesk_setup_path }}\\x64\\acad
 
 # --- shared (identical across all locales) -----------------------------------
 
-win_workman_autodesk_autocad_path: "C:\\Program Files\\Autodesk\\AutoCAD LT 2026\\acadlt.exe"
 win_workman_autodesk_product_key: "057R1"
 win_workman_autodesk_product_ver: "2026.0.0.F"
 win_workman_autodesk_helper_path: '%ProgramFiles(x86)%\Common Files\Autodesk Shared\AdskLicensing\Current\Helper\AdskLicensingInstHelper.exe'
