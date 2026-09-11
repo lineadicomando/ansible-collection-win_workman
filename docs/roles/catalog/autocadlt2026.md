@@ -76,6 +76,12 @@ licence through `AdskLicensingInstHelper` running as SYSTEM.
 and runs the ODIS uninstaller against the bundle manifest. Exit code `1604`
 (suspended, reboot needed) counts as success.
 
+The uninstall waits on the uninstaller process alone, not on `Start-Process
+-Wait`: the latter waits for the whole job object, and Autodesk's uninstaller
+ends by spawning `ADPClientService.exe` (desktop analytics) which outlives it,
+hanging the task for minutes after the removal has already succeeded.
+`win_workman_autocadlt2026_uninstall_timeout` (default 1800 s) is the ceiling.
+
 Adding `full` — `autocadlt2026-off-full` — also removes the shared Autodesk
 stack: Autodesk Access, Genuine Service, Identity Manager, "Open in Desktop",
 "Save to Web & Mobile", and finally `C:\Program Files\Autodesk` and

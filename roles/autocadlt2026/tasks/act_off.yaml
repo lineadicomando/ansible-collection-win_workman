@@ -28,13 +28,14 @@
 # The ODIS bundle may not be registered in the Windows uninstall hive (Italian locale),
 # so we use the known bundle_guid to locate the manifest directly.
 - name: Uninstall "{{ win_workman_autodesk_bundle_display_name }}"
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: start_process
+  ansible.builtin.include_tasks:
+    file: odis_uninstall.yaml
   vars:
-    win_workman_exec_success_exit_codes: [0, 1604]
-    win_workman_exec_path: "{{ win_workman_autodesk_installer_exe }}"
-    win_workman_exec_args: >-
+    win_workman_odis_label: "{{ win_workman_autodesk_bundle_display_name }}"
+    win_workman_odis_success_exit_codes: [0, 1604]
+    win_workman_odis_timeout: "{{ win_workman_autocadlt2026_uninstall_timeout }}"
+    win_workman_odis_exec_path: "{{ win_workman_autodesk_installer_exe }}"
+    win_workman_odis_exec_args: >-
       -i uninstall -q --trigger_point system
       -m {{ win_workman_autodesk_bundle_manifest_path }}
       -x {{ win_workman_autodesk_bundle_xsd_path }}
@@ -108,13 +109,14 @@
   when: "'full' in win_workman_task_argv"
 
 - name: Uninstall "Autodesk Access"
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: start_process
+  ansible.builtin.include_tasks:
+    file: odis_uninstall.yaml
   vars:
-    win_workman_exec_success_exit_codes: [0, 1604]
-    win_workman_exec_path: "{{ win_workman_autodesk_installer_exe }}"
-    win_workman_exec_args: >-
+    win_workman_odis_label: "Autodesk Access"
+    win_workman_odis_success_exit_codes: [0, 1604]
+    win_workman_odis_timeout: "{{ win_workman_autocadlt2026_uninstall_timeout }}"
+    win_workman_odis_exec_path: "{{ win_workman_autodesk_installer_exe }}"
+    win_workman_odis_exec_args: >-
       -i uninstall -q --trigger_point system
       -m {{ win_workman_autodesk_access_manifest_path }}
       -x "{{ win_workman_autodesk_manifest_xsd_path }}"

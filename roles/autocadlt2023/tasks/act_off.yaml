@@ -123,13 +123,15 @@
   when: win_workman_autocadlt2023_present | bool
 
 - name: Uninstall AutoCAD LT 2023 via the ODIS bundle manifest
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: start_process
+  ansible.builtin.include_tasks:
+    file: odis_uninstall.yaml
   vars:
-    win_workman_exec_success_exit_codes: "{{ win_workman_autocadlt2023_success_exit_codes }}"
-    win_workman_exec_path: "{{ win_workman_autocadlt2023_installer_exe }}"
-    win_workman_exec_args: >-
+    win_workman_odis_label: >-
+      {{ win_workman_detect_sw.result.display_name | default('AutoCAD LT 2023', true) }}
+    win_workman_odis_success_exit_codes: "{{ win_workman_autocadlt2023_success_exit_codes }}"
+    win_workman_odis_timeout: "{{ win_workman_autocadlt2023_uninstall_timeout }}"
+    win_workman_odis_exec_path: "{{ win_workman_autocadlt2023_installer_exe }}"
+    win_workman_odis_exec_args: >-
       -i uninstall -q --trigger_point system
       -m {{ win_workman_autocadlt2023_bundle.result.manifest_path }}
       -x {{ win_workman_autocadlt2023_bundle.result.xsd_path }}
@@ -144,7 +146,8 @@
     script: |
       param(
         [string]$UninstallString,
-        [string]$SuccessExitCodesJson
+        [string]$SuccessExitCodesJson,
+        [int]$TimeoutSec
       )
       $Ansible.Changed = $false
       $Ansible.Failed  = $false
@@ -178,10 +181,17 @@
       }
 
       try {
-        $proc = Start-Process -FilePath $exe -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
+        # No -Wait: it waits for the whole job object, stray helpers included.
+        $proc = Start-Process -FilePath $exe -ArgumentList $arguments -PassThru -ErrorAction Stop
       } catch {
         $Ansible.Failed = $true
         $Ansible.Result = @{ msg = "Exception while running uninstaller: " + $_.Exception.Message }
+        return
+      }
+
+      if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{ msg = "Uninstaller still running after ${TimeoutSec}s"; process_id = [int]$proc.Id }
         return
       }
 
@@ -195,6 +205,7 @@
     parameters:
       UninstallString: "{{ win_workman_autocadlt2023_uninstall_string }}"
       SuccessExitCodesJson: "{{ win_workman_autocadlt2023_success_exit_codes | to_json }}"
+      TimeoutSec: "{{ win_workman_autocadlt2023_uninstall_timeout | int }}"
   when:
     - win_workman_autocadlt2023_present | bool
     - not (win_workman_autocadlt2023_via_odis | bool)

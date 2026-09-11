@@ -93,6 +93,10 @@ win_workman_autodesk_product_key: "057R1"
 win_workman_autodesk_product_ver: "2026.0.0.F"
 win_workman_autodesk_helper_path: '%ProgramFiles(x86)%\Common Files\Autodesk Shared\AdskLicensing\Current\Helper\AdskLicensingInstHelper.exe'
 
+# The ODIS uninstall takes a couple of minutes on a healthy host; the ceiling is
+# there to fail loudly instead of hanging forever.
+win_workman_autocadlt2026_uninstall_timeout: 1800
+
 win_workman_autodesk_installer_path: "C:\\Program Files\\Autodesk\\AdODIS\\V1"
 win_workman_autodesk_installer_exe: "{{ win_workman_autodesk_installer_path }}\\Installer.exe"
 win_workman_autodesk_manifest_xsd_path: "{{ win_workman_autodesk_installer_path }}\\SetupRes\\manifest.xsd"
