@@ -80,23 +80,27 @@
     win_workman_kill_force: true
   when: "'full' in win_workman_task_argv"
 
-- name: Uninstall "AutoCAD Open in Desktop"
-  ansible.windows.win_package:
-    product_id: "{{ win_workman_autodesk_open_in_desktop_guid }}"
-    state: absent
+- name: Find the shared Autodesk MSI components
+  ansible.builtin.include_tasks:
+    file: find_products.yaml
+  vars:
+    win_workman_find_label: shared Autodesk components
+    win_workman_find_patterns: "{{ win_workman_autodesk_shared_product_patterns }}"
   when: "'full' in win_workman_task_argv"
 
-- name: Uninstall "Salva su Autodesk Web & Mobile"
+- name: Uninstall the shared Autodesk MSI components
   ansible.windows.win_package:
-    product_id: "{{ win_workman_autodesk_web_mobile_guid }}"
-    state: absent
-  when: "'full' in win_workman_task_argv"
-
-- name: Uninstall "Autodesk Genuine Service"
-  ansible.windows.win_package:
-    product_id: "{{ win_workman_autodesk_genuine_service_guid }}"
+    product_id: "{{ win_workman_autodesk_shared_product.product_id }}"
     state: absent
   failed_when: false
+  loop: >-
+    {{
+      win_workman_find_products.result.products
+      | default([]) | selectattr('is_msi') | list
+    }}
+  loop_control:
+    label: "{{ win_workman_autodesk_shared_product.display_name }}"
+    loop_var: win_workman_autodesk_shared_product
   when: "'full' in win_workman_task_argv"
 
 - name: Detect "Autodesk Access"
@@ -107,6 +111,19 @@
     win_workman_detect_sw_args:
       name_like: "Autodesk Access"
   when: "'full' in win_workman_task_argv"
+
+# The uninstall hive key of the ODIS-registered Autodesk Access is its bundle
+# GUID, which is also the name of its ODIS metadata directory. Derive the
+# manifest from the id we just detected rather than from a pinned constant, and
+# only act when that manifest is really there.
+- name: Check the Autodesk Access package manifest
+  ansible.windows.win_stat:
+    path: "{{ win_workman_autodesk_access_manifest_path }}"
+  register: win_workman_autodesk_access_manifest
+  when:
+    - "'full' in win_workman_task_argv"
+    - win_workman_detect_sw.result.id is defined
+    - win_workman_detect_sw.result.id is not none
 
 - name: Uninstall "Autodesk Access"
   ansible.builtin.include_tasks:
@@ -123,9 +140,7 @@
       --manifest_type package
   when:
     - "'full' in win_workman_task_argv"
-    - win_workman_detect_sw.result.id is defined
-    - win_workman_detect_sw.result.id is not none
-    - win_workman_detect_sw.result.id == win_workman_autodesk_access_guid
+    - win_workman_autodesk_access_manifest.stat.exists | default(false) | bool
 
 - name: Uninstall "Autodesk Identity Manager"
   ansible.windows.win_package:

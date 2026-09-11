@@ -7,4 +7,8 @@ notes: >-
   Removal-only role: "off" is the only supported action and must be spelled out
   (autocadlt2023-off); win_workman never installs AutoCAD LT 2023. Use it before
   autocadlt2026, which installs side by side and does not replace older versions.
-  Shared Autodesk components are left in place on purpose.
+  By default the shared Autodesk stack (AdODIS, Access, CER, Identity Manager,
+  AdSSO, Genuine Service) is left in place, because newer releases reuse it.
+  autocadlt2023-off-full additionally clears what is left of the 2023 product
+  family - the Material Library 2023 packages, the emptied install directory and
+  the ACDLT2023 licensing logs - and still does not touch the shared stack.

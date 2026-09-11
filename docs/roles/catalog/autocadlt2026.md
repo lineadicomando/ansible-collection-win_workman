@@ -86,7 +86,18 @@ Adding `full` — `autocadlt2026-off-full` — also removes the shared Autodesk
 stack: Autodesk Access, Genuine Service, Identity Manager, "Open in Desktop",
 "Save to Web & Mobile", and finally `C:\Program Files\Autodesk` and
 `C:\ProgramData\Autodesk` wholesale. **Use it only when no other Autodesk
-product remains on the host** — it will take the others down with it.
+product remains on the host** — it will take the others down with it. In
+particular, do not use it to tidy up before an install: it would wipe healthy,
+up-to-date components that the install has to put back.
+
+Those components are matched by display-name pattern and their GUIDs resolved at
+run time (`tasks/find_products.yaml`). Autodesk component GUIDs change with every
+release, so a pinned `product_id` that no longer matches makes `win_package` a
+silent no-op and the component survives the purge. Patterns are wildcarded to
+stay locale-independent (`Salva su Autodesk Web & Mobile` in Italian, `Save to
+Autodesk Web & Mobile` in English). Autodesk Access is not MSI: its package
+manifest is derived from the id detected for it, and the uninstall runs only if
+that manifest is really on disk.
 
 ---
 

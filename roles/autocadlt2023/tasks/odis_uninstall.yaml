@@ -19,9 +19,11 @@
       $Ansible.Failed  = $false
       $ErrorActionPreference = "Stop"
 
-      $successExitCodes = @(
-        ConvertFrom-Json -InputObject $SuccessExitCodesJson | ForEach-Object { [int]$_ }
-      )
+      # ConvertFrom-Json emits a multi-element array as a single object and the
+      # pipeline does not unroll it; foreach does. Same guard as pkg_utils/start_process.
+      $parsedExitCodes  = ConvertFrom-Json -InputObject $SuccessExitCodesJson
+      $successExitCodes = New-Object System.Collections.Generic.List[int]
+      foreach ($parsedExitCode in $parsedExitCodes) { $successExitCodes.Add([int]$parsedExitCode) }
 
       if (-not (Test-Path -LiteralPath $ExePath)) {
         $Ansible.Failed = $true

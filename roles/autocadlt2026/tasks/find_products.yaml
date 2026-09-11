@@ -1,0 +1,65 @@
+---
+# Autodesk component GUIDs change with every release of every component, so they
+# cannot be pinned in vars: a hardcoded product_id that no longer matches makes
+# win_package a silent no-op, and the component survives the uninstall. Resolve
+# them from the Windows uninstall hive by display name instead.
+- name: Find installed products matching {{ win_workman_find_label }}
+  ansible.windows.win_powershell:
+    script: |
+      param([string]$PatternsJson)
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $ErrorActionPreference = "Stop"
+
+      # ConvertFrom-Json emits a multi-element array as a single object and the
+      # pipeline does not unroll it; foreach does. Same guard as pkg_utils/start_process.
+      $parsedPatterns = ConvertFrom-Json -InputObject $PatternsJson
+      $patterns = New-Object System.Collections.Generic.List[string]
+      foreach ($parsedPattern in $parsedPatterns) { $patterns.Add([string]$parsedPattern) }
+      $hives = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+      )
+
+      $found = New-Object System.Collections.Generic.List[object]
+      $seen  = @{}
+
+      foreach ($hive in $hives) {
+        foreach ($item in (Get-ItemProperty $hive -ErrorAction SilentlyContinue)) {
+          $name = [string]$item.DisplayName
+          if ([string]::IsNullOrWhiteSpace($name)) { continue }
+          if (-not ($patterns | Where-Object { $name -like $_ })) { continue }
+
+          $id = [string]$item.PSChildName
+          if ($seen.ContainsKey($id)) { continue }
+          $seen[$id] = $true
+
+          $uninstall = [string]$item.UninstallString
+          $found.Add([pscustomobject]@{
+            display_name     = $name
+            display_version  = [string]$item.DisplayVersion
+            product_id       = $id
+            is_msi           = [bool](($item.WindowsInstaller -eq 1) -or ($uninstall -match '(?i)msiexec'))
+            uninstall_string = $uninstall
+          })
+        }
+      }
+
+      $Ansible.Result = @{
+        products = @($found | Sort-Object display_name)
+        count    = [int]$found.Count
+        patterns = @($patterns)
+      }
+    parameters:
+      PatternsJson: "{{ win_workman_find_patterns | to_json }}"
+  register: win_workman_find_products
+
+- name: Report the products found for {{ win_workman_find_label }}
+  ansible.builtin.debug:
+    msg: >-
+      {{ win_workman_find_label }}:
+      {{
+        (win_workman_find_products.result.products | map(attribute='display_name') | join(', '))
+        if (win_workman_find_products.result.count | int) > 0
+        else 'nothing installed matches ' ~ (win_workman_find_patterns | join(', '))
+      }}
