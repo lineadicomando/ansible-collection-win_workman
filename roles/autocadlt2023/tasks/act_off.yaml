@@ -1,0 +1,229 @@
+---
+# Wildcard detection finds any installed locale regardless of ODIS registry state.
+# Autodesk localized bundles are inconsistent about registering themselves in the
+# Windows uninstall hive, so this is a presence hint, not the removal path.
+- name: Detect installed AutoCAD LT 2023 variant
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_sw
+  vars:
+    win_workman_detect_sw_args:
+      name_like: "{{ win_workman_autocadlt2023_name_like }}"
+
+# The bundle GUID is locale-dependent and undocumented, so the manifest is found
+# by scanning the ODIS metadata store for the bundle that names AutoCAD LT 2023.
+- name: Locate the AutoCAD LT 2023 ODIS bundle manifest
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$MetadataPath,
+        [string]$MatchText,
+        [string]$InstallerExe,
+        [string]$FallbackXsdPath,
+        [string]$AcadExePath
+      )
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $ErrorActionPreference = "Stop"
+
+      $candidates = New-Object System.Collections.Generic.List[string]
+
+      if (Test-Path -LiteralPath $MetadataPath) {
+        $manifests = @(
+          Get-ChildItem -LiteralPath $MetadataPath -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'bundleManifest.xml' } |
+            Where-Object { Test-Path -LiteralPath $_ }
+        )
+        foreach ($manifest in $manifests) {
+          $content = Get-Content -LiteralPath $manifest -Raw -ErrorAction SilentlyContinue
+          if ($content -and $content -like "*$MatchText*") {
+            $null = $candidates.Add($manifest)
+          }
+        }
+      }
+
+      $manifestPath = $null
+      $bundleGuid   = $null
+      $xsdPath      = $null
+
+      if ($candidates.Count -gt 0) {
+        $manifestPath = $candidates[0]
+        $bundleDir    = Split-Path -Parent $manifestPath
+        $bundleGuid   = Split-Path -Leaf $bundleDir
+        $localXsd     = Join-Path $bundleDir 'SetupRes\manifest.xsd'
+        $xsdPath      = if (Test-Path -LiteralPath $localXsd) { $localXsd } else { $FallbackXsdPath }
+      }
+
+      $Ansible.Result = @{
+        found             = [bool]$manifestPath
+        bundle_guid       = $bundleGuid
+        manifest_path     = $manifestPath
+        xsd_path          = $xsdPath
+        xsd_present       = [bool]($xsdPath -and (Test-Path -LiteralPath $xsdPath))
+        candidate_count   = [int]$candidates.Count
+        candidates        = @($candidates)
+        installer_present = [bool](Test-Path -LiteralPath $InstallerExe)
+        acad_exe_present  = [bool](Test-Path -LiteralPath $AcadExePath)
+      }
+    parameters:
+      MetadataPath: "{{ win_workman_autocadlt2023_odis_metadata_path }}"
+      MatchText: "{{ win_workman_autocadlt2023_manifest_match }}"
+      InstallerExe: "{{ win_workman_autocadlt2023_installer_exe }}"
+      FallbackXsdPath: "{{ win_workman_autocadlt2023_manifest_xsd_path }}"
+      AcadExePath: "{{ win_workman_autocadlt2023_exe_path }}"
+  register: win_workman_autocadlt2023_bundle
+
+- name: Classify removal state
+  ansible.builtin.set_fact:
+    win_workman_autocadlt2023_present: >-
+      {{
+        (win_workman_detect_sw.result.installed | default(false) | bool)
+        or (win_workman_autocadlt2023_bundle.result.found | default(false) | bool)
+        or (win_workman_autocadlt2023_bundle.result.acad_exe_present | default(false) | bool)
+      }}
+    win_workman_autocadlt2023_via_odis: >-
+      {{
+        (win_workman_autocadlt2023_bundle.result.found | default(false) | bool)
+        and (win_workman_autocadlt2023_bundle.result.installer_present | default(false) | bool)
+      }}
+    win_workman_autocadlt2023_uninstall_string: >-
+      {{ win_workman_detect_sw.result.uninstall_string | default('', true) | trim }}
+
+- name: Report what will be removed
+  ansible.builtin.debug:
+    msg: >-
+      AutoCAD LT 2023 {{ 'found' if win_workman_autocadlt2023_present | bool else 'not installed' }}
+      {{ '(' + (win_workman_detect_sw.result.display_name | default('unknown entry', true)) + ')'
+         if win_workman_autocadlt2023_present | bool else '' }}
+      — removal via
+      {{ 'ODIS bundle ' + (win_workman_autocadlt2023_bundle.result.bundle_guid | default('?', true))
+         if win_workman_autocadlt2023_via_odis | bool
+         else ('registry uninstall string' if win_workman_autocadlt2023_uninstall_string | length > 0 else 'nothing to do') }}
+
+- name: Fail if AutoCAD LT 2023 is installed but no removal path was found
+  ansible.builtin.fail:
+    msg: >-
+      AutoCAD LT 2023 appears to be installed
+      ("{{ win_workman_detect_sw.result.display_name | default(win_workman_autocadlt2023_install_path, true) }}")
+      but neither an ODIS bundle manifest under
+      {{ win_workman_autocadlt2023_odis_metadata_path }} nor a registry uninstall
+      string could be found. Remove it manually from Windows "Apps & features".
+  when:
+    - win_workman_autocadlt2023_present | bool
+    - not (win_workman_autocadlt2023_via_odis | bool)
+    - win_workman_autocadlt2023_uninstall_string | length == 0
+
+- name: Close running AutoCAD LT 2023
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: kill
+  vars:
+    win_workman_kill_process_name: "{{ win_workman_autocadlt2023_kill_processes }}"
+    win_workman_kill_force: true
+  when: win_workman_autocadlt2023_present | bool
+
+- name: Uninstall AutoCAD LT 2023 via the ODIS bundle manifest
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: start_process
+  vars:
+    win_workman_exec_success_exit_codes: "{{ win_workman_autocadlt2023_success_exit_codes }}"
+    win_workman_exec_path: "{{ win_workman_autocadlt2023_installer_exe }}"
+    win_workman_exec_args: >-
+      -i uninstall -q --trigger_point system
+      -m {{ win_workman_autocadlt2023_bundle.result.manifest_path }}
+      -x {{ win_workman_autocadlt2023_bundle.result.xsd_path }}
+  when:
+    - win_workman_autocadlt2023_present | bool
+    - win_workman_autocadlt2023_via_odis | bool
+
+# Fallback for hosts whose ODIS metadata was wiped by a previous partial cleanup
+# but that still carry a working uninstall entry in the registry.
+- name: Uninstall AutoCAD LT 2023 via the registry uninstall string
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$UninstallString,
+        [string]$SuccessExitCodesJson
+      )
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $ErrorActionPreference = "Stop"
+
+      $successExitCodes = @(ConvertFrom-Json -InputObject $SuccessExitCodesJson | ForEach-Object { [int]$_ })
+
+      $exe = $null
+      $arguments = ''
+      if ($UninstallString -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exe = $Matches[1]
+        $arguments = $Matches[2]
+      } elseif ($UninstallString -match '^\s*(\S+\.exe)\s*(.*)$') {
+        $exe = $Matches[1]
+        $arguments = $Matches[2]
+      } else {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{ msg = "Cannot parse uninstall string: $UninstallString" }
+        return
+      }
+
+      if (-not (Test-Path -LiteralPath $exe)) {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{ msg = "Uninstaller not found: $exe" }
+        return
+      }
+
+      # msiexec wants /x /qn, ODIS and friends want -q; add whichever is missing.
+      if ($arguments -notmatch '(?i)(^|\s)(-q|/q|/qn|/quiet|--quiet|/S)(\s|$)') {
+        $arguments = if ($exe -match '(?i)msiexec') { "$arguments /qn /norestart".Trim() } else { "$arguments -q".Trim() }
+      }
+
+      try {
+        $proc = Start-Process -FilePath $exe -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
+      } catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{ msg = "Exception while running uninstaller: " + $_.Exception.Message }
+        return
+      }
+
+      $Ansible.Result = @{ exit_code = [int]$proc.ExitCode; exe = $exe; arguments = $arguments }
+      if ($successExitCodes -notcontains [int]$proc.ExitCode) {
+        $Ansible.Failed = $true
+        $Ansible.Result.msg = "Uninstaller returned non-success exit code: $($proc.ExitCode)"
+        return
+      }
+      $Ansible.Changed = $true
+    parameters:
+      UninstallString: "{{ win_workman_autocadlt2023_uninstall_string }}"
+      SuccessExitCodesJson: "{{ win_workman_autocadlt2023_success_exit_codes | to_json }}"
+  when:
+    - win_workman_autocadlt2023_present | bool
+    - not (win_workman_autocadlt2023_via_odis | bool)
+    - win_workman_autocadlt2023_uninstall_string | length > 0
+
+- name: Verify AutoCAD LT 2023 is gone
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_sw
+  vars:
+    win_workman_detect_sw_args:
+      name_like: "{{ win_workman_autocadlt2023_name_like }}"
+  when: win_workman_autocadlt2023_present | bool
+
+- name: Fail if AutoCAD LT 2023 is still registered
+  ansible.builtin.fail:
+    msg: >-
+      AutoCAD LT 2023 is still registered after the uninstall
+      ("{{ win_workman_detect_sw.result.display_name | default('', true) }}").
+      Check the Autodesk ODIS logs under C:\ProgramData\Autodesk\ODIS\logs.
+  when:
+    - win_workman_autocadlt2023_present | bool
+    - win_workman_detect_sw.result.installed | default(false) | bool
+
+# The shared Autodesk components (AdODIS, AdskLicensing, Autodesk Access) are
+# deliberately left in place: they are used by every Autodesk product on the
+# host, including the AutoCAD LT 2026 install that normally follows.
+- name: Reboot if pending after uninstall
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pending_restart
+  when: win_workman_autocadlt2023_present | bool

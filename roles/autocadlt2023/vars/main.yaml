@@ -1,0 +1,34 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Autocad LT 2023
+#      - Homepage:    https://www.autodesk.com/
+#      - Doc:         https://help.autodesk.com/view/INSTALL_LICENSE/ENU/?guid=ODIS_silent_install
+# ==============================================================================
+---
+
+# Removal-only role: win_workman never installs AutoCAD LT 2023, it only clears
+# it out of the way (typically before autocadlt2026 goes in, since the two
+# versions coexist happily and nothing else would remove the old one).
+#
+# The ODIS bundle GUID differs per locale and is not known in advance, so the
+# uninstall path is discovered at run time from the ODIS metadata store instead
+# of being pinned in vars the way autocadlt2026 does.
+
+win_workman_autocadlt2023_name_like: "*AutoCAD LT 2023*"
+win_workman_autocadlt2023_manifest_match: "AutoCAD LT 2023"
+
+win_workman_autocadlt2023_install_path: "C:\\Program Files\\Autodesk\\AutoCAD LT 2023"
+win_workman_autocadlt2023_exe_path: "{{ win_workman_autocadlt2023_install_path }}\\acadlt.exe"
+
+win_workman_autocadlt2023_kill_processes:
+  - acadlt
+
+win_workman_autocadlt2023_installer_path: "C:\\Program Files\\Autodesk\\AdODIS\\V1"
+win_workman_autocadlt2023_installer_exe: "{{ win_workman_autocadlt2023_installer_path }}\\Installer.exe"
+win_workman_autocadlt2023_manifest_xsd_path: "{{ win_workman_autocadlt2023_installer_path }}\\SetupRes\\manifest.xsd"
+
+win_workman_autocadlt2023_odis_metadata_path: "C:\\ProgramData\\Autodesk\\ODIS\\metadata"
+
+# 1604 = "installation suspended, incomplete", returned by the ODIS uninstaller
+# when a reboot is required to finish. 3010 = soft reboot required.
+win_workman_autocadlt2023_success_exit_codes: [0, 1604, 3010]

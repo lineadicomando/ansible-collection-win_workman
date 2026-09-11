@@ -1,0 +1,16 @@
+---
+# Removal-only role: "off" must be spelled out. A bare "autocadlt2023" task is
+# rejected on purpose, so a typo in a playbook can never silently uninstall.
+- name: Fail on unsupported action
+  ansible.builtin.fail:
+    msg: >-
+      Role autocadlt2023 only supports the "off" action
+      (got "{{ win_workman_action | default('', true) or '<none>' }}").
+      Use the task string: autocadlt2023-off
+  when: win_workman_action | default('', true) != "off"
+
+- name: Dispatch action off
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.autocadlt2023
+    tasks_from: act_off
+  when: win_workman_action | default('', true) == "off"

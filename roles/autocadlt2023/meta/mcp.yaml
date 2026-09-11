@@ -1,0 +1,10 @@
+---
+display_name: AutoCAD LT 2023
+custom_actions:
+  - name: "off"
+    description: Uninstall AutoCAD LT 2023 (any locale)
+notes: >-
+  Removal-only role: "off" is the only supported action and must be spelled out
+  (autocadlt2023-off); win_workman never installs AutoCAD LT 2023. Use it before
+  autocadlt2026, which installs side by side and does not replace older versions.
+  Shared Autodesk components are left in place on purpose.
