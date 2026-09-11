@@ -5,7 +5,9 @@
       param(
           [string]$ExePath,
           [string]$ExeArgs,
-          [string]$SuccessExitCodesJson
+          [string]$SuccessExitCodesJson,
+          [int]$WaitTree = 1,
+          [int]$TimeoutSec = 0
       )
       $ExePath = $ExePath.Trim('"')
       $Ansible.Result = @{}
@@ -36,12 +38,34 @@
           $Ansible.Failed = $true
           return
       }
+      # -Wait does not simply WaitForExit() on the process it launched: it waits for
+      # the whole job object, descendants included. That is what makes
+      # bootstrapper-style installers work, where the parent hands off to a child
+      # and exits straight away; it is also what hangs forever on programs that
+      # leave a stray helper running (Autodesk uninstallers spawn their analytics
+      # client at the very end). The job-object wait stays the default so nothing
+      # changes for existing callers; set win_workman_exec_wait_tree to false to
+      # wait on the launched process alone, optionally with win_workman_exec_timeout.
       try {
-          if ([string]::IsNullOrWhiteSpace($ExeArgs)) {
-              $proc = Start-Process -FilePath $ExePath -Wait -PassThru -ErrorAction Stop
-          } else {
-              $proc = Start-Process -FilePath $ExePath -ArgumentList $ExeArgs -Wait -PassThru -ErrorAction Stop
+          $startArgs = @{ FilePath = $ExePath; PassThru = $true; ErrorAction = 'Stop' }
+          if (-not [string]::IsNullOrWhiteSpace($ExeArgs)) { $startArgs['ArgumentList'] = $ExeArgs }
+          if ($WaitTree -ne 0) { $startArgs['Wait'] = $true }
+
+          $proc = Start-Process @startArgs
+
+          if ($WaitTree -eq 0) {
+              if ($TimeoutSec -gt 0) {
+                  if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+                      $Ansible.Result["Msg"] = "Process still running after ${TimeoutSec}s"
+                      $Ansible.Result["ProcessId"] = [int]$proc.Id
+                      $Ansible.Failed = $true
+                      return
+                  }
+              } else {
+                  $proc.WaitForExit()
+              }
           }
+
           if ($successExitCodes -notcontains [int]$proc.ExitCode) {
               $allowedExitCodes = ($successExitCodes | ForEach-Object { [string]$_ }) -join ', '
               $msg = "Process returned non-success exit code: $($proc.ExitCode). Allowed: $allowedExitCodes"
@@ -66,6 +90,8 @@
               win_workman_exec_args is not string
             ) else ( win_workman_exec_args | default('') | string )
         }}
+      WaitTree: "{{ (win_workman_exec_wait_tree | default(true, true) | bool) | ternary(1, 0) }}"
+      TimeoutSec: "{{ win_workman_exec_timeout | default(0, true) | int }}"
       SuccessExitCodesJson: >-
         {{
           (

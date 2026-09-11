@@ -23,7 +23,13 @@
       $Ansible.Changed = $false
       $Ansible.Failed  = $false
 
-      $NameLikes = @(ConvertFrom-Json -InputObject $NameLikeJson)
+      # ConvertFrom-Json emits a multi-element array as a single object and the
+      # pipeline does not unroll it; foreach does. With one element it works either
+      # way, which is why this stayed hidden.
+      $NameLikes = New-Object System.Collections.Generic.List[string]
+      foreach ($parsedNameLike in (ConvertFrom-Json -InputObject $NameLikeJson)) {
+        $NameLikes.Add([string]$parsedNameLike)
+      }
 
       function To-NullableString($v) {
         if ($null -eq $v) { return $null }

@@ -120,17 +120,27 @@
         [string]$InstallFilesJson, [string]$ShortcutsJson
       )
       $ErrorActionPreference = "Stop"
+      # ConvertFrom-Json emits a multi-element array as a single object and the
+      # pipeline does not unroll it; foreach does. Without this, a portable
+      # package declaring more than one dir/file/shortcut checked a single
+      # bogus path built by joining them all together.
       $installDirs = @()
       if (-not [string]::IsNullOrWhiteSpace($InstallDirsJson)) {
-        $installDirs = @(ConvertFrom-Json -InputObject $InstallDirsJson)
+        foreach ($parsedItem in (ConvertFrom-Json -InputObject $InstallDirsJson)) {
+          $installDirs += $parsedItem
+        }
       }
       $shortcuts = @()
       if (-not [string]::IsNullOrWhiteSpace($ShortcutsJson)) {
-        $shortcuts = @(ConvertFrom-Json -InputObject $ShortcutsJson)
+        foreach ($parsedItem in (ConvertFrom-Json -InputObject $ShortcutsJson)) {
+          $shortcuts += $parsedItem
+        }
       }
       $installFiles = @()
       if (-not [string]::IsNullOrWhiteSpace($InstallFilesJson)) {
-        $installFiles = @(ConvertFrom-Json -InputObject $InstallFilesJson)
+        foreach ($parsedItem in (ConvertFrom-Json -InputObject $InstallFilesJson)) {
+          $installFiles += $parsedItem
+        }
       }
       $dirResults = foreach ($dir in $installDirs) {
         if ([string]::IsNullOrWhiteSpace([string]$dir)) { continue }
