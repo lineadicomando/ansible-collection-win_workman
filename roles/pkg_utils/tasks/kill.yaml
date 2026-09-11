@@ -50,26 +50,32 @@
       $kill_image_names = @()
       $kill_user_names = @()
 
+      # ConvertFrom-Json emits a multi-element array as a single object and the
+      # pipeline does not unroll it; foreach does. Piping it straight into
+      # Where-Object yielded one entry holding the whole list, so a kill on
+      # several process names silently degraded to a single bogus name.
       if ($kill_process_names_json) {
-          $kill_process_names = @(
-              ConvertFrom-Json -InputObject $kill_process_names_json |
-              Where-Object { $_ -and $_.ToString().Trim() }
-          )
+          foreach ($parsedName in (ConvertFrom-Json -InputObject $kill_process_names_json)) {
+              if ($parsedName -and ([string]$parsedName).Trim()) {
+                  $kill_process_names += ([string]$parsedName).Trim()
+              }
+          }
       }
 
       if ($kill_image_names_json) {
-          $kill_image_names = @(
-              ConvertFrom-Json -InputObject $kill_image_names_json |
-              Where-Object { $_ -and $_.ToString().Trim() }
-          )
+          foreach ($parsedName in (ConvertFrom-Json -InputObject $kill_image_names_json)) {
+              if ($parsedName -and ([string]$parsedName).Trim()) {
+                  $kill_image_names += ([string]$parsedName).Trim()
+              }
+          }
       }
 
       if ($kill_user_names_json) {
-          $kill_user_names = @(
-              ConvertFrom-Json -InputObject $kill_user_names_json |
-              Where-Object { $_ -and $_.ToString().Trim() } |
-              ForEach-Object { $_.ToString().Trim().ToLowerInvariant() }
-          )
+          foreach ($parsedName in (ConvertFrom-Json -InputObject $kill_user_names_json)) {
+              if ($parsedName -and ([string]$parsedName).Trim()) {
+                  $kill_user_names += ([string]$parsedName).Trim().ToLowerInvariant()
+              }
+          }
       }
 
       if (-not $kill_process_names -and $kill_image_names) {
