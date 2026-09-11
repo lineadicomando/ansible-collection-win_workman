@@ -2,7 +2,15 @@
 #  Software Information:
 #      - Name:        Adobe Acrobat Reader DC
 #      - Homepage:    https://www.adobe.com/acrobat/pdf-reader.html
-#      - Download:    https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/
+#      - Download:    https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/<version>/
+#                     (directory listing is 403: build the URL from the version)
+#      - Versions:    https://www.adobe.com/devnet-docs/acrobatetk/tools/ReleaseNotesDC/index.html
+#      - Versions:    https://rdc.adobe.io/reader/products?lang=en&site=landing&os=Windows%2011&api_key=dc-get-adobereader-cdn
+#
+#  Update check: read the latest continuous-track version from either source above,
+#  strip the dots (26.002.21901 -> 2600221901) and substitute it in both the
+#  directory and the file name:
+#    https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600221901/AcroRdrDCx642600221901_MUI.exe
 # ==============================================================================
 ---
 win_workman_adobe_reader_dc_schema:
@@ -10,9 +18,9 @@ win_workman_adobe_reader_dc_schema:
   role: lineadicomando.win_workman.adobe_reader_dc
   default_action: !!str on
   package:
-    setup_file: AcroRdrDCx642600121367_MUI.exe
+    setup_file: AcroRdrDCx642600221901_MUI.exe
     searchName: "Adobe Acrobat (64-bit)"
-    version: "26.001.21367"
+    version: "26.002.21901"
     install_args:
       - /sAll
       - /rs
@@ -22,7 +30,7 @@ win_workman_adobe_reader_dc_schema:
       - /qn
       - /norestart
   files:
-    - filename: AcroRdrDCx642600121367_MUI.exe
-      url: https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600121367/AcroRdrDCx642600121367_MUI.exe
-      checksum: sha256:36fccda153466fd8d528b10ce7b453649ef5c2dddd2fb231045fe656a4a926db
+    - filename: AcroRdrDCx642600221901_MUI.exe
+      url: https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600221901/AcroRdrDCx642600221901_MUI.exe
+      checksum: sha256:b20704e15596d0f2a7c6860eb65ca61f4275b4c4380f0a190768c96538b6639b
   shortcuts: []
