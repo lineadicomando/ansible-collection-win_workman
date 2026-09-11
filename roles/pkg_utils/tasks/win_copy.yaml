@@ -60,7 +60,6 @@
   ansible.windows.win_copy:
     src: "{{ win_workman_copy_local_src }}"
     dest: "{{ win_workman_copy_remote_dest }}"
-  changed_when: false
   vars:
     win_workman_copy_local_src: >-
       {{ win_workman_storage_path }}/{{ win_workman_win_copy_file.filename }}
