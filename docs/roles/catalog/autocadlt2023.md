@@ -4,7 +4,7 @@ Removes AutoCAD LT 2023 from a Windows host, in any installed locale. This is a
 **removal-only** role: win_workman never installs AutoCAD LT 2023, it only clears
 it out of the way.
 
-Its reason to exist is [`autocadlt2026`](autocadlt2026_it.md): Autodesk releases
+Its reason to exist is [`autocadlt2026`](autocadlt2026.md): Autodesk releases
 install side by side in version-specific folders and registry keys, so running
 `autocadlt2026` on a host that already has the 2023 release leaves **both**
 installed. Pair the two tasks to get a replacement.

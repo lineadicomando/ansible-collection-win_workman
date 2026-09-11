@@ -86,8 +86,7 @@ The collection has two distinct role families:
 | [roles/catalog/vlc.md](roles/catalog/vlc.md) | `vlc` — multimedia player |
 | [roles/catalog/puredata.md](roles/catalog/puredata.md) | `puredata` — visual programming language for audio |
 | [roles/catalog/autocadlt2023.md](roles/catalog/autocadlt2023.md) | `autocadlt2023` — 2D CAD, removal only (no install) |
-| [roles/catalog/autocadlt2026_en.md](roles/catalog/autocadlt2026_en.md) | `autocadlt2026_en` — 2D CAD (English) |
-| [roles/catalog/autocadlt2026_it.md](roles/catalog/autocadlt2026_it.md) | `autocadlt2026_it` — 2D CAD (Italian) |
+| [roles/catalog/autocadlt2026.md](roles/catalog/autocadlt2026.md) | `autocadlt2026` — 2D CAD, locale auto-detected |
 | [roles/catalog/sketchup2026.md](roles/catalog/sketchup2026.md) | `sketchup2026` — 3D modeling software |
 | [roles/catalog/blender.md](roles/catalog/blender.md) | `blender` — 3D creation suite |
 | [roles/catalog/adobe_reader_dc.md](roles/catalog/adobe_reader_dc.md) | `adobe_reader_dc` — Adobe Acrobat Reader DC PDF viewer |
@@ -136,7 +135,7 @@ The collection has two distinct role families:
 [`vscode`](roles/catalog/vscode.md) · [`notepadpp`](roles/catalog/notepadpp.md) · [`git`](roles/catalog/git.md) · [`embarcadero_devcpp`](roles/catalog/embarcadero_devcpp.md) · [`orwell_devcpp`](roles/catalog/orwell_devcpp.md) · [`laragon`](roles/catalog/laragon.md) · [`mysql_server`](roles/catalog/mysql_server.md) · [`mysql_workbench`](roles/catalog/mysql_workbench.md) · [`dbeaver`](roles/catalog/dbeaver.md) · [`postman`](roles/catalog/postman.md) · [`netbeans`](roles/catalog/netbeans.md) · [`python310`](roles/catalog/python310.md) · [`python311`](roles/catalog/python311.md) · [`python312`](roles/catalog/python312.md) · [`python313`](roles/catalog/python313.md) · [`python314`](roles/catalog/python314.md)
 
 ### Catalog — Graphics, CAD & Multimedia
-[`gimp`](roles/catalog/gimp.md) · [`inkscape`](roles/catalog/inkscape.md) · [`blender`](roles/catalog/blender.md) · [`sketchup2026`](roles/catalog/sketchup2026.md) · [`autocadlt2023`](roles/catalog/autocadlt2023.md) · [`autocadlt2026_en`](roles/catalog/autocadlt2026_en.md) · [`autocadlt2026_it`](roles/catalog/autocadlt2026_it.md) · [`vlc`](roles/catalog/vlc.md) · [`puredata`](roles/catalog/puredata.md)
+[`gimp`](roles/catalog/gimp.md) · [`inkscape`](roles/catalog/inkscape.md) · [`blender`](roles/catalog/blender.md) · [`sketchup2026`](roles/catalog/sketchup2026.md) · [`autocadlt2023`](roles/catalog/autocadlt2023.md) · [`autocadlt2026`](roles/catalog/autocadlt2026.md) · [`vlc`](roles/catalog/vlc.md) · [`puredata`](roles/catalog/puredata.md)
 
 ### Catalog — Education & Productivity
 [`geogebra`](roles/catalog/geogebra.md) · [`geogebra5`](roles/catalog/geogebra5.md) · [`libreoffice`](roles/catalog/libreoffice.md) · [`zoom`](roles/catalog/zoom.md)

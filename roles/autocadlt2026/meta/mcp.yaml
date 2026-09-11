@@ -2,7 +2,14 @@
 display_name: AutoCAD LT 2026
 custom_actions:
   - name: "on"
-    description: Install AutoCAD LT 2026
+    description: Install AutoCAD LT 2026 (no-op if already installed)
   - name: "off"
     description: Uninstall AutoCAD LT 2026
-notes: "Uses explicit on/off actions instead of the standard pkg_utils flow."
+notes: >-
+  Uses explicit on/off actions instead of the standard pkg_utils flow. Locale
+  (en/it) is auto-detected from the host and can be forced with
+  autocadlt2026-on-it; the two locales are separate ODIS bundles and cannot
+  coexist, so "on" fails if the other one is installed. autocadlt2026-off-full
+  also purges the shared Autodesk stack, including C:\Program Files\Autodesk:
+  use it only when no other Autodesk product remains. Installs side by side
+  with older releases: run autocadlt2023-off first to replace rather than add.
