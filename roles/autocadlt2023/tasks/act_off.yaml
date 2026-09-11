@@ -153,7 +153,11 @@
       $Ansible.Failed  = $false
       $ErrorActionPreference = "Stop"
 
-      $successExitCodes = @(ConvertFrom-Json -InputObject $SuccessExitCodesJson | ForEach-Object { [int]$_ })
+      # ConvertFrom-Json emits a multi-element array as a single object and the
+      # pipeline does not unroll it; foreach does. Same guard as pkg_utils/start_process.
+      $parsedExitCodes  = ConvertFrom-Json -InputObject $SuccessExitCodesJson
+      $successExitCodes = New-Object System.Collections.Generic.List[int]
+      foreach ($parsedExitCode in $parsedExitCodes) { $successExitCodes.Add([int]$parsedExitCode) }
 
       $exe = $null
       $arguments = ''
@@ -230,9 +234,103 @@
     - win_workman_autocadlt2023_present | bool
     - win_workman_detect_sw.result.installed | default(false) | bool
 
-# The shared Autodesk components (AdODIS, AdskLicensing, Autodesk Access) are
-# deliberately left in place: they are used by every Autodesk product on the
-# host, including the AutoCAD LT 2026 install that normally follows.
+# --- "full" cleanup (autocadlt2023-off-full) ---------------------------------
+# Removes what is left of the 2023 product family and nothing else. The shared
+# Autodesk components (AdODIS, AdskLicensing, Autodesk Access, CER, Identity
+# Manager, AdSSO, Genuine Service) stay: they are version-independent, newer
+# releases reuse them, and the AutoCAD LT 2026 install that normally follows
+# would just have to put them back.
+- name: Find the leftover 2023 product-family components
+  ansible.builtin.include_tasks:
+    file: find_products.yaml
+  vars:
+    win_workman_find_label: AutoCAD LT 2023 leftovers
+    win_workman_find_patterns: "{{ win_workman_autocadlt2023_full_product_patterns }}"
+  when: "'full' in (win_workman_task_argv | default([]))"
+
+- name: Uninstall the leftover 2023 product-family components
+  ansible.windows.win_package:
+    product_id: "{{ win_workman_autocadlt2023_full_product.product_id }}"
+    state: absent
+  loop: >-
+    {{
+      win_workman_find_products.result.products
+      | default([]) | selectattr('is_msi') | list
+    }}
+  loop_control:
+    label: "{{ win_workman_autocadlt2023_full_product.display_name }}"
+    loop_var: win_workman_autocadlt2023_full_product
+  when: "'full' in (win_workman_task_argv | default([]))"
+
+- name: Remove the 2023 filesystem leftovers
+  ansible.windows.win_powershell:
+    script: |
+      param([string]$PathsJson, [string]$GlobsJson)
+      $Ansible.Changed = $false
+      $Ansible.Failed  = $false
+      $ErrorActionPreference = "Stop"
+
+      $removed = New-Object System.Collections.Generic.List[string]
+      $failed  = New-Object System.Collections.Generic.List[string]
+
+      # ConvertFrom-Json emits a multi-element array as a single object and the
+      # pipeline does not unroll it; foreach does. Same guard as pkg_utils/start_process.
+      $paths = New-Object System.Collections.Generic.List[string]
+      foreach ($parsedPath in (ConvertFrom-Json -InputObject $PathsJson)) { $paths.Add([string]$parsedPath) }
+      $globs = New-Object System.Collections.Generic.List[string]
+      foreach ($parsedGlob in (ConvertFrom-Json -InputObject $GlobsJson)) { $globs.Add([string]$parsedGlob) }
+
+      # Literal paths: only removed when empty, so a half-uninstalled product
+      # never loses files behind the operator's back.
+      foreach ($path in $paths) {
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        $contents = @(Get-ChildItem -LiteralPath $path -Recurse -File -ErrorAction SilentlyContinue)
+        if ($contents.Count -gt 0) {
+          $failed.Add("$path (skipped: still holds $($contents.Count) files)")
+          continue
+        }
+        try {
+          Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+          $removed.Add($path)
+        } catch {
+          $failed.Add("$path ($($_.Exception.Message))")
+        }
+      }
+
+      foreach ($glob in $globs) {
+        foreach ($match in @(Get-Item -Path $glob -Force -ErrorAction SilentlyContinue)) {
+          try {
+            Remove-Item -LiteralPath $match.FullName -Recurse -Force -ErrorAction Stop
+            $removed.Add($match.FullName)
+          } catch {
+            $failed.Add("$($match.FullName) ($($_.Exception.Message))")
+          }
+        }
+      }
+
+      $Ansible.Changed = ($removed.Count -gt 0)
+      $Ansible.Result  = @{ removed = @($removed); skipped = @($failed) }
+    parameters:
+      PathsJson: "{{ win_workman_autocadlt2023_full_paths | to_json }}"
+      GlobsJson: "{{ win_workman_autocadlt2023_full_globs | to_json }}"
+  register: win_workman_autocadlt2023_full_cleanup
+  when: "'full' in (win_workman_task_argv | default([]))"
+
+- name: Report the filesystem leftovers removed
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        ('removed: ' ~ (win_workman_autocadlt2023_full_cleanup.result.removed | join(', ')))
+        if (win_workman_autocadlt2023_full_cleanup.result.removed | default([]) | length) > 0
+        else 'no filesystem leftovers found'
+      }}
+      {{
+        (' | kept: ' ~ (win_workman_autocadlt2023_full_cleanup.result.skipped | join('; ')))
+        if (win_workman_autocadlt2023_full_cleanup.result.skipped | default([]) | length) > 0
+        else ''
+      }}
+  when: "'full' in (win_workman_task_argv | default([]))"
+
 - name: Reboot if pending after uninstall
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils

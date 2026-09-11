@@ -105,12 +105,20 @@ win_workman_autodesk_odis_metadata_path: "C:\\ProgramData\\Autodesk\\ODIS\\metad
 win_workman_autodesk_bundle_manifest_path: "{{ win_workman_autodesk_odis_metadata_path }}\\{{ win_workman_autodesk_bundle_guid }}\\bundleManifest.xml"
 win_workman_autodesk_bundle_xsd_path: "{{ win_workman_autodesk_odis_metadata_path }}\\{{ win_workman_autodesk_bundle_guid }}\\SetupRes\\manifest.xsd"
 
-win_workman_autodesk_access_guid: "{A3158B3E-5F28-358A-BF1A-9532D8EBC811}"
-win_workman_autodesk_access_manifest_path: "{{ win_workman_autodesk_odis_metadata_path }}\\{{ win_workman_autodesk_access_guid }}\\pkg.access.xml"
+# Component GUIDs change with every release, so they are resolved at run time
+# instead of being pinned here: a stale product_id turns win_package into a
+# silent no-op and the component survives "off-full". Name patterns are
+# wildcarded to stay locale-independent ("Salva su Autodesk Web & Mobile" in
+# Italian, "Save to Autodesk Web & Mobile" in English).
+win_workman_autodesk_shared_product_patterns:
+  - "*Open in Desktop*"
+  - "*Autodesk Web & Mobile*"
+  - "Autodesk Genuine Service*"
 
-win_workman_autodesk_genuine_service_guid: "{D207E870-6397-417E-B7DD-720BFBE589A3}"
-win_workman_autodesk_open_in_desktop_guid: "{F67CF5AA-24B6-4904-A243-83D97FCEDF89}"
-win_workman_autodesk_web_mobile_guid: "{5BF7551A-09A6-4BDD-AE1E-048104FB478C}"
+# Built from the id detected for Autodesk Access: its uninstall hive key is the
+# ODIS bundle GUID, which is also its metadata directory name.
+win_workman_autodesk_access_manifest_path: >-
+  {{ win_workman_autodesk_odis_metadata_path }}\{{ win_workman_detect_sw.result.id }}\pkg.access.xml
 
 # --- schema ------------------------------------------------------------------
 

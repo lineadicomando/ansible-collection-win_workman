@@ -36,3 +36,19 @@ win_workman_autocadlt2023_success_exit_codes: [0, 1604, 3010]
 # The ODIS uninstall of AutoCAD LT 2023 takes a couple of minutes on a healthy
 # host; the ceiling is there to fail loudly instead of hanging forever.
 win_workman_autocadlt2023_uninstall_timeout: 1800
+
+# --- "full" cleanup ----------------------------------------------------------
+# Only leftovers tied to the 2023 product family. The shared Autodesk stack
+# (AdODIS, Autodesk Access, CER, Identity Manager, AdSSO, Genuine Service) is
+# version-independent, is kept up to date by Autodesk Access itself, and is
+# reused by newer releases: removing it would only force a reinstall.
+
+win_workman_autocadlt2023_full_product_patterns:
+  - "Autodesk Material Library*2023*"
+
+win_workman_autocadlt2023_full_paths:
+  - "C:\\Program Files\\Autodesk\\AutoCAD LT 2023"
+
+win_workman_autocadlt2023_full_globs:
+  - "C:\\ProgramData\\Autodesk\\Uninstallers\\*AutoCAD LT 2023*"
+  - "C:\\ProgramData\\Autodesk\\Adlm\\AdlSdk-ACDLT2023*.log"

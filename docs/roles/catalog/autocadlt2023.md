@@ -16,6 +16,7 @@ installed. Pair the two tasks to get a replacement.
 | Action | Description |
 |---|---|
 | `off` | Uninstall AutoCAD LT 2023 (any locale) |
+| `off-full` | As above, plus the leftovers of the 2023 product family |
 
 `off` is the only action and must be spelled out. A bare `autocadlt2023` task
 fails with an explicit message, so a typo in a playbook can never trigger a
@@ -62,6 +63,35 @@ found, the role fails with an explicit message rather than guessing.
 
 ---
 
+## The `full` variant
+
+`autocadlt2023-off-full` removes what the ODIS uninstaller leaves behind, and
+**only** what belongs to the 2023 product family:
+
+| Leftover | Why it is removed |
+|---|---|
+| `Autodesk Material Library 2023` | tied to the 2023 release; 2026 installs its own |
+| `Autodesk Material Library Base Resolution Image Library 2023` | same, ~279 MB together |
+| `C:\Program Files\Autodesk\AutoCAD LT 2023` | emptied by the uninstall, removed only if it holds no files |
+| `C:\ProgramData\Autodesk\Uninstallers\*AutoCAD LT 2023*` | orphaned uninstaller payload |
+| `C:\ProgramData\Autodesk\Adlm\AdlSdk-ACDLT2023*.log` | licensing logs of the removed product |
+
+The shared Autodesk stack — AdODIS, Autodesk Access, CER, Identity Manager,
+AdSSO, Genuine Service, AdskLicensing — is **never** touched, by either `off` or
+`off-full`. Those components are version-independent, Autodesk Access keeps them
+up to date on its own, and every newer release reuses them: removing them would
+only force `autocadlt2026` to reinstall them.
+
+Products are matched by display-name pattern and their GUIDs resolved at run
+time (`tasks/find_products.yaml`), because Autodesk component GUIDs change with
+every release: a pinned `product_id` that no longer matches turns `win_package`
+into a silent no-op.
+
+The install directory is removed only when it contains no files, so a
+half-finished uninstall never loses data behind the operator's back.
+
+---
+
 ## Variables
 
 | Variable | Default | Description |
@@ -72,6 +102,9 @@ found, the role fails with an explicit message rather than guessing.
 | `win_workman_autocadlt2023_kill_processes` | `[acadlt]` | Processes force-closed before uninstalling |
 | `win_workman_autocadlt2023_success_exit_codes` | `[0, 1604, 3010]` | Uninstaller exit codes treated as success |
 | `win_workman_autocadlt2023_uninstall_timeout` | `1800` | Seconds to wait for the uninstaller before failing |
+| `win_workman_autocadlt2023_full_product_patterns` | `[Autodesk Material Library*2023*]` | Display-name patterns removed by `off-full` |
+| `win_workman_autocadlt2023_full_paths` | see `vars/` | Directories removed by `off-full`, only when empty |
+| `win_workman_autocadlt2023_full_globs` | see `vars/` | Glob patterns removed by `off-full` |
 
 These live in `vars/` and normally need no override.
 

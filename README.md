@@ -130,7 +130,7 @@ All catalog roles support the standard package actions: `on` (install), `off` (u
 | `blender` | Blender | — |
 | `sketchup2026` | SketchUp 2026 | — |
 | `autocadlt2026` | AutoCAD LT 2026 (locale auto-detected) | `off-full` (purge shared Autodesk stack) |
-| `autocadlt2023` | AutoCAD LT 2023 — removal only | `off` (only action) |
+| `autocadlt2023` | AutoCAD LT 2023 — removal only | `off` (only action), `off-full` |
 | `tinycad` | TinyCAD | — |
 | `vlc` | VLC media player | — |
 | `puredata` | Pure Data | — |
