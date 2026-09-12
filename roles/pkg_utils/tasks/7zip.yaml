@@ -28,13 +28,11 @@
   ansible.windows.win_copy:
     src: "{{ win_workman_storage_path }}/7zr.exe"
     dest: "{{ win_workman_remote_tmp }}\\7zr.exe"
-  changed_when: false
 
 - name: "Copy extra archive to Windows temporary directory: {{ win_workman_7z_extra_filename }}"
   ansible.windows.win_copy:
     src: "{{ win_workman_storage_path }}/{{ win_workman_7z_extra_filename }}"
     dest: "{{ win_workman_remote_tmp }}\\{{ win_workman_7z_extra_filename }}"
-  changed_when: false
 
 - name: Ensure 7za.exe is available
   ansible.windows.win_powershell:

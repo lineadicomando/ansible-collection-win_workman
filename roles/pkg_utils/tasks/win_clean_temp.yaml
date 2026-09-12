@@ -12,23 +12,50 @@
         ]
       }}
 
+# Purging the scratch directory must not sink an install that already
+# succeeded: on Windows the installer is routinely still locked by a process
+# that has not exited yet. So these deletions tolerate failure, but they report
+# it rather than swallowing it.
 - name: Delete installer from Windows temporary directory
   ansible.windows.win_file:
     path: "{{ win_workman_remote_tmp }}\\{{ win_workman_delete_remote_file.filename }}"
     state: absent
+  register: win_workman_delete_remote_result
   failed_when: false
-  changed_when: false
   loop: "{{ win_workman_delete_remote_files }}"
   loop_control:
     label: "{{ win_workman_delete_remote_file.filename }}"
     loop_var: win_workman_delete_remote_file
 
+- name: Report installers left behind in the Windows temporary directory
+  ansible.builtin.debug:
+    msg: >-
+      Could not delete
+      {{ win_workman_delete_report.win_workman_delete_remote_file.filename }}
+      from {{ win_workman_remote_tmp }}:
+      {{ win_workman_delete_report.msg | default('no reason reported') }}
+  loop: "{{ win_workman_delete_remote_result.results | default([]) }}"
+  loop_control:
+    label: "{{ win_workman_delete_report.win_workman_delete_remote_file.filename }}"
+    loop_var: win_workman_delete_report
+  when:
+    - win_workman_delete_report.failed | default(false) | bool
+
 - name: Delete setup dir from Windows temporary directory
   ansible.windows.win_file:
     path: "{{ win_workman_remote_tmp }}\\{{ win_workman_schema.package.setup_dir }}"
     state: absent
+  register: win_workman_delete_setup_dir_result
   failed_when: false
-  changed_when: false
   when:
     - win_workman_schema.package.setup_dir is defined
     - win_workman_schema.package.setup_dir is not none
+
+- name: Report a setup dir left behind in the Windows temporary directory
+  ansible.builtin.debug:
+    msg: >-
+      Could not delete {{ win_workman_schema.package.setup_dir }}
+      from {{ win_workman_remote_tmp }}:
+      {{ win_workman_delete_setup_dir_result.msg | default('no reason reported') }}
+  when:
+    - win_workman_delete_setup_dir_result.failed | default(false) | bool
