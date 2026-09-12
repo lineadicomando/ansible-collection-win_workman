@@ -10,11 +10,11 @@ win_workman_blender_schema:
   role: lineadicomando.win_workman.blender
   default_action: !!str on
   package:
-    setup_file: blender-5.1.2-windows-x64.msi
+    setup_file: blender-5.2.1-windows-x64.msi
     searchName: "Blender"
-    version: "5.1.2"
-    product_id: "{9CB8CCE7-F0F8-418C-9FA1-B09BEE912FD0}"
+    version: "5.2.1"
+    product_id: "{89F38CAB-6A94-4B76-9839-0AF9118C1E8E}"
   files:
-    - filename: blender-5.1.2-windows-x64.msi
-      url: https://ftp.halifax.rwth-aachen.de/blender/release/Blender5.1/blender-5.1.2-windows-x64.msi
-      checksum: sha256:7d1bb468057a3ac8fd19809e90544f6064cc215053b7732cc8a1ccc83b651ab5
+    - filename: blender-5.2.1-windows-x64.msi
+      url: https://ftp.halifax.rwth-aachen.de/blender/release/Blender5.2/blender-5.2.1-windows-x64.msi
+      checksum: sha256:bebb90fc5bf7e3ec7ab4eb34f4c5a5b54e28e582a722152a47fd4ee66ec3c6fa
