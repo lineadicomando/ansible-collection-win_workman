@@ -6,7 +6,7 @@
   vars:
     win_workman_action: "on"
   when:
-    - win_workman_action | default('on', true) == 'on'
+    - (win_workman_task.act | default('on', true)) == 'on'
     - "'nodep' not in (win_workman_task_argv | default([]))"
 
 - name: Dispatch to package workflow
@@ -23,5 +23,5 @@
     type: dword
     data: 1
   when:
-    - win_workman_action | default('on', true) == 'on'
+    - (win_workman_task.act | default('on', true)) == 'on'
     - win_workman_googledrive_auto_start | default(true) | bool
