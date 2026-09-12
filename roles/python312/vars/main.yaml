@@ -10,16 +10,16 @@ win_workman_python312_schema:
   role: lineadicomando.win_workman.python312
   default_action: !!str on
   package:
-    setup_file: python-3.12.8-amd64.exe
-    version: "3.12.8150.0"
+    setup_file: python-3.12.10-amd64.exe
+    version: "3.12.10150.0"
     provider: registry
-    searchName: "Python 3.12.8 (64-bit)"
+    searchName: "Python 3.12.10 (64-bit)"
     install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
     uninstall_args: /quiet
   files:
-    - filename: python-3.12.8-amd64.exe
-      url: https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe
-      checksum: sha256:71bd44e6b0e91c17558963557e4cdb80b483de9b0a0a9717f06cf896f95ab598
+    - filename: python-3.12.10-amd64.exe
+      url: https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
+      checksum: sha256:67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb
   cleanup_paths:
     - '%ProgramFiles%\Python312'
     - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.12'
@@ -35,5 +35,5 @@ win_workman_python312_schema:
       src: '%ProgramFiles%\Python312\pythonw.exe'
       arguments: '"%ProgramFiles%\Python312\Lib\idlelib\idle.pyw"'
       dest: '%Public%\Desktop\IDLE (Python 3.12 64-bit).lnk'
-      icon: '%SystemRoot%\Installer\{32492549-34FA-4C4D-9654-B42B10DAE7F3}\idle.exe,0'
+      icon: '%SystemRoot%\Installer\{75485683-EF03-41E6-BF21-D1491694548C}\idle.exe,0'
       directory: '%ProgramFiles%\Python312'

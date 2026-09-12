@@ -47,7 +47,7 @@ win_workman_tasks:
 
 Software name: `Python 3.12`  
 Provider: `registry`  
-Installer: `python-3.12.8-amd64.exe`  
+Installer: `python-3.12.10-amd64.exe`  
 Homepage: https://www.python.org/
 
 ---
