@@ -54,6 +54,9 @@ Homepage: https://www.python.org/
 
 ## Notes
 
+- **Deprecated**: Python 3.10 is in security-fix-only mode and python.org publishes no
+  Windows installer past 3.10.11, so this role cannot be updated further. End-of-life is
+  2026-10-31. The role prints a warning on every run; migrate to `python313` or `python314`
 - Installation location: `%ProgramFiles%\Python310`
 - Includes IDLE (interactive development environment) and pip package manager
 - Python launcher is not installed; use `python.exe` directly from PATH
