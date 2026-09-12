@@ -10,9 +10,9 @@ win_workman_winmerge_schema:
   role: lineadicomando.win_workman.winmerge
   default_action: !!str on
   package:
-    setup_file: WinMerge-2.16.56-x64-Setup.exe
+    setup_file: WinMerge-2.16.58.2-x64-Setup.exe
     searchName: "WinMerge*"
-    version: "2.16.56"
+    version: "2.16.58.2"
     install_args:
       - /VERYSILENT
       - /SUPPRESSMSGBOXES
@@ -22,7 +22,7 @@ win_workman_winmerge_schema:
       - /SUPPRESSMSGBOXES
       - /NORESTART
   files:
-    - filename: WinMerge-2.16.56-x64-Setup.exe
-      url: https://github.com/WinMerge/winmerge/releases/download/v2.16.56/WinMerge-2.16.56-x64-Setup.exe
-      checksum: sha256:51840b2f7b6227f6b88acfb10b0fefdecf3ecf959b665ad7fefc372fb1e8bc60
+    - filename: WinMerge-2.16.58.2-x64-Setup.exe
+      url: https://github.com/WinMerge/winmerge/releases/download/v2.16.58.2/WinMerge-2.16.58.2-x64-Setup.exe
+      checksum: sha256:26f794838bc4e545d7b9f36dc8beeb5a65a12bd4627fa3b4fe87068abef925b0
   shortcuts: []
