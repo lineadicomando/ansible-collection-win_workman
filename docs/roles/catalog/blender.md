@@ -37,8 +37,8 @@ win_workman_tasks:
 
 Software name: `Blender`
 Provider: `msi`
-Installer: `blender-5.1.2-windows-x64.msi`
-Version: `5.1.2`
+Installer: `blender-5.2.1-windows-x64.msi`
+Version: `5.2.1`
 Homepage: https://www.blender.org/
 
 ---
