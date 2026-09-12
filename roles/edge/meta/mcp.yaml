@@ -2,7 +2,10 @@
 display_name: Microsoft Edge
 custom_actions:
   - name: "off"
-    description: Remove Microsoft Edge (enterprise uninstall)
+    description: >-
+      Not implemented: it accepts the action and does nothing. Edge cannot be
+      uninstalled because Windows components depend on it; removing it leaves
+      the system unstable (verified on a lab machine).
   - name: privacy
     description: Clear user data (history, cache, cookies) for all Edge profiles
   - name: rm
@@ -20,4 +23,7 @@ defaults:
     type: bool
     default: true
     description: Pass --no-first-run flags to shortcut
-notes: "Accepts '32bit' task argument. Closes running Edge before install/uninstall."
+notes: >-
+  Accepts '32bit' task argument. Closes running Edge before install.
+  This role installs and upgrades Edge but never removes it: see the 'off'
+  action.
