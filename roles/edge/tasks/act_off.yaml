@@ -1,5 +1,19 @@
 ---
-- name: Unsupported action
+# Deliberate no-op, not a missing implementation.
+#
+# Edge is not a plain application on Windows: the system exposes components
+# through it, and uninstalling it — even with the enterprise uninstall string
+# in the registry — leaves the machine unstable. This was tested on a lab
+# machine, not assumed, so the action stays a no-op rather than being wired to
+# pkg_act_off.
+#
+# The role therefore installs and upgrades Edge but never removes it. To reset
+# user state instead, use the 'privacy' action (clears history, cache and
+# cookies) or 'rm' (removes one user's profile directory).
+- name: Skip uninstall (Edge cannot be removed without destabilizing Windows)
   ansible.builtin.debug:
-    msg: "Unsupported action"
+    msg: >-
+      Action 'off' is not supported for Microsoft Edge: Windows components
+      depend on it and removing it leaves the system unstable. Use 'privacy'
+      or 'rm' to reset user data instead.
     verbosity: 1
