@@ -40,7 +40,7 @@ win_workman_tasks:
 
 Software name: `GeoGebra`  
 Provider: `registry`  
-Installer: `GeoGebra-Windows-Installer.exe`  
+Installer: `GeoGebra-Windows-Installer-*.msi` (version varies)  
 Homepage: https://www.geogebra.org/
 
 ---

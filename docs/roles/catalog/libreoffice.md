@@ -42,7 +42,7 @@ win_workman_tasks:
 
 Software name: `LibreOffice`  
 Provider: `registry`  
-Installer: `LibreOffice_Windows_Installer.exe`  
+Installer: `LibreOffice_<version>_Win_x86-64.msi`  
 Homepage: https://www.libreoffice.org/
 
 ---
