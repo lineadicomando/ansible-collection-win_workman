@@ -40,7 +40,7 @@ win_workman_tasks:
 
 Software name: `Adobe Acrobat Reader DC`
 Provider: `registry`
-Installer: `AcroRdrDCx642600121367_MUI.exe` (64-bit MUI)
+Installer: `AcroRdrDCx642600221901_MUI.exe` (64-bit MUI)
 Homepage: https://www.adobe.com/acrobat/pdf-reader.html
 
 ---

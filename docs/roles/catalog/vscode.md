@@ -41,7 +41,7 @@ win_workman_tasks:
 
 Software name: `Visual Studio Code`  
 Provider: `registry`  
-Installer: `VSCodeSetup-x64-1.108.2.exe`  
+Installer: `VSCodeSetup-x64-1.121.0.exe`  
 Homepage: https://code.visualstudio.com/
 
 ---
