@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-from runlog import NotifyFn, RunStatus, read_log, run_logged_async, start_logged
+from runlog import NotifyFn, RunStatus, await_run, read_log, run_logged_async, start_logged
 
 
 def _project_root() -> Path:
@@ -43,6 +43,17 @@ def start_run(cmd: list[str], label: str = "win_wm") -> Path:
 def run_status(run: str = "latest", since_line: int = 0, max_lines: int = 200) -> RunStatus:
     """Read a run's log, whether it is still going or already finished."""
     return read_log(_project_root(), run, since_line, max_lines)
+
+
+async def wait_run(
+    run: str = "latest",
+    timeout: float = 900.0,
+    since_line: int = 0,
+    max_lines: int = 200,
+    notify: NotifyFn | None = None,
+) -> RunStatus:
+    """Block until a background run ends, then read its log."""
+    return await await_run(_project_root(), run, timeout, since_line, max_lines, notify)
 
 
 def format_command(cmd: list[str]) -> str:
