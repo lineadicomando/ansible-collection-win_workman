@@ -13,30 +13,30 @@ win_workman_7zip_arch: >-
   }}
 
 win_workman_7zip_setup_filename:
-  32bit: 7z2600.msi
-  64bit: 7z2600-x64.msi
+  32bit: 7z2603.msi
+  64bit: 7z2603-x64.msi
 
 win_workman_7zip_url:
-  64bit: https://7-zip.org/a/7z2600-x64.msi
-  32bit: https://7-zip.org/a/7z2600.msi
+  64bit: https://7-zip.org/a/7z2603-x64.msi
+  32bit: https://7-zip.org/a/7z2603.msi
 
 win_workman_7zip_checksum:
-  64bit: sha256:c388d0444871ca11b21237001af158cfddad7e137851795e5b65cee69b518495
-  32bit: sha256:53b4f99a2471678020a326fd1d5c888616f5d6c84b00d5db7da30357755c74c3
+  64bit: sha256:c0680064d698a62dd4a5a47f403db356a6531a5473e4c4b1d090ea2590513926
+  32bit: sha256:23b5a8843b09db629b6f6a63364bae5430f66d6ecd4b38e11e1661bfaff5d2c6
 
 win_workman_7zip_cleanup_paths:
   64bit: '%ProgramFiles%\7-Zip'
   32bit: '%ProgramFiles(x86)%\7-Zip'
 
 win_workman_p7zip_schema:
-  name: "7-Zip 26.00"
+  name: "7-Zip 26.03"
   role: lineadicomando.win_workman.p7zip
   default_action: !!str on
   package:
     provider: msi
     setup_file: "{{ win_workman_7zip_setup_filename[win_workman_7zip_arch] }}"
-    version: "26.00.00.0"
-    searchName: "7-Zip 26.00*"
+    version: "26.03.00.0"
+    searchName: "7-Zip 26.03*"
     cleanup_paths:
       - "{{ win_workman_7zip_cleanup_paths[win_workman_7zip_arch] }}"
   files:
