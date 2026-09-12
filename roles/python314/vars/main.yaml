@@ -10,17 +10,17 @@ win_workman_python314_schema:
   role: lineadicomando.win_workman.python314
   default_action: !!str on
   package:
-    setup_file: python-3.14.3-amd64.exe
-    version: "3.14.3150.0"
+    setup_file: python-3.14.7-amd64.exe
+    version: "3.14.7150.0"
     provider: registry
-    product_id: "{d91d5a08-1ddf-4529-909b-637a7fd19101}"
-    searchName: "Python 3.14.3 (64-bit)"
+    product_id: "{97b6de30-6082-48d1-9bb4-9f43296531a4}"
+    searchName: "Python 3.14.7 (64-bit)"
     install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0 Shortcuts=1
     uninstall_args: /quiet
   files:
-    - filename: python-3.14.3-amd64.exe
-      url: https://www.python.org/ftp/python/3.14.3/python-3.14.3-amd64.exe
-      checksum: sha256:b68ad91421afbbd1a628105199c8c5f6179b21ba799067a8d8c0bbac3b7defb0
+    - filename: python-3.14.7-amd64.exe
+      url: https://www.python.org/ftp/python/3.14.7/python-3.14.7-amd64.exe
+      checksum: sha256:9d9eb2709ef81bf5cd30db3c2096bdbc4ea10087c22e62f27d356b36f6ae9649
   cleanup_paths:
     - '%ProgramFiles%\Python314'
     - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.14'
@@ -36,5 +36,5 @@ win_workman_python314_schema:
       src: '%ProgramFiles%\Python314\pythonw.exe'
       arguments: '"%ProgramFiles%\Python314\Lib\idlelib\idle.pyw"'
       dest: '%Public%\Desktop\IDLE (Python 3.14 64-bit).lnk'
-      icon: '%SystemRoot%\Installer\{5CAA53DC-458E-41BE-B7FB-7E943E472E6F}\idle.exe,0'
+      icon: '%SystemRoot%\Installer\{59230DE7-62CA-4C71-B6F8-F8C26E7A927D}\idle.exe,0'
       directory: '%ProgramFiles%\Python314'
