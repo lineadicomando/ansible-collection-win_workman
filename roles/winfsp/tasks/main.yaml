@@ -5,7 +5,7 @@
     name: lineadicomando.win_workman.virtiogt
   vars:
     win_workman_action: "on"
-  when: win_workman_task.act == "on"
+  when: (win_workman_task.act | default('on', true)) == 'on'
 
 - name: Dispatch to package workflow
   ansible.builtin.include_role:
