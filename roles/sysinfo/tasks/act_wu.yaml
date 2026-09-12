@@ -1,0 +1,13 @@
+---
+- name: Collect Windows Update information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.sysinfo
+    tasks_from: collect
+  vars:
+    win_workman_sysinfo_sections:
+      - wu
+
+- name: Report Windows Update information
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.sysinfo
+    tasks_from: report

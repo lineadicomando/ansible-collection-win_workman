@@ -8,6 +8,15 @@ custom_actions:
       'sysinfo-on-os-disk'
   - name: os
     description: Collect only the OS section (Windows edition, DisplayVersion, build, uptime)
+  - name: security
+    description: >-
+      Collect only the security section: TPM state and provisioning, Secure Boot,
+      firmware type and partition style. Not collected by default because it
+      costs about a second per host
+  - name: wu
+    description: >-
+      Collect only the Windows Update section: update policy, pause state,
+      appraiser upgrade indicators and the setup compatibility report
   - name: full
     description: Collect and dump the whole information dictionary for each host
   - name: save
@@ -15,10 +24,12 @@ custom_actions:
 defaults:
   - var: win_workman_sysinfo_sections
     type: list
-    default: ["os", "identity", "hw", "disk", "net"]
+    default: ["os", "identity", "hw", "disk", "net", "wu"]
     description: >-
       Sections collected when the task string carries no explicit section list.
-      Available sections: os, identity, hw, disk, net
+      Available sections: os, identity, hw, disk, net, security, wu.
+      "security" is opt-in: Get-Tpm and Get-Disk cost about a second per host,
+      so ask for it explicitly, e.g. 'sysinfo-on-os-security'
   - var: win_workman_sysinfo_dest
     type: str
     default: "/tmp/win_workman_sysinfo.json"
@@ -31,4 +42,10 @@ notes: >-
   PowerShell round-trip and does not rely on gathered facts. Results are exposed
   as the win_workman_sysinfo fact, so other roles can branch on OS build or
   hardware. Sections can be narrowed per task, e.g. 'sysinfo-on-os' for a fast
-  Windows version check across a lab.
+  Windows version check across a lab, or 'sysinfo-on-os-security-wu' to see
+  why a feature update is not being offered. The security section needs an
+  elevated session for Get-Tpm and Confirm-SecureBootUEFI; without it the
+  section degrades to an error entry instead of failing the run. Beware that the
+  appraiser indicators and the compatibility report are stored values, not
+  recomputed on read: after a BIOS change they keep reporting the old reason
+  until the Microsoft Compatibility Appraiser task runs again.

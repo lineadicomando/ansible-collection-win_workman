@@ -11,3 +11,5 @@ win_workman_sysinfo_known_sections:
   - hw
   - disk
   - net
+  - security
+  - wu

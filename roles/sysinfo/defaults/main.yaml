@@ -1,11 +1,16 @@
 ---
 # Sections collected when the task string carries no explicit section list.
+# "security" is deliberately left out: Get-Tpm and Get-Disk load the
+# TrustedPlatformModule and Storage modules and cost around a second per host,
+# which would double the runtime of a plain "sysinfo" across a lab. Ask for it
+# explicitly with 'sysinfo-on-security' when the TPM or the boot mode matter.
 win_workman_sysinfo_sections:
   - os
   - identity
   - hw
   - disk
   - net
+  - wu
 
 # Controller-side destination for the "save" action. ansible-playbook chdirs
 # into the playbook directory, so a relative default would land inside the

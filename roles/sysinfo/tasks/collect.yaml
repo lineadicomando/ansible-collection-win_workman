@@ -194,6 +194,153 @@
         }
       }
 
+      if ($sections -contains "security") {
+        try {
+          # Get-Tpm is the only source for RestartPending, which tells whether a
+          # TPM just enabled in firmware still needs a reboot to finish
+          # provisioning. Win32_Tpm is faster but does not expose it.
+          $tpm = Get-Tpm -ErrorAction SilentlyContinue
+          $spec = "none"
+          $cimTpm = Get-CimInstance -Namespace "root/cimv2/security/microsofttpm" -ClassName Win32_Tpm -ErrorAction SilentlyContinue
+          if ($cimTpm) { $spec = (([string]$cimTpm.SpecVersion) -split ",")[0].Trim() }
+
+          # ManufacturerVersion comes back padded with NUL characters.
+          $firmware = ""
+          if ($tpm) { $firmware = ([string]$tpm.ManufacturerVersion).Trim([char]0).Trim() }
+
+          $device = "absent"
+          $firstInstall = ""
+          $pnp = @(Get-PnpDevice -Class SecurityDevices -ErrorAction SilentlyContinue)[0]
+          if ($pnp) {
+            $device = "{0}={1}" -f $pnp.InstanceId, $pnp.Status
+            # Dates the appearance of the device, and with it the BIOS change
+            # that enabled the TPM: the only evidence left once it is running.
+            $first = (Get-PnpDeviceProperty -InstanceId $pnp.InstanceId -KeyName "DEVPKEY_Device_FirstInstallDate" -ErrorAction SilentlyContinue).Data
+            if ($first) { $firstInstall = $first.ToString("yyyy-MM-dd HH:mm") }
+          }
+
+          # Confirm-SecureBootUEFI throws "not supported on this platform" when
+          # the machine booted in legacy mode, so the failure itself is the
+          # firmware check: Windows 11 needs a Secure Boot capable machine, not
+          # Secure Boot switched on.
+          $secureBoot = "unavailable"
+          $firmwareType = "Legacy BIOS"
+          try {
+            $secureBoot = if (Confirm-SecureBootUEFI -ErrorAction Stop) { "enabled" } else { "disabled" }
+            $firmwareType = "UEFI"
+          } catch {
+            $secureBoot = "unavailable"
+          }
+
+          $partitionStyle = "unknown"
+          $sysDisk = Get-Partition -DriveLetter C -ErrorAction SilentlyContinue | Get-Disk -ErrorAction SilentlyContinue
+          if ($sysDisk) { $partitionStyle = [string]$sysDisk.PartitionStyle }
+
+          $result["security"] = [ordered]@{
+            tpm_present         = [bool]($tpm -and $tpm.TpmPresent)
+            tpm_ready           = [bool]($tpm -and $tpm.TpmReady)
+            tpm_enabled         = [bool]($tpm -and $tpm.TpmEnabled)
+            tpm_activated       = [bool]($tpm -and $tpm.TpmActivated)
+            tpm_owned           = [bool]($tpm -and $tpm.TpmOwned)
+            tpm_restart_pending = [bool]($tpm -and $tpm.RestartPending)
+            tpm_spec            = $spec
+            tpm_manufacturer    = if ($tpm) { ([string]$tpm.ManufacturerIdTxt).Trim() } else { "" }
+            tpm_firmware        = $firmware
+            tpm_device          = $device
+            tpm_first_install   = $firstInstall
+            secure_boot         = $secureBoot
+            firmware            = $firmwareType
+            partition_style     = $partitionStyle
+          }
+        } catch {
+          $result["security"] = [ordered]@{ error = $_.Exception.Message }
+        }
+      }
+
+      if ($sections -contains "wu") {
+        try {
+          $wuPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
+          $pol = Get-ItemProperty -Path $wuPolicy -ErrorAction SilentlyContinue
+          $au = Get-ItemProperty -Path "$wuPolicy\AU" -ErrorAction SilentlyContinue
+
+          $targetRelease = ""
+          if ($pol -and $pol.TargetReleaseVersionInfo) { $targetRelease = [string]$pol.TargetReleaseVersionInfo }
+
+          $paused = ""
+          $ux = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings" -ErrorAction SilentlyContinue
+          if ($ux -and $ux.PauseFeatureUpdatesEndTime) { $paused = [string]$ux.PauseFeatureUpdatesEndTime }
+
+          # UpgEx/RedReason record why a given feature update is not offered.
+          # They are written by the Microsoft Compatibility Appraiser scheduled
+          # task and NOT recomputed on read: after a firmware change they keep
+          # reporting the old reason until the appraiser runs again.
+          #
+          # Keyed by target release with a flat string value on purpose: the
+          # win_powershell serializer only goes a couple of levels deep, and a
+          # list of hashtables this far down the result comes back as literal
+          # "System.Collections.Specialized.OrderedDictionary" strings.
+          $blocks = [ordered]@{}
+          $indicators = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\TargetVersionUpgradeExperienceIndicators"
+          foreach ($key in @(Get-ChildItem $indicators -ErrorAction SilentlyContinue | Sort-Object PSChildName)) {
+            $props = Get-ItemProperty $key.PSPath -ErrorAction SilentlyContinue
+            if ($props -and $props.UpgEx) {
+              $reason = [string]$props.RedReason
+              if ([string]::IsNullOrWhiteSpace($reason) -or $reason -eq "None") {
+                $blocks[[string]$key.PSChildName] = [string]$props.UpgEx
+              } else {
+                $blocks[[string]$key.PSChildName] = "{0}: {1}" -f [string]$props.UpgEx, $reason
+              }
+            }
+          }
+
+          # Setup writes a compatibility report on every upgrade attempt; the
+          # hard blocks in it are the authoritative list of what stopped it.
+          $compatName = ""
+          $compatDate = ""
+          $hardBlocks = [string[]]@()
+          $report = Get-ChildItem -Path "C:\`$WINDOWS.~BT\Sources\Panther" -Filter "CompatData_*.xml" -ErrorAction SilentlyContinue |
+                    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($report) {
+            $compatName = [string]$report.Name
+            $compatDate = $report.LastWriteTime.ToString("yyyy-MM-dd")
+            try {
+              [xml]$doc = Get-Content -LiteralPath $report.FullName -Raw
+              $found = @()
+              foreach ($item in $doc.SelectNodes('//*[local-name()="HardwareItem"]')) {
+                foreach ($child in $item.ChildNodes) {
+                  if ([string]$child.BlockingType -eq "Hard") { $found += [string]$item.HardwareType }
+                }
+              }
+              # The [string[]] cast keeps a single block an array rather than a
+              # bare string, which would iterate per character on the Jinja side.
+              $hardBlocks = [string[]]@($found | Select-Object -Unique)
+            } catch {
+              $hardBlocks = [string[]]@("parse error")
+            }
+          }
+
+          $result["wu"] = [ordered]@{
+            target_release     = $targetRelease
+            target_release_set = [bool]($pol -and $pol.TargetReleaseVersion)
+            no_auto_update     = [bool]($au -and $au.NoAutoUpdate)
+            use_wu_server      = [bool]($au -and $au.UseWUServer)
+            wsus_server        = if ($pol -and $pol.WUServer) { [string]$pol.WUServer } else { "" }
+            defer_feature_days = if ($pol -and $null -ne $pol.DeferFeatureUpdatesPeriodInDays) { [int]$pol.DeferFeatureUpdatesPeriodInDays } else { 0 }
+            branch_readiness   = if ($pol -and $null -ne $pol.BranchReadinessLevel) { [int]$pol.BranchReadinessLevel } else { 0 }
+            feature_paused_until = $paused
+            upgrade_blocks     = $blocks
+            compat_report      = $compatName
+            compat_report_date = $compatDate
+            compat_hard_blocks = $hardBlocks
+            # Pre-joined form: Jinja cannot hash a list, so the lab-wide
+            # aggregation in report.yaml groups hosts on this string instead.
+            compat_hard_blocks_text = ($hardBlocks -join ", ")
+          }
+        } catch {
+          $result["wu"] = [ordered]@{ error = $_.Exception.Message }
+        }
+      }
+
       $Ansible.Result = $result
   register: win_workman_sysinfo_raw
   changed_when: false
