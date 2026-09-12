@@ -40,7 +40,7 @@ win_workman_tasks:
 
 Software name: `GeoGebra Classic 5`  
 Provider: `registry`  
-Installer: `GeoGebra-Classic-5-*.exe` (version varies)  
+Installer: `GeoGebra-Windows-Installer-5-*.msi` (version varies)  
 Homepage: https://www.geogebra.org/
 
 ---
