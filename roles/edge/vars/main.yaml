@@ -41,9 +41,15 @@ win_workman_edge_checksum:
   64bit: sha256:4388dc0c46b5ec98aebdf9b78a07f2c70076164f322e20228dc7de366d60a385
   32bit: sha256:74a050f265b6057006e5d09bd6bb1c3e24ba61846cfc61774386ee61dfff1fe4
 
+# Edge installs under the x86 program directory on 64-bit Windows whatever the
+# installer architecture: the x64 MSI still lands in
+# "Program Files (x86)\\Microsoft\\Edge\\Application". Only a 32-bit Windows, which
+# has no "Program Files (x86)", puts it under %ProgramFiles%. Mapping this the
+# way chrome does (64bit -> %ProgramFiles%) pointed the shortcuts at a path that
+# does not exist.
 win_workman_edge_program_file:
-  64bit: "%ProgramFiles%"
-  32bit: "%ProgramFiles(x86)%"
+  64bit: "%ProgramFiles(x86)%"
+  32bit: "%ProgramFiles%"
 
 win_workman_edge_shortcuts_schema:
   - description: "Microsoft Edge"
