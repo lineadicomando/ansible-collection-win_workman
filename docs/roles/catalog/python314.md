@@ -47,7 +47,7 @@ win_workman_tasks:
 
 Software name: `Python 3.14`  
 Provider: `registry`  
-Installer: `python-3.14.3-amd64.exe`  
+Installer: `python-3.14.7-amd64.exe`  
 Homepage: https://www.python.org/
 
 ---
