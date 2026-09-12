@@ -72,6 +72,27 @@ immediately with a clear error if an unknown action is passed.
 | `win_workman_restart` | `true` | Allow reboot after install if needed |
 | `win_workman_restart_timeout` | `180` | Seconds to wait after reboot |
 | `win_workman_default_lang` | `en_US` | Locale hint for multi-locale roles |
+| `win_workman_cleanup_uninstaller_dir` | `true` | Remove an install directory left holding only uninstaller files |
+
+### Uninstall cleanup
+
+`off` removes more than the package itself, in this order: the registry key (only
+when the schema sets `cleanup_registry_key`), the schema's `cleanup_paths`, then
+the install directory if nothing but uninstaller files is left in it.
+
+That last step is global, not per-role: Inno Setup cannot delete the
+`unins000.exe` it is running from, so every Inno-based package (`vscode`, `git`,
+`gimp`, `netbeans`, `winmerge`, `peazip`, `laragon`) leaves its install directory
+behind holding that one file. The step removes the directory only when *every*
+remaining entry matches `unins*` and is not a subdirectory — a directory still
+holding user data, extensions or a second product is reported and left alone.
+Drive roots and shared system directories are refused outright.
+
+Set `win_workman_cleanup_uninstaller_dir: false` to keep the leftovers. A role
+that needs a non-empty install directory removed wholesale should use
+`cleanup_paths` instead, which makes that intent explicit per package.
+
+---
 
 ### Available actions list
 

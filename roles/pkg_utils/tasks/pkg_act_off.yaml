@@ -175,6 +175,14 @@
           and win_workman_schema.package.uninstall_args is not none
         ) else none
       }}
+    win_workman_install_location: >-
+      {{
+        win_workman_detect_sw.result.install_location
+        if (
+          win_workman_detect_sw.result.install_location is defined
+          and win_workman_detect_sw.result.install_location is not none
+        ) else none
+      }}
     win_workman_cleanup_registry_key: >-
       {{
         win_workman_schema.package.cleanup_registry_key
@@ -359,6 +367,90 @@
   loop: "{{ win_workman_schema.package.cleanup_paths }}"
   loop_control:
     loop_var: win_workman_item_cleanup_paths
+
+- name: Cleanup uninstaller leftovers
+  ansible.windows.win_powershell:
+    script: |
+      param(
+          [string]$InstallLocation,
+          [string]$UninstallString
+      )
+      $Ansible.Changed = $false
+
+      # Inno Setup cannot delete the uninstaller it is running from, so after a
+      # silent uninstall the install directory survives holding only unins000.*.
+      # The registry entry is already gone by now, so the directory is the last
+      # trace of the package.
+      function Resolve-InstallDir {
+          param([string]$Location, [string]$Uninstaller)
+          if ($Location) { return $Location.Trim().TrimEnd('\') }
+          # Fall back to where the uninstaller lives: for Inno that *is* the
+          # install directory, and some packages record no InstallLocation.
+          if ($Uninstaller) {
+              $exe = $Uninstaller.Trim().Trim('"')
+              if ($exe) {
+                  $parent = Split-Path -Path $exe -Parent
+                  if ($parent) { return $parent.TrimEnd('\') }
+              }
+          }
+          return $null
+      }
+
+      $dir = Resolve-InstallDir -Location $InstallLocation -Uninstaller $UninstallString
+      $result = [ordered]@{ Dir = $dir; Removed = $false; Reason = $null }
+
+      if (-not $dir) {
+          $result.Reason = 'no install directory recorded'
+          $Ansible.Result = $result
+          return
+      }
+      if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+          $result.Reason = 'already gone'
+          $Ansible.Result = $result
+          return
+      }
+
+      # Never touch a drive root or a shared system directory, however the
+      # registry value got mangled.
+      $protected = @(
+          $env:SystemRoot, $env:SystemDrive, $env:ProgramData, $env:PUBLIC,
+          $env:ProgramFiles, ${env:ProgramFiles(x86)}, "$env:SystemDrive\Users"
+      ) | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\').ToLowerInvariant() }
+      $full = (Get-Item -LiteralPath $dir -Force).FullName.TrimEnd('\')
+      if ($protected -contains $full.ToLowerInvariant() -or -not (Split-Path $full -Parent)) {
+          $result.Reason = "refusing to remove protected path '$full'"
+          $result.Dir = $full
+          $Ansible.Result = $result
+          return
+      }
+      $result.Dir = $full
+
+      # Only a directory holding nothing but uninstaller files is safe to drop.
+      # Anything else (user data, extensions, a second product sharing the dir)
+      # means the package did not clean up and that is not ours to decide.
+      $leftover = @(Get-ChildItem -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue)
+      $foreign = @($leftover | Where-Object { $_.PSIsContainer -or $_.Name -notlike 'unins*' })
+      if ($foreign.Count -gt 0) {
+          $result.Reason = "$($foreign.Count) item(s) not from the uninstaller remain"
+          $result.Kept = @($foreign | Select-Object -First 10 -ExpandProperty Name)
+          $Ansible.Result = $result
+          return
+      }
+
+      Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction Stop
+      $result.Removed = $true
+      $result.Reason = "removed $($leftover.Count) uninstaller file(s)"
+      $Ansible.Changed = $true
+      $Ansible.Result = $result
+    parameters:
+      InstallLocation: "{{ win_workman_install_location | default('', true) }}"
+      UninstallString: "{{ win_workman_uninstall_string | default('', true) }}"
+  register: win_workman_cleanup_unins_result
+  when:
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_needs_action | default(false) | bool
+    - win_workman_cleanup_uninstaller_dir | bool
+    - not win_workman_detect_sw.result.installed
 
 - name: Shortcuts
   ansible.builtin.include_role:

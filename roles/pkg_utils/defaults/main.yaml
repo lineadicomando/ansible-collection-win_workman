@@ -11,3 +11,8 @@ win_workman_mode_text: |
 win_workman_mode_force_logoff: true
 win_workman_restart_timeout: 600
 win_workman_restart: true
+
+# After a successful uninstall, remove the install directory when nothing is
+# left in it but the uninstaller's own files. Inno Setup cannot delete the
+# running unins000.exe, so it always leaves one behind.
+win_workman_cleanup_uninstaller_dir: true
