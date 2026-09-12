@@ -12,10 +12,10 @@ win_workman_virtiogt_schema:
   package:
     setup_file: virtio-win-guest-tools.exe
     searchName: "Virtio-win-guest-tools"
-    version: "0.1.285"
+    version: "0.1.302"
     install_args: "/s /qn /norestart"
     uninstall_args: "/s /qn /norestart"
   files:
     - filename: virtio-win-guest-tools.exe
-      url: https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.285-1/virtio-win-guest-tools.exe
-      checksum: sha256:c8b4a9fe87e1fc5d8e843495e082dea53420587fe04740b1084d85089343f04d
+      url: https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.302-1/virtio-win-guest-tools.exe
+      checksum: sha256:d8ae9ea1e943384ac195e012cd36f82c3161620e5fc9529be4e42e6f420e222d
