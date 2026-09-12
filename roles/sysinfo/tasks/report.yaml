@@ -12,6 +12,11 @@
         | selectattr('device', 'equalto', 'C:') | list | first | default({})
       }}
     _net: "{{ (win_workman_sysinfo.net | default([])) | first | default({}) }}"
+    _sec: "{{ win_workman_sysinfo.security | default({}) }}"
+    # Named "wu", not "update": Jinja resolves a dotted lookup through getattr
+    # first, and dict.update is a real Python method, so win_workman_sysinfo.update
+    # would hand back the bound method instead of the section.
+    _upd: "{{ win_workman_sysinfo.wu | default({}) }}"
     win_workman_sysinfo_segments:
       - >-
         {{
@@ -40,6 +45,24 @@
         {{
           (_net.ip ~ ' ' ~ _net.mac) if (_net.ip is defined and _net.ip | length > 0) else ''
         }}
+      - >-
+        {{
+          ('TPM ' ~ (_sec.tpm_spec if (_sec.tpm_present | default(false) | bool) else 'absent')
+           ~ (' (restart pending)' if (_sec.tpm_restart_pending | default(false) | bool) else '')
+           ~ ', ' ~ _sec.firmware ~ ', Secure Boot ' ~ _sec.secure_boot
+           ~ ', ' ~ _sec.partition_style)
+          if (_sec.firmware is defined) else ''
+        }}
+      - >-
+        {{
+          ('hard blocks: ' ~ _upd.compat_hard_blocks_text)
+          if (_upd.compat_hard_blocks_text | default('') | length > 0) else ''
+        }}
+      - >-
+        {{
+          ('pinned to ' ~ _upd.target_release)
+          if (_upd.target_release | default('') | length > 0) else ''
+        }}
 
 - name: OS version distribution
   ansible.builtin.debug:
@@ -67,4 +90,33 @@
     }}
   loop_control:
     loop_var: win_workman_sysinfo_version
+  run_once: true
+
+- name: Upgrade hard block distribution
+  ansible.builtin.debug:
+    msg: >-
+      {{ win_workman_sysinfo_blocks }}: {{ win_workman_sysinfo_blocked_hosts | length }} host(s)
+      — {{ win_workman_sysinfo_blocked_hosts | join(', ') }}
+  vars:
+    _blocked: >-
+      {{
+        ansible_play_hosts | map('extract', hostvars)
+        | selectattr('win_workman_sysinfo.wu.compat_hard_blocks_text', 'defined')
+        | rejectattr('win_workman_sysinfo.wu.compat_hard_blocks_text', 'equalto', '') | list
+      }}
+    win_workman_sysinfo_blocked_hosts: >-
+      {{
+        _blocked
+        | selectattr('win_workman_sysinfo.wu.compat_hard_blocks_text', 'equalto', win_workman_sysinfo_blocks)
+        | map(attribute='inventory_hostname') | list
+      }}
+  loop: >-
+    {{
+      ansible_play_hosts | map('extract', hostvars)
+      | selectattr('win_workman_sysinfo.wu.compat_hard_blocks_text', 'defined')
+      | map(attribute='win_workman_sysinfo.wu.compat_hard_blocks_text')
+      | reject('equalto', '') | unique | sort | list
+    }}
+  loop_control:
+    loop_var: win_workman_sysinfo_blocks
   run_once: true
