@@ -353,6 +353,29 @@
     - win_workman_cleanup_registry_key | bool
     - win_workman_detect_sw.result.installed
     - win_workman_detect_sw.result.registry_key is not none
+  register: win_workman_cleanup_registry_key_result
+
+# Everything below decides whether the package is really gone by reading
+# win_workman_detect_sw, and 'Cleanup registry key' has just invalidated it: an
+# uninstaller that does not remove its own registry entry leaves detect
+# reporting the package as still installed, so both the cleanup_paths loop and
+# the uninstaller-leftovers pass are skipped exactly when they are needed.
+# Re-detect so they judge the state after the forced key removal, not before.
+- name: Detect software after registry key cleanup
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_sw
+  vars:
+    win_workman_detect_sw_args:
+      name_like: "{{ win_workman_schema.package.searchName }}"
+  when:
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_needs_action | default(false) | bool
+    - win_workman_cleanup_registry_key_result is defined
+    - win_workman_cleanup_registry_key_result is changed
+    - win_workman_schema.package.searchName is defined
+    - win_workman_schema.package.searchName is not none
+    - win_workman_schema.package.searchName is string
 
 - name: Cleanup paths
   ansible.windows.win_file:
