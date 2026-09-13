@@ -16,15 +16,15 @@ win_workman_python310_schema:
     searchName: "Python 3.10.11 (64-bit)"
     install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
     uninstall_args: /quiet
+    cleanup_paths:
+      - '%ProgramFiles%\Python310'
+      - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.10'
+      - '%Public%\Desktop\Python 3.10 (64-bit).lnk'
+      - '%Public%\Desktop\IDLE (Python 3.10 64-bit).lnk'
   files:
     - filename: python-3.10.11-amd64.exe
       url: https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe
       checksum: sha256:d8dede5005564b408ba50317108b765ed9c3c510342a598f9fd42681cbe0648b
-  cleanup_paths:
-    - '%ProgramFiles%\Python310'
-    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.10'
-    - '%Public%\Desktop\Python 3.10 (64-bit).lnk'
-    - '%Public%\Desktop\IDLE (Python 3.10 64-bit).lnk'
   shortcuts:
     - description: "Launches the Python 3.10 interpreter"
       src: '%ProgramFiles%\Python310\python.exe'
