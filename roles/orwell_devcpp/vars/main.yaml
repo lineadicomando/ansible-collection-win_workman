@@ -18,6 +18,7 @@ win_workman_orwell_devcpp_schema:
       - /S
     uninstall_args:
       - /S
+    uninstall_via_helper: true
     product_id: "Dev-C++"
   files:
     - filename: Dev-Cpp_5.11_TDM-GCC_4.9.2_Setup.exe

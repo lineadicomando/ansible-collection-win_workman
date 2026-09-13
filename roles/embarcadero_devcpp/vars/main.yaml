@@ -16,12 +16,16 @@ win_workman_embarcadero_devcpp_schema:
     product_id: "Embarcadero Dev-Cpp"
     install_args: "/S"
     uninstall_args: "/S"
+    uninstall_via_helper: true
     after_install_ps_script: |
       Remove-Item -Path "$Env:USERPROFILE\Desktop\Embarcadero Dev-C++.lnk" -Force -ErrorAction SilentlyContinue
     cleanup_registry_key: true
     cleanup_paths:
       - '%Public%\Desktop\Embarcadero Dev-C++.lnk'
       - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Embarcadero Dev-C++'
+      # The installer is 32-bit NSIS, so on x64 it lands in Program Files (x86);
+      # both are listed because win_file state=absent is a no-op on a missing path.
+      - '%ProgramFiles(x86)%\Embarcadero\Dev-Cpp'
       - '%ProgramFiles%\Embarcadero\Dev-Cpp'
   files:
     - filename: Embarcadero_Dev-Cpp_6.3_TDM-GCC_9.2_Setup.exe
