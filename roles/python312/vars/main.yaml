@@ -16,15 +16,15 @@ win_workman_python312_schema:
     searchName: "Python 3.12.10 (64-bit)"
     install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
     uninstall_args: /quiet
+    cleanup_paths:
+      - '%ProgramFiles%\Python312'
+      - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.12'
+      - '%Public%\Desktop\Python 3.12 (64-bit).lnk'
+      - '%Public%\Desktop\IDLE (Python 3.12 64-bit).lnk'
   files:
     - filename: python-3.12.10-amd64.exe
       url: https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
       checksum: sha256:67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb
-  cleanup_paths:
-    - '%ProgramFiles%\Python312'
-    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.12'
-    - '%Public%\Desktop\Python 3.12 (64-bit).lnk'
-    - '%Public%\Desktop\IDLE (Python 3.12 64-bit).lnk'
   shortcuts:
     - description: "Launches the Python 3.12 interpreter"
       src: '%ProgramFiles%\Python312\python.exe'

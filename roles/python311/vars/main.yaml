@@ -16,15 +16,15 @@ win_workman_python311_schema:
     searchName: "Python 3.11.9 (64-bit)"
     install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
     uninstall_args: /quiet
+    cleanup_paths:
+      - '%ProgramFiles%\Python311'
+      - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.11'
+      - '%Public%\Desktop\Python 3.11 (64-bit).lnk'
+      - '%Public%\Desktop\IDLE (Python 3.11 64-bit).lnk'
   files:
     - filename: python-3.11.9-amd64.exe
       url: https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
       checksum: sha256:5ee42c4eee1e6b4464bb23722f90b45303f79442df63083f05322f1785f5fdde
-  cleanup_paths:
-    - '%ProgramFiles%\Python311'
-    - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.11'
-    - '%Public%\Desktop\Python 3.11 (64-bit).lnk'
-    - '%Public%\Desktop\IDLE (Python 3.11 64-bit).lnk'
   shortcuts:
     - description: "Launches the Python 3.11 interpreter"
       src: '%ProgramFiles%\Python311\python.exe'
