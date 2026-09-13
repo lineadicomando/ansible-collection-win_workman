@@ -39,7 +39,7 @@ win_workman_tasks:
 
 Software name: `DBeaver`  
 Provider: `registry`  
-Installer: `dbeaver-ce-26.0.4-windows-x86_64.exe`  
+Installer: `dbeaver-ce-26.2.0-windows-x86_64.exe`  
 Homepage: https://dbeaver.io
 
 ---
