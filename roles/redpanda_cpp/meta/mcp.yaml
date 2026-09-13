@@ -1,0 +1,6 @@
+---
+display_name: "Red Panda C++"
+notes: >
+  Modern alternative to orwell_devcpp and embarcadero_devcpp: same Dev-C++ workflow
+  and file associations (.dev, .c, .cpp), but a maintained IDE bundled with
+  MinGW64 GCC 11.5.0. Installed for all users under %ProgramFiles%\RedPanda-Cpp.
