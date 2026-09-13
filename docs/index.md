@@ -73,6 +73,7 @@ The collection has two distinct role families:
 | [roles/catalog/python314.md](roles/catalog/python314.md) | `python314` — Python 3.14 interpreter |
 | [roles/catalog/embarcadero_devcpp.md](roles/catalog/embarcadero_devcpp.md) | `embarcadero_devcpp` — C++ IDE |
 | [roles/catalog/orwell_devcpp.md](roles/catalog/orwell_devcpp.md) | `orwell_devcpp` — C++ IDE community fork |
+| [roles/catalog/redpanda_cpp.md](roles/catalog/redpanda_cpp.md) | `redpanda_cpp` — Red Panda C++ IDE with MinGW64 |
 | [roles/catalog/laragon.md](roles/catalog/laragon.md) | `laragon` — portable WAMP/LEMP stack |
 | [roles/catalog/mysql_workbench.md](roles/catalog/mysql_workbench.md) | `mysql_workbench` — database administration tool |
 | [roles/catalog/mysql_server.md](roles/catalog/mysql_server.md) | `mysql_server` — MySQL Server 9.x database engine |
@@ -133,7 +134,7 @@ The collection has two distinct role families:
 [`brave`](roles/catalog/brave.md) · [`chrome`](roles/catalog/chrome.md) · [`edge`](roles/catalog/edge.md) · [`firefox`](roles/catalog/firefox.md) · [`opera`](roles/catalog/opera.md) · [`seb`](roles/catalog/seb.md) · [`vivaldi`](roles/catalog/vivaldi.md)
 
 ### Catalog — Developer tools
-[`vscode`](roles/catalog/vscode.md) · [`notepadpp`](roles/catalog/notepadpp.md) · [`git`](roles/catalog/git.md) · [`embarcadero_devcpp`](roles/catalog/embarcadero_devcpp.md) · [`orwell_devcpp`](roles/catalog/orwell_devcpp.md) · [`laragon`](roles/catalog/laragon.md) · [`mysql_server`](roles/catalog/mysql_server.md) · [`mysql_workbench`](roles/catalog/mysql_workbench.md) · [`dbeaver`](roles/catalog/dbeaver.md) · [`postman`](roles/catalog/postman.md) · [`netbeans`](roles/catalog/netbeans.md) · [`python310`](roles/catalog/python310.md) · [`python311`](roles/catalog/python311.md) · [`python312`](roles/catalog/python312.md) · [`python313`](roles/catalog/python313.md) · [`python314`](roles/catalog/python314.md)
+[`vscode`](roles/catalog/vscode.md) · [`notepadpp`](roles/catalog/notepadpp.md) · [`git`](roles/catalog/git.md) · [`embarcadero_devcpp`](roles/catalog/embarcadero_devcpp.md) · [`orwell_devcpp`](roles/catalog/orwell_devcpp.md) · [`redpanda_cpp`](roles/catalog/redpanda_cpp.md) · [`laragon`](roles/catalog/laragon.md) · [`mysql_server`](roles/catalog/mysql_server.md) · [`mysql_workbench`](roles/catalog/mysql_workbench.md) · [`dbeaver`](roles/catalog/dbeaver.md) · [`postman`](roles/catalog/postman.md) · [`netbeans`](roles/catalog/netbeans.md) · [`python310`](roles/catalog/python310.md) · [`python311`](roles/catalog/python311.md) · [`python312`](roles/catalog/python312.md) · [`python313`](roles/catalog/python313.md) · [`python314`](roles/catalog/python314.md)
 
 ### Catalog — Graphics, CAD & Multimedia
 [`gimp`](roles/catalog/gimp.md) · [`inkscape`](roles/catalog/inkscape.md) · [`blender`](roles/catalog/blender.md) · [`sketchup2026`](roles/catalog/sketchup2026.md) · [`autocadlt2023`](roles/catalog/autocadlt2023.md) · [`autocadlt2026`](roles/catalog/autocadlt2026.md) · [`vlc`](roles/catalog/vlc.md) · [`puredata`](roles/catalog/puredata.md)

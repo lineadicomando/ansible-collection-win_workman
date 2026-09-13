@@ -1,0 +1,64 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Red Panda C++
+#      - Homepage:    https://github.com/royqh1979/RedPanda-CPP
+#      - Download:    https://github.com/royqh1979/RedPanda-CPP/releases
+# ==============================================================================
+---
+# The NSIS uninstaller deletes the DevCpp.* ProgID keys but not the file
+# extension keys pointing at them, leaving eight dangling associations behind.
+# Only extensions whose ProgID has actually gone are removed, so an
+# orwell_devcpp or embarcadero_devcpp install still owning DevCpp.* is untouched.
+win_workman_redpanda_cpp_assoc_cleanup_script: |
+  $Ansible.Changed = $false
+  # A silent NSIS uninstaller re-executes itself from %TEMP% and the first
+  # process returns straight away, so Start-Process -Wait can come back while
+  # the removal is still running. Wait for the real worker before judging what
+  # is left behind.
+  $deadline = (Get-Date).AddSeconds(120)
+  while ((Get-Date) -lt $deadline) {
+      $running = @(Get-Process -Name 'Un_A', 'uninstall' -ErrorAction SilentlyContinue)
+      if ($running.Count -eq 0) { break }
+      Start-Sleep -Seconds 2
+  }
+  $removed = @()
+  foreach ($ext in '.dev', '.c', '.cpp', '.cxx', '.cc', '.h', '.hpp', '.hxx') {
+      $key = "HKLM:\Software\Classes\$ext"
+      $progId = (Get-ItemProperty -Path $key -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
+      if (-not $progId -or $progId -notlike 'DevCpp.*') { continue }
+      if (Test-Path -LiteralPath "HKLM:\Software\Classes\$progId") { continue }
+      Remove-Item -LiteralPath $key -Recurse -Force -ErrorAction Stop
+      $removed += $ext
+      $Ansible.Changed = $true
+  }
+  $Ansible.Result = @{ Removed = $removed }
+
+win_workman_redpanda_cpp_schema:
+  name: Red Panda C++
+  role: lineadicomando.win_workman.redpanda_cpp
+  default_action: !!str on
+  package:
+    setup_file: RedPanda.C++.3.4.win64.MinGW64_11.5.0.Setup.exe
+    # The NSIS script writes DisplayName as "<app name> (<arch>)", so the glob
+    # is what matches the entry regardless of the arch suffix.
+    searchName: "Red Panda C++*"
+    version: "3.4"
+    provider: registry
+    # REGISTRY_PROGRAM_ID in platform/windows/installer-scripts/redpanda.nsi
+    product_id: "RedPanda-C++"
+    # MultiUser NSIS installer: /AllUsers puts it under Program Files and makes
+    # the shortcuts and the file associations machine-wide.
+    install_args:
+      - /S
+      - /AllUsers
+    uninstall_args:
+      - /S
+    uninstall_via_helper: true
+    after_uninstall_ps_script: "{{ win_workman_redpanda_cpp_assoc_cleanup_script }}"
+  files:
+    - filename: RedPanda.C++.3.4.win64.MinGW64_11.5.0.Setup.exe
+      url: https://github.com/royqh1979/RedPanda-CPP/releases/download/v3.4/RedPanda.C%2B%2B.3.4.win64.MinGW64_11.5.0.Setup.exe
+      checksum: sha256:f2fc1b37b252d0cb417a9c8cef3813d8e032d3d875ce50913063dd7aa6b0f21f
+  # The installer already creates the all-users desktop and Start Menu shortcuts
+  # and its uninstaller removes them, so none are declared here.
+  shortcuts: []
