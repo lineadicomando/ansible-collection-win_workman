@@ -10,9 +10,9 @@ win_workman_git_schema:
   role: lineadicomando.win_workman.git
   default_action: !!str on
   package:
-    setup_file: Git-2.54.0-64-bit.exe
+    setup_file: Git-2.55.0.5-64-bit.exe
     searchName: "Git"
-    version: "2.54.0"
+    version: "2.55.0.5"
     install_args:
       - /VERYSILENT
       - /NORESTART
@@ -22,6 +22,6 @@ win_workman_git_schema:
       - /VERYSILENT
       - /NORESTART
   files:
-    - filename: Git-2.54.0-64-bit.exe
-      url: https://github.com/git-for-windows/git/releases/download/v2.54.0.windows.1/Git-2.54.0-64-bit.exe
-      checksum: sha256:2b96e7854f0520f0f6b709c21041d9801b1be44d5e1a0d9fa621b2fbc40f1983
+    - filename: Git-2.55.0.5-64-bit.exe
+      url: https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.5/Git-2.55.0.5-64-bit.exe
+      checksum: sha256:d065a4e23c3d9a6b5073d609b5be0830227ec3ca053c083ba385061ddfaf94c6
