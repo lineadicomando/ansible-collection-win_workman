@@ -114,6 +114,7 @@ The collection has two distinct role families:
 | [roles/catalog/veyon.md](roles/catalog/veyon.md) | `veyon` — classroom management agent |
 | [roles/catalog/gcpw.md](roles/catalog/gcpw.md) | `gcpw` — Google Credential Provider for Windows install and domain configuration |
 | [roles/catalog/patchcleaner.md](roles/catalog/patchcleaner.md) | `patchcleaner` — WinSxS / superseded update cleanup |
+| [roles/catalog/driver_reviver.md](roles/catalog/driver_reviver.md) | `driver_reviver` — ReviverSoft driver updater |
 | [roles/management/optimize.md](roles/management/optimize.md) | `optimize` — volume optimisation and defrag |
 | [roles/management/wu.md](roles/management/wu.md) | `wu` — Windows Update enable/disable/pause/policy |
 | [roles/management/sysinfo.md](roles/management/sysinfo.md) | `sysinfo` — system information and statistics collection |
@@ -144,7 +145,7 @@ The collection has two distinct role families:
 [`geogebra`](roles/catalog/geogebra.md) · [`geogebra5`](roles/catalog/geogebra5.md) · [`libreoffice`](roles/catalog/libreoffice.md) · [`zoom`](roles/catalog/zoom.md)
 
 ### Catalog — Utilities & Runtimes
-[`adobe_reader_dc`](roles/catalog/adobe_reader_dc.md) · [`foxit_pdf_reader`](roles/catalog/foxit_pdf_reader.md) · [`p7zip`](roles/catalog/p7zip.md) · [`peazip`](roles/catalog/peazip.md) · [`powertoys`](roles/catalog/powertoys.md) · [`windirstat`](roles/catalog/windirstat.md) · [`ntop`](roles/catalog/ntop.md) · [`nircmd`](roles/catalog/nircmd.md) · [`winfsp`](roles/catalog/winfsp.md) · [`putty`](roles/catalog/putty.md) · [`winscp`](roles/catalog/winscp.md) · [`filezilla`](roles/catalog/filezilla.md) · [`vcredist14`](roles/catalog/vcredist14.md) · [`virtiogt`](roles/catalog/virtiogt.md) · [`patchcleaner`](roles/catalog/patchcleaner.md) · [`rustdesk`](roles/catalog/rustdesk.md)
+[`adobe_reader_dc`](roles/catalog/adobe_reader_dc.md) · [`foxit_pdf_reader`](roles/catalog/foxit_pdf_reader.md) · [`p7zip`](roles/catalog/p7zip.md) · [`peazip`](roles/catalog/peazip.md) · [`powertoys`](roles/catalog/powertoys.md) · [`windirstat`](roles/catalog/windirstat.md) · [`ntop`](roles/catalog/ntop.md) · [`nircmd`](roles/catalog/nircmd.md) · [`winfsp`](roles/catalog/winfsp.md) · [`putty`](roles/catalog/putty.md) · [`winscp`](roles/catalog/winscp.md) · [`filezilla`](roles/catalog/filezilla.md) · [`vcredist14`](roles/catalog/vcredist14.md) · [`virtiogt`](roles/catalog/virtiogt.md) · [`patchcleaner`](roles/catalog/patchcleaner.md) · [`rustdesk`](roles/catalog/rustdesk.md) · [`driver_reviver`](roles/catalog/driver_reviver.md)
 
 ### Catalog — Classroom & Lab
 [`veyon`](roles/catalog/veyon.md) · [`gcpw`](roles/catalog/gcpw.md)
