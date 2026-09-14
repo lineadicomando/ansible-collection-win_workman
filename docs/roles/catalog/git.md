@@ -36,8 +36,8 @@ win_workman_tasks:
 
 Software name: `Git`
 Provider: `registry`
-Installer: `Git-2.54.0-64-bit.exe`
-Version: `2.54.0`
+Installer: `Git-2.55.0.5-64-bit.exe`
+Version: `2.55.0.5`
 Homepage: https://gitforwindows.org/
 
 ---
