@@ -14,6 +14,18 @@
         uninstall_args: "{{ win_workman_audacity_superseded_uninstall_args }}"
         # The Inno uninstaller must be run directly, not through win_package.
         uninstall_via_helper: true
+        # The uninstaller only deletes what it registered, so files added to the
+        # install tree after setup — bundled plug-ins carried over from an older
+        # release, mod-script-pipe.dll, language files — survive it, and
+        # pkg_utils' own leftovers pass deliberately refuses to remove a
+        # directory holding anything but unins*. These paths are dropped instead.
+        # Only reached when an uninstall actually happened, so a machine that
+        # never had a superseded release is untouched. Note this takes the whole
+        # directory: a Nyquist plug-in a teacher dropped in by hand goes with it
+        # and has to be added again under the 4.x install tree.
+        cleanup_paths:
+          - '%ProgramFiles%\Audacity'
+          - '%ProgramFiles(x86)%\Audacity'
   loop: "{{ win_workman_audacity_superseded_searchnames }}"
   loop_control:
     loop_var: win_workman_audacity_superseded_searchname
