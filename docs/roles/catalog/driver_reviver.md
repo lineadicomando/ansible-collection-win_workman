@@ -66,7 +66,7 @@ would normally put them.
 | Install tree | `C:\Program Files\ReviverSoft\Driver Reviver` (~40 MB) |
 | Uninstall entry | `Driver Reviver`, publisher `Corel Corporation` |
 | Shortcuts | `%Public%\Desktop\Driver Reviver.lnk` and Start Menu `ReviverSoft\Driver Reviver` |
-| Scheduled tasks | `Start Driver Reviver Schedule`, `… Update`, `… Check Driver Update`, `… First Schedule`, `… for User(logon)`, `SmartRetry` |
+| Scheduled tasks | `Start Driver Reviver Schedule`, `… Update`, `… Check Driver Update`, `… First Schedule`, `… for User(logon)` |
 | Companion | `C:\Program Files\ReviverSoft\Smart Monitor` (~26 MB) |
 | Service | `ReviverSoft Smart Monitor Service`, start type Automatic, running |
 
