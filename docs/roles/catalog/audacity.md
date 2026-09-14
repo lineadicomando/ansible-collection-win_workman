@@ -73,6 +73,16 @@ throwaway schema, which detects the entry, reads its `UninstallString` and runs 
 with the Inno Setup silent switches. A glob that matches nothing is a no-op, so the
 action stays idempotent on a machine that only ever had 4.x.
 
+The Inno uninstaller only deletes what it registered, so anything added to the install
+tree afterwards survives it — bundled plug-ins carried over from an older release,
+`mod-script-pipe.dll`, language files — and `pkg_utils`' own leftovers pass refuses, by
+design, to remove a directory holding anything but `unins*`. The throwaway schema
+therefore lists `%ProgramFiles%\Audacity` and `%ProgramFiles(x86)%\Audacity` as
+`cleanup_paths`. That takes the whole directory: a Nyquist plug-in a teacher dropped in
+by hand goes with it and has to be put back under the 4.x install tree. The cleanup runs
+only when an uninstall actually happened, so a machine that never had a superseded
+release is untouched.
+
 When a 5.x line eventually supersedes this one, add `"Audacity 4*"` to that list.
 
 Note that `off` removes only what `searchName` matches, so it uninstalls 4.x and
