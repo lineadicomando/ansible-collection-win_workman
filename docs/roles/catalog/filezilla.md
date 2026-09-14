@@ -37,8 +37,8 @@ win_workman_tasks:
 
 Software name: `FileZilla Client`
 Provider: `registry`
-Installer: `FileZilla_3.70.5_win64-setup.exe`
-Version: `3.70.5`
+Installer: `FileZilla_3.71.1_win64-setup.exe`
+Version: `3.71.1`
 Homepage: https://filezilla-project.org/
 
 ---
