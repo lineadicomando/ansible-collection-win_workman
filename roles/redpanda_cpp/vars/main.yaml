@@ -11,16 +11,6 @@
 # orwell_devcpp or embarcadero_devcpp install still owning DevCpp.* is untouched.
 win_workman_redpanda_cpp_assoc_cleanup_script: |
   $Ansible.Changed = $false
-  # A silent NSIS uninstaller re-executes itself from %TEMP% and the first
-  # process returns straight away, so Start-Process -Wait can come back while
-  # the removal is still running. Wait for the real worker before judging what
-  # is left behind.
-  $deadline = (Get-Date).AddSeconds(120)
-  while ((Get-Date) -lt $deadline) {
-      $running = @(Get-Process -Name 'Un_A', 'uninstall' -ErrorAction SilentlyContinue)
-      if ($running.Count -eq 0) { break }
-      Start-Sleep -Seconds 2
-  }
   $removed = @()
   foreach ($ext in '.dev', '.c', '.cpp', '.cxx', '.cc', '.h', '.hpp', '.hxx') {
       $key = "HKLM:\Software\Classes\$ext"
