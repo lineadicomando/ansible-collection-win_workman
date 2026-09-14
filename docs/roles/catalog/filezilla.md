@@ -40,6 +40,10 @@ Provider: `registry`
 Installer: `FileZilla_3.71.1_win64-setup.exe`
 Version: `3.71.1`
 Homepage: https://filezilla-project.org/
+Source: `https://packages.chocolatey.org/filezilla.3.71.1.nupkg`, extracted on the
+target (`tools/` holds the untouched vendor installer). The vendor's own CDN only
+serves links signed with a one-hour expiry, so it cannot be recorded in the schema —
+see the header of `roles/filezilla/vars/main.yaml`.
 
 ---
 
