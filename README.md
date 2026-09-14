@@ -134,6 +134,7 @@ All catalog roles support the standard package actions: `on` (install), `off` (u
 | `tinycad` | TinyCAD | — |
 | `vlc` | VLC media player | — |
 | `puredata` | Pure Data | — |
+| `audacity` | Audacity | — |
 
 ### Education & Productivity
 

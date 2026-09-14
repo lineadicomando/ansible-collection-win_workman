@@ -1,0 +1,26 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Audacity
+#      - Homepage:    https://www.audacityteam.org
+#      - Download:    https://github.com/audacity/audacity/releases/
+# ==============================================================================
+---
+win_workman_audacity_schema:
+  name: Audacity
+  role: lineadicomando.win_workman.audacity
+  default_action: !!str on
+  package:
+    setup_file: audacity-win-4.0.0-x86_64.msi
+    provider: msi
+    searchName: "Audacity 4*"
+    version: "4.0.0.262451524"
+    # The MSI declares no ALLUSERS, so DesktopFolder and ProgramMenuFolder resolve
+    # to the profile of the connecting user and only that user gets the shortcuts,
+    # even though the uninstall entry lands in HKLM. Forcing it puts them under
+    # %Public%\Desktop and %ProgramData%, which is what a lab needs.
+    install_args:
+      - ALLUSERS=1
+  files:
+    - filename: audacity-win-4.0.0-x86_64.msi
+      url: https://github.com/audacity/audacity/releases/download/Audacity-4.0.0/audacity-win-4.0.0-x86_64.msi
+      checksum: sha256:2aecc44d28a004d15ae7c23c099f232ba8c5b3e6b19ebdbaf7d6c596316dc5b3
