@@ -1,0 +1,10 @@
+---
+display_name: "Audacity"
+notes: >
+  Audacity 4.x, the new major line: MSI package (the 3.x releases were NSIS), x86_64
+  only — upstream also publishes an arm64 MSI, which this role does not cover.
+  Installed under %ProgramFiles%\Audacity 4. The MSI declares no ALLUSERS, so the role
+  passes ALLUSERS=1: without it the desktop and Start Menu shortcuts land in the
+  profile of the connecting Ansible user instead of being visible to everyone.
+  searchName is scoped to "Audacity 4*", so an Audacity 3.x install is neither
+  detected nor removed: uninstall it separately if the two must not coexist.
