@@ -1,4 +1,12 @@
 ---
+# Guard on win_workman_task.act, not win_workman_action: vars passed to include_role
+# persist in the play, and the dispatcher reassigns win_workman_task every iteration.
+- name: Remove superseded Audacity releases
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.audacity
+    tasks_from: remove_superseded
+  when: (win_workman_task.act | default('on', true)) == 'on'
+
 - name: Dispatch to package workflow
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils

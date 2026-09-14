@@ -5,6 +5,23 @@
 #      - Download:    https://github.com/audacity/audacity/releases/
 # ==============================================================================
 ---
+# Audacity 3.x and earlier are Inno Setup packages, registered under the
+# Audacity_is1 key with the version inside the DisplayName ("Audacity 3.7.9").
+# The 4.x MSI carries its own UpgradeCode and supersedes only itself, so those
+# releases would otherwise sit alongside it; `on` removes them first. One glob per
+# superseded line: add "Audacity 4*" here if a 5.x line ever replaces this one.
+win_workman_audacity_superseded_searchnames:
+  - "Audacity 1*"
+  - "Audacity 2*"
+  - "Audacity 3*"
+
+# Inno Setup silent uninstall switches, used against the UninstallString that
+# pkg_utils reads from the registry entry it finds.
+win_workman_audacity_superseded_uninstall_args:
+  - /VERYSILENT
+  - /NORESTART
+  - /SUPPRESSMSGBOXES
+
 win_workman_audacity_schema:
   name: Audacity
   role: lineadicomando.win_workman.audacity

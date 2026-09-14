@@ -23,7 +23,12 @@ queries.
 
 ## Configuration
 
-No variables. Audacity is installed with default settings.
+| Variable | Type | Default | Description |
+|---|---|---|---|
+| `win_workman_audacity_superseded_searchnames` | list | `["Audacity 1*", "Audacity 2*", "Audacity 3*"]` | Registry `DisplayName` globs of the releases `on` uninstalls before installing |
+| `win_workman_audacity_superseded_uninstall_args` | list | `[/VERYSILENT, /NORESTART, /SUPPRESSMSGBOXES]` | Silent switches passed to the Inno Setup uninstaller of those releases |
+
+Otherwise Audacity is installed with default settings.
 
 Example:
 
@@ -48,16 +53,31 @@ Homepage: https://www.audacityteam.org
 ## Notes
 
 Audacity 4.0 is the first release of the new major line and the first shipped as an
-MSI; the 3.x releases were NSIS installers. Only the x86_64 package is covered —
+MSI; 3.x and earlier are Inno Setup packages. Only the x86_64 package is covered —
 upstream also publishes an arm64 MSI.
 
 The MSI carries a WiX `MajorUpgrade`, so a newer 4.x build replaces the installed one
 in place and `uninstall_before_upgrade` is not needed.
 
-`searchName` is scoped to `Audacity 4*` because the registry `DisplayName` is the MSI
-`ProductName`, `Audacity 4.0`. An existing Audacity 3.x install is therefore neither
-detected nor removed by this role, and the two would end up side by side: uninstall
-3.x separately if that is not wanted.
+### Superseded releases
+
+`searchName` is scoped to `Audacity 4*`, because the registry `DisplayName` is the MSI
+`ProductName`, `Audacity 4.0`. The 4.x MSI also carries its own `UpgradeCode` and
+supersedes only itself, so an Audacity 3.x install would survive the upgrade and the
+two would sit side by side — the old one registered as `Audacity_is1` under
+`C:\Program Files\Audacity`, the new one under `C:\Program Files\Audacity 4`.
+
+`on` therefore removes them first: for every glob in
+`win_workman_audacity_superseded_searchnames` it runs `pkg_utils/pkg_act_off` with a
+throwaway schema, which detects the entry, reads its `UninstallString` and runs it
+with the Inno Setup silent switches. A glob that matches nothing is a no-op, so the
+action stays idempotent on a machine that only ever had 4.x.
+
+When a 5.x line eventually supersedes this one, add `"Audacity 4*"` to that list.
+
+Note that `off` removes only what `searchName` matches, so it uninstalls 4.x and
+leaves an older release alone. Removing everything is a property of installing, not of
+uninstalling.
 
 The MSI creates the desktop and Start Menu shortcuts itself, so the schema declares
 none — but it ships without an `ALLUSERS` property, so on its own it puts them in the
