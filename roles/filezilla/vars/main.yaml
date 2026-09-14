@@ -4,12 +4,31 @@
 #      - Homepage:    https://filezilla-project.org/
 #      - Download:    https://filezilla-project.org/download.php?show_all=1
 #
-#  NOTE: the CDN link is signed (nginx secure_link): the `x` parameter is the
-#  expiry epoch and the link lives exactly 1 hour from the moment the download
-#  page issues it. The recorded URL is therefore already dead; `download` stays
-#  green only because get_url is idempotent when the installer is already in
-#  win_workman_storage_path with the matching checksum. To refresh the file,
-#  grab a new link from the download page above and re-run `download`.
+#  NOTE: the vendor does not publish a stable installer URL. The CDN links the
+#  download page hands out are signed (nginx secure_link): the `x` parameter is
+#  the expiry epoch and the link lives exactly 1 hour, so it cannot be recorded
+#  here. The vendor also asks package managers not to download from its servers
+#  at all, because of the load it puts on them:
+#      https://forum.filezilla-project.org/viewtopic.php?f=1&t=55635#p192010
+#  For that reason FileZilla is absent from winget, and Scoop mirrors it from
+#  the Chocolatey package — the same source used here:
+#      https://github.com/ScoopInstaller/Extras/blob/master/bucket/filezilla.json
+#
+#  The .nupkg is a plain zip with a stable, versioned permalink. It carries the
+#  untouched vendor installers under `tools/` (win32 and win64); the sha256 of
+#  tools/FileZilla_3.71.1_win64-setup.exe is
+#  73c5a24ee54557ab44c3e8e2f1bf0dcf03c006b7dae2590d5a9dbb3e4791f963,
+#  the same checksum the vendor download page publishes. `legal/VERIFICATION.txt`
+#  inside the archive repeats the vendor sha512 for both architectures.
+#  The archive is extracted on the target into `setup_dir`, which win_clean_temp
+#  removes afterwards; `setup_file` therefore carries the `tools\` prefix.
+#
+#  Version bump:
+#      - version:  https://community.chocolatey.org/packages/filezilla
+#      - checksum: sha256 of the .nupkg itself, from
+#                  https://community.chocolatey.org/packages/filezilla/<version>
+#      - then update setup_file, files[0].filename and the url, which are all
+#        version-stamped
 # ==============================================================================
 ---
 win_workman_filezilla_schema:
@@ -17,13 +36,16 @@ win_workman_filezilla_schema:
   role: lineadicomando.win_workman.filezilla
   default_action: !!str on
   package:
-    setup_file: FileZilla_3.71.1_win64-setup.exe
+    setup_dir: FileZilla
+    setup_file: 'tools\FileZilla_3.71.1_win64-setup.exe'
     searchName: "FileZilla*"
     version: "3.71.1"
     install_args: /S
     uninstall_args: /S
     uninstall_via_helper: true
   files:
-    - filename: FileZilla_3.71.1_win64-setup.exe
-      url: "https://dl4.cdn.filezilla-project.org/client/FileZilla_3.71.1_win64-setup.exe?h=sz3dX8GTwuQbVPmGXhqh5Q&x=1789384678"
-      checksum: "sha256:73c5a24ee54557ab44c3e8e2f1bf0dcf03c006b7dae2590d5a9dbb3e4791f963"
+    - filename: filezilla.3.71.1.nupkg
+      url: "https://packages.chocolatey.org/filezilla.3.71.1.nupkg"
+      checksum: "sha256:0d64593f19db06ca1ef3c19cfc7eb76e578948f6d5a4e08f2b71112e45e7f053"
+      extract: 7z
+      dest_dir: FileZilla
