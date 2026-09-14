@@ -1,0 +1,21 @@
+---
+# Each glob is handed to pkg_act_off as a throwaway schema: it already detects the
+# entry, reads its UninstallString and runs it through the helper, so nothing about
+# uninstalling has to be reimplemented here. A glob that matches nothing is a no-op.
+- name: Uninstall superseded Audacity release
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_off
+  vars:
+    win_workman_schema:
+      name: "Audacity {{ win_workman_audacity_superseded_searchname }}"
+      package:
+        searchName: "{{ win_workman_audacity_superseded_searchname }}"
+        uninstall_args: "{{ win_workman_audacity_superseded_uninstall_args }}"
+        # The Inno uninstaller must be run directly, not through win_package.
+        uninstall_via_helper: true
+  loop: "{{ win_workman_audacity_superseded_searchnames }}"
+  loop_control:
+    loop_var: win_workman_audacity_superseded_searchname
+    # The task name is templated once, outside the loop, so the glob goes in the label.
+    label: "{{ win_workman_audacity_superseded_searchname }}"
