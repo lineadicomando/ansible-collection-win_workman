@@ -1,0 +1,41 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Driver Reviver
+#      - Homepage:    https://www.reviversoft.com
+#      - Download:    https://www.reviversoft.com/downloads/DriverReviverSetup.exe
+# ==============================================================================
+---
+win_workman_driver_reviver_schema:
+  name: Driver Reviver
+  role: lineadicomando.win_workman.driver_reviver
+  default_action: !!str on
+  package:
+    setup_file: DriverReviverSetup_5.44.0.8.exe
+    # The NSIS script writes HKLM\...\Uninstall\Driver Reviver with DisplayName
+    # "Driver Reviver". The setup binary is 32-bit, but it switches to the 64-bit
+    # registry view and installs under %ProgramFiles%: neither the key nor the
+    # install tree ends up under WOW6432Node / Program Files (x86). Verified on
+    # a Windows 11 x64 target.
+    searchName: "Driver Reviver"
+    version: "5.44.0.8"
+    provider: registry
+    # /S is the NSIS silent flag; /NO_UI and /DISABLEPOSTPAGES are the vendor's
+    # own switches that suppress the post-install wizard pages and stop the
+    # application from opening its window at the end of the install.
+    install_args:
+      - /S
+      - /NO_UI
+      - /DISABLEPOSTPAGES
+    uninstall_args:
+      - /S
+    uninstall_via_helper: true
+  # The installer creates the all-users Start Menu and desktop shortcuts itself,
+  # and Uninstall.exe removes them, so none are declared here.
+  shortcuts: []
+  files:
+    # The vendor link https://www.reviversoft.com/downloads/DriverReviverSetup.exe
+    # is a redirect to the current build: pinning the resolved URL keeps the
+    # checksum valid when a new release is published.
+    - filename: DriverReviverSetup_5.44.0.8.exe
+      url: https://dl.reviversoft.com/tools/reviversoft/releases/c63f692e-5e79-4e08-92c9-b96210783920_5.44.0.8/sa/0/DriverReviverSetup.exe
+      checksum: sha256:fffdad1cfd07ec497b432d09c04c5cddcac056bdb199777c8d2b4c7e45f3edf2

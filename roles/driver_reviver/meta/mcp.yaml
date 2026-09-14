@@ -1,0 +1,10 @@
+---
+display_name: "Driver Reviver"
+notes: >
+  Commercial driver updater by ReviverSoft (Corel). The setup installs without a
+  licence and runs as a trial: it scans and reports outdated drivers, but the
+  actual update needs a registration code entered in the GUI, so there is nothing
+  to automate beyond the install. The same setup also deploys the shared
+  "ReviverSoft Smart Monitor" companion, which registers an auto-start service but
+  no Uninstall entry: it is invisible to detect_sw and driver_reviver-off leaves it
+  behind. See the catalog doc for how to remove it by hand.

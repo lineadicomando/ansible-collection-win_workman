@@ -175,6 +175,7 @@ All catalog roles support the standard package actions: `on` (install), `off` (u
 | `virtiogt` | VirtIO Win Guest Tools | — |
 | `nircmd` | NirCmd | — |
 | `patchcleaner` | PatchCleaner | — |
+| `driver_reviver` | Driver Reviver | — |
 
 > Contributions to the catalog are welcome. See [how schema roles work](#schema-roles).
 
