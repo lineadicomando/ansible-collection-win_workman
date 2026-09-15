@@ -10,11 +10,11 @@ win_workman_geogebra5_schema:
   role: lineadicomando.win_workman.geogebra5
   default_action: !!str on
   package:
-    setup_file: GeoGebra-Windows-Installer-5-4-919-1.msi
+    setup_file: GeoGebra-Windows-Installer-5-4-929-3.msi
     searchName: "GeoGebra 5"
-    version: "5.2.919.1"
+    version: "5.4.929.3"
     install_args: "ALLUSERS=2 /qn"
   files:
-    - filename: GeoGebra-Windows-Installer-5-4-919-1.msi
-      url: https://download.geogebra.org/installers/5.4/GeoGebra-Windows-Installer-5-4-919-1.msi
-      checksum: sha256:03aa45a5fc2b3e61a67815e3923bd8814a3070bc91b2b589bd247d1eac02ecf8
+    - filename: GeoGebra-Windows-Installer-5-4-929-3.msi
+      url: https://download.geogebra.org/installers/5.4/GeoGebra-Windows-Installer-5-4-929-3.msi
+      checksum: sha256:b7b9ff3fa84e017f4750562abfd882030c434b59eabf6bcb6614e3a7d655dc56
