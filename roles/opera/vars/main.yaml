@@ -5,7 +5,7 @@
 #      - Download:    https://get.geo.opera.com/pub/opera/desktop/
 # ==============================================================================
 ---
-win_workman_opera_version: "131.0.5877.55"
+win_workman_opera_version: "135.0.5973.133"
 
 win_workman_opera_before_act_ps_script: |
   $Ansible.Changed = $false
@@ -57,6 +57,7 @@ win_workman_opera_schema:
   files:
     - filename: "Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
       url: "https://download5.operacdn.com/ftp/pub/opera/desktop/{{ win_workman_opera_version }}/win/Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
+      checksum: "sha256:deff167ecadcc6613be9dba13b6075e65e3fc8d4314e31e97959c34269944610"
   shortcuts: >-
     {{
       win_workman_opera_shortcuts_schema if (
