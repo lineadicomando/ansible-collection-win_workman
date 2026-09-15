@@ -33,9 +33,9 @@ win_workman_foxit_pdf_reader_schema:
   role: lineadicomando.win_workman.foxit_pdf_reader
   default_action: !!str on
   package:
-    setup_file: FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
+    setup_file: FoxitPDFReader20262_L10N_Setup_Prom_x64.exe
     searchName: "Foxit PDF Reader"
-    version: "2026.1.1.36485"
+    version: "2026.2.0.39747"
     provider: registry
     install_args:
       - /quiet
@@ -45,7 +45,7 @@ win_workman_foxit_pdf_reader_schema:
     cleanup_paths:
       - '%ProgramFiles%\Foxit Software\Foxit PDF Reader'
   files:
-    - filename: FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
-      url: https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.1.1/FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
-      checksum: sha256:a730326133337d8b7e49745e014fc4e8309a11f2a631061175cb29c37407b2df
+    - filename: FoxitPDFReader20262_L10N_Setup_Prom_x64.exe
+      url: https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.2.0/FoxitPDFReader20262_L10N_Setup_Prom_x64.exe
+      checksum: sha256:3dfd99e7823ea5cc4639b0ee3d242c1ea07d445ae899f29719bcfea93bd69f91
   shortcuts: []
