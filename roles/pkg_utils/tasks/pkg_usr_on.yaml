@@ -1,0 +1,61 @@
+---
+# <schema>-usr-on[-<targets>]: stage the installer and mark the targets present.
+# Nothing is installed here: the agent installs at each target's next logon,
+# or right away for logged-on users with <schema>-usr-apply.
+- name: Download
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: download
+
+- name: Stage usr infrastructure
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_usr_stage
+
+- name: Ensure usr payload directory
+  ansible.windows.win_file:
+    path: "{{ win_workman_usr_policy_base.payload_dir }}"
+    state: directory
+
+- name: Stage usr installer
+  ansible.windows.win_copy:
+    src: "{{ win_workman_storage_path }}/{{ win_workman_schema.usr.setup_file }}"
+    dest: "{{ win_workman_usr_policy_base.payload_dir }}\\{{ win_workman_schema.usr.setup_file }}"
+
+# The policy is written after the payload, so the agent never sees a version
+# whose installer is not there yet.
+- name: Mark usr targets present
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_usr_policy
+  vars:
+    win_workman_usr_policy_state: present
+    win_workman_usr_policy_names: >-
+      {{
+        win_workman_usr_inline_targets
+        if (win_workman_usr_inline | bool)
+        else win_workman_usr_targets
+      }}
+
+- name: Remove staged installers of other versions
+  ansible.windows.win_powershell:
+    script: |
+      param([string]$SchemaDir, [string]$Keep)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $old = @(Get-ChildItem -LiteralPath $SchemaDir -Directory -ErrorAction SilentlyContinue | Where-Object Name -ne $Keep)
+      foreach ($dir in $old) { Remove-Item -LiteralPath $dir.FullName -Recurse -Force }
+      $Ansible.Changed = $old.Count -gt 0
+      $Ansible.Result = @($old | ForEach-Object Name)
+    parameters:
+      SchemaDir: "{{ win_workman_usr_path }}\\payload\\{{ win_workman_usr_schema }}"
+      Keep: "{{ win_workman_schema.usr.version }}"
+
+- name: Per-user install policy
+  ansible.builtin.debug:
+    msg:
+      name: "{{ win_workman_schema.name }}"
+      version: "{{ win_workman_usr_policy_base.version }}"
+      policy: "{{ win_workman_usr_policy_result.result.file }}"
+      targets: "{{ win_workman_usr_policy_result.result.policy.targets }}"
+      note: Targets install at their next logon; run {{ win_workman_usr_schema }}-usr-apply for users already logged on.

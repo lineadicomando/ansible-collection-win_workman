@@ -7,7 +7,31 @@ win_workman_pkg_actions:
   - copy
   - shortcuts
   - is_present
+  - usr
 win_workman_action_default: !!str on
+
+# Verbs of the usr action (per-user deferred install): <schema>-usr-<verb>[-<targets>].
+# The MCP server reads names and descriptions from here.
+win_workman_usr_task_path: \win_workman\
+win_workman_usr_task_name: usr-agent
+
+# Account or group name, optionally DOMAIN\name, without the characters Windows
+# forbids in account names. \x5c is the backslash, spelled out to survive YAML,
+# Jinja and regex escaping alike.
+win_workman_usr_target_pattern: '^([^"/\x5c\[\]:;|=,+*?<>]+\x5c)?[^"/\x5c\[\]:;|=,+*?<>]+$'
+
+win_workman_usr_verbs:
+  - name: !!str on
+    default: true
+    description: Stage the installer and mark the targets present; each installs at next logon
+  - name: !!str off
+    description: Mark the targets absent; each uninstalls at next logon
+  - name: info
+    description: Show the policy and, per local profile, installed version and last agent outcome
+  - name: apply
+    description: Run the agent now for the targets that are logged on
+  - name: purge
+    description: Remove the policy and the staged installer; installed copies are left alone
 
 win_workman_mode_interactive_logon_default_users:
   - Administrators

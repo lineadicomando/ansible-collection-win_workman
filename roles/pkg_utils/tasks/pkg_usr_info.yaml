@@ -1,0 +1,117 @@
+---
+# <schema>-usr-info[-<targets>]: the policy on the host and, for every local
+# profile (or only the given targets), the installed version and the last
+# outcome recorded by the agent. Hives of users who are not logged on are
+# loaded read-only for the duration of the query.
+- name: Fetch per-user install information
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$Root, [string]$Schema, [string]$UninstallKey,
+        [string]$TaskPath, [string]$TaskName, [string]$FilterJson
+      )
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      $wellKnown = @{ 'users' = 'S-1-5-32-545'; 'builtin\users' = 'S-1-5-32-545' }
+      function Resolve-TargetSid([string]$Name) {
+        $key = $Name.Trim().ToLowerInvariant()
+        if ($wellKnown.ContainsKey($key)) { return $wellKnown[$key] }
+        if ($Name -match '^S-1-[0-9-]+$') { return $Name }
+        try { return (New-Object Security.Principal.NTAccount($Name)).Translate([Security.Principal.SecurityIdentifier]).Value }
+        catch { throw "Cannot resolve usr target '$Name' to an account on $env:COMPUTERNAME" }
+      }
+      function Read-Values($Key) {
+        if (-not $Key) { return $null }
+        $values = [ordered]@{}
+        foreach ($n in $Key.GetValueNames()) { $values[$n] = [string]$Key.GetValue($n) }
+        $Key.Close()
+        return [pscustomobject]$values
+      }
+
+      $filter = @{}
+      foreach ($name in (ConvertFrom-Json -InputObject $FilterJson)) { $filter[(Resolve-TargetSid ([string]$name))] = [string]$name }
+
+      $policyFile = Join-Path (Join-Path $Root 'policies') "$Schema.json"
+      $policy = if (Test-Path -LiteralPath $policyFile) { Get-Content -LiteralPath $policyFile -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
+      $targets = if ($policy) { @($policy.targets) } else { @() }
+      $setup = if ($policy) { Join-Path ([string]$policy.payload_dir) ([string]$policy.setup_file) } else { $null }
+
+      # Interactive users are the owners of explorer.exe; a profile hive can be
+      # loaded without one (the Ansible SSH session, a service).
+      $interactive = @{}
+      foreach ($proc in @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'")) {
+        $owner = Invoke-CimMethod -InputObject $proc -MethodName GetOwnerSid
+        if ($owner.Sid) { $interactive[$owner.Sid] = $true }
+      }
+
+      $profiles = @(Get-CimInstance Win32_UserProfile | Where-Object { -not $_.Special -and $_.SID -match '^S-1-5-21-' })
+      $users = foreach ($p in $profiles) {
+        if ($filter.Count -gt 0 -and -not $filter.ContainsKey($p.SID)) { continue }
+        $name = try { (New-Object Security.Principal.SecurityIdentifier($p.SID)).Translate([Security.Principal.NTAccount]).Value } catch { Split-Path -Leaf $p.LocalPath }
+        $entry = [ordered]@{ user = $name; sid = $p.SID; logged_on = $interactive.ContainsKey($p.SID); profile = $true; rule = $null; installed_version = $null; receipt = $null; last_run = $null; error = $null }
+        $explicit = @($targets | Where-Object { $_.sid -eq $p.SID })
+        $entry.rule = if ($explicit.Count -gt 0) { [string]$explicit[0].state } elseif ($targets.Count -gt 0) { 'group rules' } else { $null }
+
+        $hiveName = $p.SID
+        $loadedHere = $false
+        if (-not (Test-Path -LiteralPath "Registry::HKEY_USERS\$($p.SID)")) {
+          $hivePath = Join-Path $p.LocalPath 'NTUSER.DAT'
+          if (-not (Test-Path -LiteralPath $hivePath)) { $entry.error = 'no NTUSER.DAT'; [pscustomobject]$entry; continue }
+          $hiveName = "wm_usr_info_$($p.SID)"
+          $null = reg.exe load "HKU\$hiveName" $hivePath 2>&1
+          if ($LASTEXITCODE -ne 0) { $entry.error = 'hive locked, could not be loaded'; [pscustomobject]$entry; continue }
+          $loadedHere = $true
+        }
+        try {
+          $hku = [Microsoft.Win32.Registry]::Users
+          $uninstall = Read-Values ($hku.OpenSubKey("$hiveName\Software\Microsoft\Windows\CurrentVersion\Uninstall\$UninstallKey"))
+          if ($uninstall) { $entry.installed_version = $uninstall.DisplayVersion }
+          $entry.receipt = Read-Values ($hku.OpenSubKey("$hiveName\Software\win_workman\usr\$Schema"))
+          $agent = Read-Values ($hku.OpenSubKey("$hiveName\Software\win_workman\usr"))
+          if ($agent) { $entry.last_run = $agent.LastRun }
+        }
+        finally {
+          if ($loadedHere) {
+            [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+            $null = reg.exe unload "HKU\$hiveName" 2>&1
+          }
+        }
+        [pscustomobject]$entry
+      }
+
+      # Users named in the policy who never logged on have no profile yet: list
+      # them too, since they are exactly the ones still waiting to install.
+      $profileSids = @($profiles | ForEach-Object SID)
+      $pendingUsers = foreach ($t in $targets) {
+        if ($profileSids -contains $t.sid) { continue }
+        if ($t.sid -notmatch '^S-1-5-21-') { continue }
+        if ($filter.Count -gt 0 -and -not $filter.ContainsKey([string]$t.sid)) { continue }
+        [pscustomobject][ordered]@{ user = [string]$t.name; sid = [string]$t.sid; logged_on = $false; profile = $false; rule = [string]$t.state; installed_version = $null; receipt = $null; last_run = $null; error = $null }
+      }
+
+      $Ansible.Result = [ordered]@{
+        policy = [ordered]@{
+          present = $null -ne $policy
+          file = $policyFile
+          version = if ($policy) { $policy.version } else { $null }
+          payload_staged = if ($setup) { Test-Path -LiteralPath $setup } else { $false }
+          targets = $targets
+        }
+        agent_task_registered = $null -ne (Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction SilentlyContinue)
+        users = @($users) + @($pendingUsers)
+      }
+    parameters:
+      Root: "{{ win_workman_usr_path }}"
+      Schema: "{{ win_workman_usr_schema }}"
+      UninstallKey: "{{ win_workman_usr_policy_base.uninstall_key }}"
+      TaskPath: "{{ win_workman_usr_task_path }}"
+      TaskName: "{{ win_workman_usr_task_name }}"
+      FilterJson: "{{ win_workman_usr_inline_targets | to_json }}"
+    # The default depth of 2 flattens nested results into their type name.
+    depth: 5
+  register: win_workman_usr_info
+
+- name: Per-user install information
+  ansible.builtin.debug:
+    var: win_workman_usr_info.result

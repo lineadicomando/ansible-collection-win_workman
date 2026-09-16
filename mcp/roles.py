@@ -47,6 +47,34 @@ def pkg_actions() -> tuple[list[str], str]:
     return actions, default_action
 
 
+def usr_verbs() -> list[dict]:
+    """Verbs of the usr action (per-user deferred install), read from pkg_utils vars."""
+    data = _load_yaml(_PKG_UTILS_VARS)
+    verbs = []
+    for entry in data.get("win_workman_usr_verbs") or []:
+        item = {"name": _action_name(entry.get("name"))}
+        if entry.get("default"):
+            item["default"] = True
+        if entry.get("description"):
+            item["description"] = entry["description"]
+        verbs.append(item)
+    return verbs
+
+
+def install_scopes(role_dir: Path) -> list[str]:
+    """Install scopes a package role supports, from the blocks of its schema.
+
+    A package block means machine-wide install (sys), a usr block per-user
+    deferred install (usr). Schemas are found by their <role>_schema name.
+    """
+    data = _load_yaml(role_dir / "vars" / "main.yaml")
+    schema = data.get(f"win_workman_{role_dir.name}_schema")
+    if not isinstance(schema, dict):
+        return ["sys"]
+    scopes = [scope for scope, block in (("sys", "package"), ("usr", "usr")) if block in schema]
+    return scopes or ["sys"]
+
+
 def get_role_info(role_name: str) -> dict:
     role_dir = _ROLES_DIR / role_name
     if not role_dir.is_dir():
@@ -70,6 +98,16 @@ def get_role_info(role_name: str) -> dict:
         return data
 
     actions, default_action = pkg_actions()
+    scopes = install_scopes(role_dir)
+    schema = _load_yaml(role_dir / "vars" / "main.yaml").get(f"win_workman_{role_name}_schema")
+    role_default = default_action
+    if isinstance(schema, dict) and schema.get("default_action") is not None:
+        role_default = _action_name(schema["default_action"])
+    data["install_scopes"] = scopes
+    if "usr" not in scopes:
+        actions = [a for a in actions if a != "usr"]
+    if "sys" not in scopes:
+        actions = [a for a in actions if a in ("usr", "download")]
     described = {
         _action_name(a.get("name")): a.get("description")
         for a in declared if isinstance(a, dict) and a.get("name") is not None
@@ -82,7 +120,7 @@ def get_role_info(role_name: str) -> dict:
             act_file.exists() and f"act_{action}" in dispatcher_text
         )
         item: dict = {"name": action}
-        if action == default_action:
+        if action == role_default:
             item["default"] = True
         item["handled_by"] = role_name if overridden else "pkg_utils"
         description = described.get(action)
@@ -97,4 +135,14 @@ def get_role_info(role_name: str) -> dict:
         if not (isinstance(a, dict) and _action_name(a.get("name")) in set(actions))
     ]
     data["common_actions"] = common
+    if "usr" in scopes:
+        data["usr_actions"] = {
+            "syntax": "<role>-usr-<verb>[-<target>[+<target>...]]",
+            "targets": (
+                "Optional account or group names joined by '+' (names may contain '-'). "
+                "Without targets, on uses win_workman_usr_targets (default BUILTIN\\Users) "
+                "and off applies to every target already in the policy."
+            ),
+            "verbs": usr_verbs(),
+        }
     return data

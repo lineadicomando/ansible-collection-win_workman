@@ -63,6 +63,7 @@ comma-separated extra-var string, normalises it into a list, and delegates to
 | `python312-download` | `python312` | `download` | — |
 | `wallpaper-set` | `wallpaper` | `set` | — |
 | `display_scale-set-150` | `display_scale` | `set` | `150` |
+| `zed-usr-on-alunno1+mario-rossi` | `zed` | `usr` | `on`, `alunno1+mario-rossi` |
 
 ### Parsed object
 
@@ -95,6 +96,7 @@ The dispatcher exposes these as `win_workman_action`, `win_workman_task_argv`,
 | `copy` | Copy installer from storage to remote temp without installing |
 | `info` | Report installation state without making changes |
 | `is_present` | Assert that the package is installed (fails the play if not) |
+| `usr-<verb>` | Per-user deferred install: `on`, `off`, `info`, `apply`, `purge` — see [pkg_utils](roles/core/pkg_utils.md#per-user-deferred-install-usr) |
 
 ### Role-specific actions
 
@@ -173,6 +175,15 @@ files:
     extract: 7z                # optional: extract with 7-Zip after download
     dest_dir: MyApp
 ```
+
+### Install scopes: `sys` and `usr`
+
+Orthogonal to the provider, a schema's blocks say *for whom* it installs: a
+`package` block installs machine-wide now (`sys`), a `usr` block installs into
+each user's profile at their next logon (`usr`, through the `usr-<verb>`
+actions). A per-user-only package such as `zed` has no `package` block, and
+`zed-on` fails instead of installing into the Ansible user's profile. Details
+in [pkg_utils](roles/core/pkg_utils.md#per-user-deferred-install-usr).
 
 ---
 

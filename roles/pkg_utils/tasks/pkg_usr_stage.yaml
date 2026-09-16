@@ -1,0 +1,84 @@
+---
+# Host-side infrastructure shared by every usr policy: the directory tree, its
+# ACL, the agent script and the logon task. Idempotent; reports a change only
+# when something was actually created or corrected.
+
+# Users run the agent and the staged installers under their own identity, so
+# they must be able to read this tree and never to write it: a writable payload
+# or policy would let one user run code as every user who logs on after.
+- name: Ensure usr directory tree and ACL
+  ansible.windows.win_powershell:
+    script: |
+      param([string]$Root)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $existed = Test-Path -LiteralPath $Root
+      foreach ($dir in @($Root, (Join-Path $Root 'policies'), (Join-Path $Root 'payload'))) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+      }
+      $before = (Get-Acl -LiteralPath $Root).Sddl
+      # SYSTEM and Administrators full control, Users read and execute, no inheritance.
+      $null = icacls $Root /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-32-545:(OI)(CI)RX'
+      if ($LASTEXITCODE -ne 0) { throw "icacls failed on $Root with exit code $LASTEXITCODE" }
+      $after = (Get-Acl -LiteralPath $Root).Sddl
+      $Ansible.Changed = (-not $existed) -or ($before -ne $after)
+    parameters:
+      Root: "{{ win_workman_usr_path }}"
+
+- name: Deploy usr agent
+  ansible.windows.win_copy:
+    src: usr_agent.ps1
+    dest: "{{ win_workman_usr_path }}\\agent.ps1"
+
+- name: Register usr agent logon task
+  ansible.windows.win_powershell:
+    script: |
+      param([string]$Root, [string]$TaskPath, [string]$TaskName)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $execute = 'conhost.exe'
+      # conhost --headless keeps the console window of powershell.exe off the
+      # user's desktop.
+      $arguments = '--headless powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + (Join-Path $Root 'agent.ps1') + '"'
+      $usersSid = 'S-1-5-32-545'
+
+      # The principal reads back as a localized group name (Utenti, Benutzer…).
+      function Resolve-Sid([string]$Name) {
+        if (-not $Name) { return $null }
+        if ($Name -match '^S-1-') { return $Name }
+        try { return (New-Object Security.Principal.NTAccount($Name)).Translate([Security.Principal.SecurityIdentifier]).Value }
+        catch { return $null }
+      }
+
+      $existing = Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction SilentlyContinue
+      $upToDate = $false
+      if ($existing) {
+        $action = @($existing.Actions)[0]
+        $trigger = @($existing.Triggers)[0]
+        $upToDate = (
+          @($existing.Actions).Count -eq 1 -and
+          $action.Execute -eq $execute -and
+          $action.Arguments -eq $arguments -and
+          @($existing.Triggers).Count -eq 1 -and
+          $trigger.CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger' -and
+          -not $trigger.UserId -and
+          (Resolve-Sid $existing.Principal.GroupId) -eq $usersSid -and
+          $existing.Settings.MultipleInstances -eq 'Parallel'
+        )
+      }
+      if ($upToDate) {
+        $Ansible.Changed = $false
+        return
+      }
+      $taskAction = New-ScheduledTaskAction -Execute $execute -Argument $arguments
+      $taskTrigger = New-ScheduledTaskTrigger -AtLogOn
+      $taskPrincipal = New-ScheduledTaskPrincipal -GroupId $usersSid -RunLevel Limited
+      $taskSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+        -MultipleInstances Parallel -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+      Register-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -Action $taskAction `
+        -Trigger $taskTrigger -Principal $taskPrincipal -Settings $taskSettings -Force | Out-Null
+      $Ansible.Changed = $true
+    parameters:
+      Root: "{{ win_workman_usr_path }}"
+      TaskPath: "{{ win_workman_usr_task_path }}"
+      TaskName: "{{ win_workman_usr_task_name }}"

@@ -1,0 +1,31 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Zed
+#      - Homepage:    https://zed.dev/
+#      - Download:    https://github.com/zed-industries/zed/releases
+# ==============================================================================
+---
+# Zed ships a per-user Inno Setup installer only (PrivilegesRequired=lowest, no
+# override): run elevated it still installs into the calling user's
+# %LOCALAPPDATA%\Programs\Zed. Hence no package block: the role supports the
+# usr scope alone, and zed-on fails pointing to zed-usr-on.
+win_workman_zed_schema:
+  name: Zed
+  role: lineadicomando.win_workman.zed
+  default_action: usr
+  usr:
+    setup_file: Zed-x86_64-1.19.2.exe
+    version: "1.19.2"
+    uninstall_key: "{2DB0DA96-CA55-49BB-AF4F-64AF36A86712}_is1"
+    install_args:
+      - /VERYSILENT
+      - /SUPPRESSMSGBOXES
+      - /NORESTART
+    uninstall_args:
+      - /VERYSILENT
+      - /SUPPRESSMSGBOXES
+      - /NORESTART
+  files:
+    - filename: Zed-x86_64-1.19.2.exe
+      url: https://github.com/zed-industries/zed/releases/download/v1.19.2/Zed-x86_64.exe
+      checksum: sha256:dd8fd2b20392e6b9b2446b41b231ec0838671b7689c6b928587dabd39c92849c

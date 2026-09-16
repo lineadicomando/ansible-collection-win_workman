@@ -16,3 +16,13 @@ win_workman_restart: true
 # left in it but the uninstaller's own files. Inno Setup cannot delete the
 # running unins000.exe, so it always leaves one behind.
 win_workman_cleanup_uninstaller_dir: true
+
+# Per-user deferred install (usr action). See docs/roles/core/pkg_utils.md.
+win_workman_usr_path: C:\ProgramData\win_workman\usr
+# Users or groups a bare <schema>-usr-on applies to. Names, DOMAIN\name or SIDs.
+win_workman_usr_targets:
+  - BUILTIN\Users
+# Seconds the agent waits for an installer or uninstaller.
+win_workman_usr_timeout: 900
+# Seconds usr-apply waits for the agent to finish in every targeted session.
+win_workman_usr_apply_timeout: 900

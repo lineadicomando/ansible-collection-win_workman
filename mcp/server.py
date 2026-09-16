@@ -47,6 +47,9 @@ def _get_tools() -> list[Tool]:
                 f"Available roles: {', '.join(list_roles())}. "
                 "Task format: <role> or <role>-<action> (e.g. chrome, chrome-off, chkdsk). "
                 f"Common actions for package roles: {common_actions}. "
+                "Per-user roles (install_scopes contains 'usr' in get_role_info) take "
+                "<role>-usr-<verb>[-<user>[+<user>...]], e.g. zed-usr-on-alunno1+mario-rossi: "
+                "the install is deferred to each user's next logon. "
                 "Roles may add custom actions or reimplement a common one: "
                 "call get_role_info for the full list of a given role."
             ),
