@@ -41,12 +41,38 @@
       }
 
       # Recorded so that a name resolving to something unexpected shows up in the
-      # result: on an Italian Windows, 'nessuno' is the local group None.
+      # result: on an Italian Windows, 'nessuno' is the local group None. Domain
+      # users and groups share the S-1-5-21- prefix, so the type comes from
+      # LookupAccountSid, which answers through the machine's secure channel
+      # even for the local account Ansible connects with.
+      if (-not ('WinWorkmanSidLookup' -as [type])) {
+        Add-Type -TypeDefinition @"
+      using System;
+      using System.Runtime.InteropServices;
+      using System.Text;
+      public static class WinWorkmanSidLookup {
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        static extern bool LookupAccountSid(string system, byte[] sid, StringBuilder name,
+          ref int nameLen, StringBuilder domain, ref int domainLen, out int use);
+        public static int Use(byte[] sid) {
+          var name = new StringBuilder(256); var domain = new StringBuilder(256);
+          int nameLen = 256, domainLen = 256, use;
+          return LookupAccountSid(null, sid, name, ref nameLen, domain, ref domainLen, out use) ? use : 0;
+        }
+      }
+      "@
+      }
       function Get-TargetKind([string]$Sid) {
-        if ($Sid -match '^S-1-5-32-' -or $Sid -in @('S-1-1-0', 'S-1-5-11', 'S-1-5-4')) { return 'group' }
-        if (Get-LocalUser -SID $Sid -ErrorAction SilentlyContinue) { return 'user' }
-        if (Get-LocalGroup -SID $Sid -ErrorAction SilentlyContinue) { return 'group' }
-        return 'domain'
+        $sidObject = New-Object Security.Principal.SecurityIdentifier($Sid)
+        $bytes = New-Object byte[] $sidObject.BinaryLength
+        $sidObject.GetBinaryForm($bytes, 0)
+        # SID_NAME_USE: 1 user, 2 group, 4 alias (local group), 5 well-known group, 9 computer.
+        switch ([WinWorkmanSidLookup]::Use($bytes)) {
+          1 { 'user' }
+          { $_ -in 2, 4, 5 } { 'group' }
+          9 { 'computer' }
+          default { 'unknown' }
+        }
       }
 
       $policyFile = Join-Path (Join-Path $Root 'policies') "$Schema.json"
