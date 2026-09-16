@@ -2,7 +2,7 @@
 # Per-user deferred install: <schema>-usr-<verb>[-<target>[+<target>…]].
 #
 # Everything after the verb is joined back on '-' and split on '+', so user
-# names keep their dashes (mario-rossi). '+' cannot appear in a Windows or AD
+# names keep their dashes (student-bob). '+' cannot appear in a Windows or AD
 # account name, and ',' is out because it separates tasks in the t extra var.
 - name: Parse usr verb and targets
   ansible.builtin.set_fact:

@@ -20,7 +20,7 @@ profile at their next logon.
 | `usr-purge` | Remove the policy and the staged installer |
 | `download` | Download installer to storage |
 
-Targets go after the verb, joined by `+`: `zed-usr-on-alunno1+mario-rossi`.
+Targets go after the verb, joined by `+`: `zed-usr-on-student-alice+student-bob`.
 Without targets, `usr-on` applies to `win_workman_usr_targets` (default
 `BUILTIN\Users`). `zed` alone means `zed-usr-on`. `zed-on`, `zed-off` and the other
 machine-wide actions are refused: run elevated, the installer would still install
@@ -34,7 +34,7 @@ Example:
 # group_vars/lab_coding.yml
 win_workman_tasks:
   - zed-usr-on                 # every user, at next logon
-  - zed-usr-off-docente        # except this one
+  - zed-usr-off-teacher-carol  # except this one
 ```
 
 ---

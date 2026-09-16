@@ -8,7 +8,7 @@ from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, Pagina
 
 from roles import get_role_info, list_roles, pkg_actions
 from runlog import NotifyFn, done_path, format_status
-from runner import build_wm_command, format_command, run_command, run_status, start_run, wait_run
+from runner import build_wm_command, format_command, validate_extra_vars, run_command, run_status, start_run, wait_run
 
 app = Server("win-workman")
 
@@ -48,7 +48,7 @@ def _get_tools() -> list[Tool]:
                 "Task format: <role> or <role>-<action> (e.g. chrome, chrome-off, chkdsk). "
                 f"Common actions for package roles: {common_actions}. "
                 "Per-user roles (install_scopes contains 'usr' in get_role_info) take "
-                "<role>-usr-<verb>[-<user>[+<user>...]], e.g. zed-usr-on-alunno1+mario-rossi: "
+                "<role>-usr-<verb>[-<user>[+<user>...]], e.g. zed-usr-on-student-alice+student-bob: "
                 "the install is deferred to each user's next logon. "
                 "Roles may add custom actions or reimplement a common one: "
                 "call get_role_info for the full list of a given role."
@@ -77,6 +77,16 @@ def _get_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Inventory name under inventories/.",
                         "default": "school",
+                    },
+                    "extra_vars": {
+                        "type": "object",
+                        "description": (
+                            "Role variables for this run, passed as Ansible extra vars "
+                            "(highest precedence). E.g. {\"win_workman_usr_targets\": "
+                            "[\"Domain Users\"]} or {\"win_workman_shutdown_timeout\": 60}. "
+                            "get_role_info lists each role's variables under 'defaults'. "
+                            "'t' and ansible_* connection variables are refused."
+                        ),
                     },
                     "preview": {
                         "type": "boolean",
@@ -226,8 +236,12 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
         l: str = arguments.get("l", "all")
         inventory: str = arguments.get("inventory", "school")
         preview: bool = arguments.get("preview", False)
+        extra_vars = arguments.get("extra_vars")
+        error = validate_extra_vars(extra_vars)
+        if error:
+            return CallToolResult(content=[TextContent(type="text", text=f"Error: {error}")])
 
-        cmd = build_wm_command(t, l, inventory)
+        cmd = build_wm_command(t, l, inventory, extra_vars)
 
         if preview:
             return CallToolResult(content=[TextContent(

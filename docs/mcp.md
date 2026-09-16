@@ -110,6 +110,7 @@ Runs one or more win_workman tasks on an Ansible host or group by invoking
 | `t` | list of strings | yes | — | Task list (e.g. `["chrome"]`, `["chrome-off", "vlc-on"]`) |
 | `l` | string | no | `"all"` | Ansible limit: hostname or group name |
 | `inventory` | string | no | `"school"` | Inventory name under `inventories/` |
+| `extra_vars` | object | no | — | Role variables passed as Ansible extra vars (e.g. `{"win_workman_usr_targets": ["Domain Users"]}`); `t` and `ansible_*` are refused |
 | `preview` | boolean | no | `false` | Return the command string without executing |
 
 The tasks follow the same dash-separated syntax as the collection:

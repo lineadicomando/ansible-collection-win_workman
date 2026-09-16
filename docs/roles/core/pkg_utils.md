@@ -133,7 +133,7 @@ schema that has only a `usr` block, pointing to the right syntax. The MCP
 
 Targets are account or group names, `DOMAIN\name`, or SIDs, joined by `+`.
 Everything after the verb is rejoined on `-` before splitting on `+`, so names
-containing dashes work: `zed-usr-on-alunno1+mario-rossi`. `+` cannot occur in a
+containing dashes work: `zed-usr-on-student-alice+student-bob`. `+` cannot occur in a
 Windows or AD account name; `,` cannot be used because it separates tasks in the
 `t` extra var. Without targets, `on` uses `win_workman_usr_targets`.
 
@@ -141,7 +141,7 @@ Windows or AD account name; `,` cannot be used because it separates tasks in the
 
 ```
 zed-usr-on                 # every member of BUILTIN\Users
-zed-usr-off-alunno1        # …except alunno1, who uninstalls at next logon
+zed-usr-off-student-bob    # …except student-bob, who uninstalls at next logon
 ```
 
 ### How it works
