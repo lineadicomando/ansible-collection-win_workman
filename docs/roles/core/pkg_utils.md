@@ -171,7 +171,7 @@ C:\ProgramData\win_workman\usr\
   policy is written, and matched against the user's token. An entry naming the
   user wins over group entries; among group entries that disagree, `absent`
   wins. A user matched by no entry is left alone. Each entry also records its
-  `kind` (`user`, `group`, or `domain` for domain accounts): check it, because a
+  `kind` (`user`, `group`, `computer`, `unknown`, from `LookupAccountSid`): check it, because a
   mistyped name can resolve to a group — on an Italian Windows `nessuno` is the
   local group *None*. An unresolvable name fails the task.
 - **Access control**: the tree grants Users read and execute only. Every user

@@ -125,18 +125,6 @@ removed from `autocadlt2026` in `fac39f0`.
 
 ## Per-user deferred install (`usr`)
 
-### Validate with Samba AD domain users
-
-**Status:** blocking before lab-wide use — only local accounts tested (2026-09-16)
-
-The `usr` action was tested on `teacher` in a workgroup, with local accounts. The
-mechanism does not depend on S4U or Kerberos (logon task with a `BUILTIN\Users`
-principal, targets matched by SID against the user's token), so domain users
-are expected to behave the same, but three things are unverified: resolving
-`DOMAIN\name` and domain groups to SIDs when the policy is written, domain group
-SIDs appearing in the agent's token, and the first logon of a domain user who
-never logged on to that PC.
-
 ### `extra_vars` for the MCP `run_tasks` tool
 
 **Status:** proposed
@@ -147,14 +135,16 @@ since `run_tasks` passes nothing but `t`. Inline targets
 `extra_vars` parameter would cover group names with spaces. It must not let the
 caller override `t`.
 
-### Target kind for domain accounts
+### Fewer round trips in `usr-on`
 
-**Status:** proposed
+**Status:** proposed — measured 2026-09-16
 
-Policy entries record `kind` so a name resolving to something unexpected is
-visible (on an Italian Windows `nessuno` resolves to the local group *None*).
-Domain accounts are reported as `domain` without distinguishing users from
-groups; `LookupAccountSid` would give the real type.
+On a domain-joined lab VM every `win_powershell` task costs 10-20 s (`win_ping`
+about 6 s), so `usr-on` spends about 90 s in seven remote tasks before anything
+reaches the user: directory and ACL, agent copy, task registration, payload
+directory, payload copy, policy, pruning. Folding the directory, task,
+policy and pruning steps into one script would leave three round trips
+(script, agent copy, payload copy).
 
 ---
 
