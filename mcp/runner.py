@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 
 from runlog import NotifyFn, RunStatus, await_run, read_log, run_logged_async, start_logged
@@ -12,13 +13,47 @@ def _project_root() -> Path:
     return Path(root)
 
 
-def build_wm_command(t: list[str], l: str = "all", inventory: str = "school") -> list[str]:
+_EXTRA_VAR_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def validate_extra_vars(extra_vars) -> str | None:
+    """Return an error message if extra_vars cannot be passed to the playbook, else None.
+
+    Extra vars sit at the top of Ansible's precedence, so they are limited to
+    what a task needs: role variables. 't' is the task list itself, and
+    ansible_* would let a caller swap the connection user, password, or become
+    settings of every host in the run.
+    """
+    if extra_vars is None:
+        return None
+    if not isinstance(extra_vars, dict):
+        return "extra_vars must be an object of variable names to values"
+    for name in extra_vars:
+        if not isinstance(name, str) or not _EXTRA_VAR_NAME.match(name):
+            return f"invalid variable name in extra_vars: {name!r}"
+        if name == "t":
+            return "extra_vars cannot set 't': pass the tasks in the t parameter"
+        if name.startswith("ansible_"):
+            return f"extra_vars cannot set connection variables ({name})"
+    try:
+        json.dumps(extra_vars)
+    except (TypeError, ValueError) as e:
+        return f"extra_vars is not JSON-serialisable: {e}"
+    return None
+
+
+def build_wm_command(
+    t: list[str],
+    l: str = "all",
+    inventory: str = "school",
+    extra_vars: dict | None = None,
+) -> list[str]:
     root = _project_root()
     cmd = ["ansible-playbook", "lineadicomando.win_workman.win_workman"]
     cmd += ["-i", str(root / "inventories" / inventory / "hosts.yaml")]
     if l and l != "all":
         cmd += ["-l", l]
-    cmd += ["-e", json.dumps({"t": ",".join(t)})]
+    cmd += ["-e", json.dumps({**(extra_vars or {}), "t": ",".join(t)})]
     return cmd
 
 

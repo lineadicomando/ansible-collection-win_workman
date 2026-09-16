@@ -63,7 +63,7 @@ comma-separated extra-var string, normalises it into a list, and delegates to
 | `python312-download` | `python312` | `download` | — |
 | `wallpaper-set` | `wallpaper` | `set` | — |
 | `display_scale-set-150` | `display_scale` | `set` | `150` |
-| `zed-usr-on-alunno1+mario-rossi` | `zed` | `usr` | `on`, `alunno1+mario-rossi` |
+| `zed-usr-on-student-alice+student-bob` | `zed` | `usr` | `on`, `student-alice+student-bob` |
 
 ### Parsed object
 
