@@ -92,6 +92,9 @@ a single win_workman role. Data is read from the role's `meta/mcp.yaml` manifest
 | `custom_actions` | List of role-specific actions beyond the standard package actions |
 | `defaults` | Configurable role variables with type, default value, and description |
 | `notes` | Free-text notes about the role |
+| `common_actions` | Standard package actions the role supports, with `handled_by` and `default` |
+| `install_scopes` | Package roles only: `sys` (machine-wide), `usr` (per-user deferred), or both |
+| `usr_actions` | Roles with the `usr` scope only: task syntax, target rules, and the verbs |
 
 ---
 

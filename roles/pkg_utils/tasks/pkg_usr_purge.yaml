@@ -1,0 +1,52 @@
+---
+# <schema>-usr-purge: remove the policy and the staged installer. Copies already
+# installed in user profiles are left alone; run usr-off and let every target
+# log on (or usr-apply) first to remove them. When the last policy goes, the
+# logon task, the agent and the directory tree go with it.
+- name: Purge usr policy
+  ansible.windows.win_powershell:
+    script: |
+      param([string]$Root, [string]$Schema, [string]$TaskPath, [string]$TaskName)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $changed = $false
+      $policyFile = Join-Path (Join-Path $Root 'policies') "$Schema.json"
+      $payloadDir = Join-Path (Join-Path $Root 'payload') $Schema
+      foreach ($path in @($policyFile, $payloadDir)) {
+        if (Test-Path -LiteralPath $path) {
+          Remove-Item -LiteralPath $path -Recurse -Force
+          $changed = $true
+        }
+      }
+      $remaining = @(Get-ChildItem -LiteralPath (Join-Path $Root 'policies') -Filter '*.json' -ErrorAction SilentlyContinue)
+      $infraRemoved = $false
+      if ($remaining.Count -eq 0) {
+        if (Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction SilentlyContinue) {
+          Unregister-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -Confirm:$false
+          $infraRemoved = $true
+        }
+        if (Test-Path -LiteralPath $Root) {
+          Remove-Item -LiteralPath $Root -Recurse -Force
+          $infraRemoved = $true
+        }
+        $parent = Split-Path -Parent $Root
+        if ((Test-Path -LiteralPath $parent) -and -not (Get-ChildItem -LiteralPath $parent -Force)) {
+          Remove-Item -LiteralPath $parent -Force
+        }
+      }
+      $Ansible.Changed = $changed -or $infraRemoved
+      $Ansible.Result = [ordered]@{
+        policy_removed = $changed
+        remaining_policies = @($remaining | ForEach-Object BaseName)
+        infrastructure_removed = $infraRemoved
+      }
+    parameters:
+      Root: "{{ win_workman_usr_path }}"
+      Schema: "{{ win_workman_usr_schema }}"
+      TaskPath: "{{ win_workman_usr_task_path }}"
+      TaskName: "{{ win_workman_usr_task_name }}"
+  register: win_workman_usr_purge_result
+
+- name: Per-user policy purge
+  ansible.builtin.debug:
+    var: win_workman_usr_purge_result.result

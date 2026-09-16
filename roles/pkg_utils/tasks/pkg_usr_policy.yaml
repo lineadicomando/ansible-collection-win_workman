@@ -1,0 +1,97 @@
+---
+# Merge targets into policies\<schema>.json.
+# Required vars:
+#   win_workman_usr_policy_state  - present | absent
+#   win_workman_usr_policy_names  - target names to set to that state
+# Optional vars:
+#   win_workman_usr_policy_all    - set every existing entry to the state instead (default false)
+# Result registered as: win_workman_usr_policy_result (result.policy, result.written)
+#
+# Targets are stored by SID, resolved here on the host, so the agent compares
+# SIDs against the user's token: no ambiguity about case, domain prefix,
+# renamed accounts or localized group names.
+- name: Write usr policy
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$Root, [string]$Schema, [string]$BaseJson,
+        [string]$NamesJson, [string]$State, [bool]$All = $false
+      )
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      # English names of well-known groups, which do not translate on a
+      # localized Windows (BUILTIN\Users is BUILTIN\Utenti on an Italian one).
+      $wellKnown = @{
+        'users' = 'S-1-5-32-545'; 'builtin\users' = 'S-1-5-32-545'
+        'administrators' = 'S-1-5-32-544'; 'builtin\administrators' = 'S-1-5-32-544'
+        'everyone' = 'S-1-1-0'
+        'authenticated users' = 'S-1-5-11'; 'nt authority\authenticated users' = 'S-1-5-11'
+        'interactive' = 'S-1-5-4'; 'nt authority\interactive' = 'S-1-5-4'
+      }
+      function Resolve-TargetSid([string]$Name) {
+        $key = $Name.Trim().ToLowerInvariant()
+        if ($wellKnown.ContainsKey($key)) { return $wellKnown[$key] }
+        if ($Name -match '^S-1-[0-9-]+$') { return $Name }
+        try {
+          return (New-Object Security.Principal.NTAccount($Name)).Translate([Security.Principal.SecurityIdentifier]).Value
+        } catch {
+          throw "Cannot resolve usr target '$Name' to an account or group on $env:COMPUTERNAME"
+        }
+      }
+
+      # Recorded so that a name resolving to something unexpected shows up in the
+      # result: on an Italian Windows, 'nessuno' is the local group None.
+      function Get-TargetKind([string]$Sid) {
+        if ($Sid -match '^S-1-5-32-' -or $Sid -in @('S-1-1-0', 'S-1-5-11', 'S-1-5-4')) { return 'group' }
+        if (Get-LocalUser -SID $Sid -ErrorAction SilentlyContinue) { return 'user' }
+        if (Get-LocalGroup -SID $Sid -ErrorAction SilentlyContinue) { return 'group' }
+        return 'domain'
+      }
+
+      $policyFile = Join-Path (Join-Path $Root 'policies') "$Schema.json"
+      $current = ''
+      $targets = [ordered]@{}
+      if (Test-Path -LiteralPath $policyFile) {
+        $current = Get-Content -LiteralPath $policyFile -Raw -Encoding UTF8
+        foreach ($t in @((ConvertFrom-Json -InputObject $current).targets)) {
+          if ($t) { $targets[[string]$t.sid] = [ordered]@{ name = [string]$t.name; sid = [string]$t.sid; kind = [string]$t.kind; state = [string]$t.state } }
+        }
+      }
+
+      if ($All) {
+        foreach ($sid in @($targets.Keys)) { $targets[$sid].state = $State }
+      }
+      # No @() around ConvertFrom-Json: in 5.1 it would wrap the whole array as
+      # one element; foreach unrolls it.
+      foreach ($name in (ConvertFrom-Json -InputObject $NamesJson)) {
+        if ([string]::IsNullOrWhiteSpace([string]$name)) { continue }
+        $sid = Resolve-TargetSid ([string]$name)
+        $targets[$sid] = [ordered]@{ name = [string]$name; sid = $sid; kind = (Get-TargetKind $sid); state = $State }
+      }
+
+      $policy = [ordered]@{}
+      foreach ($p in (ConvertFrom-Json -InputObject $BaseJson).PSObject.Properties) { $policy[$p.Name] = $p.Value }
+      $policy['targets'] = @($targets.Keys | Sort-Object | ForEach-Object { $targets[$_] })
+      $json = ConvertTo-Json -InputObject $policy -Depth 5
+
+      $written = $current.Trim() -ne $json.Trim()
+      if ($written) {
+        # Write through a temp file so the agent never reads a half-written policy.
+        $tmp = "$policyFile.tmp"
+        [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding($false)))
+        Move-Item -LiteralPath $tmp -Destination $policyFile -Force
+      }
+      $Ansible.Changed = $written
+      # Return the policy exactly as written to disk.
+      $Ansible.Result = [ordered]@{ written = $written; file = $policyFile; policy = (ConvertFrom-Json -InputObject $json) }
+    parameters:
+      Root: "{{ win_workman_usr_path }}"
+      Schema: "{{ win_workman_usr_schema }}"
+      BaseJson: "{{ win_workman_usr_policy_base | to_json }}"
+      NamesJson: "{{ win_workman_usr_policy_names | default([]) | to_json }}"
+      State: "{{ win_workman_usr_policy_state }}"
+      All: "{{ win_workman_usr_policy_all | default(false) | bool }}"
+    # The default depth of 2 flattens nested results into their type name.
+    depth: 5
+  register: win_workman_usr_policy_result

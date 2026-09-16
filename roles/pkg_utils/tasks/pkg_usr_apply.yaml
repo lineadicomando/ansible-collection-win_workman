@@ -1,0 +1,98 @@
+---
+# <schema>-usr-apply[-<targets>]: start the agent now in the sessions of the
+# users who are logged on, instead of waiting for their next logon, and wait
+# for it to finish. With targets, it runs only if at least one of them is logged
+# on. The agent is the same one that runs at logon: it applies every policy on
+# the host to every logged-on user, which is harmless because it is idempotent;
+# the outcome reported here is the one for this schema.
+- name: Apply usr policy to logged-on users
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [string]$Schema, [string]$TaskPath, [string]$TaskName,
+        [string]$FilterJson, [int]$TimeoutSec
+      )
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      $wellKnown = @{ 'users' = 'S-1-5-32-545'; 'builtin\users' = 'S-1-5-32-545' }
+      function Resolve-TargetSid([string]$Name) {
+        $key = $Name.Trim().ToLowerInvariant()
+        if ($wellKnown.ContainsKey($key)) { return $wellKnown[$key] }
+        if ($Name -match '^S-1-[0-9-]+$') { return $Name }
+        try { return (New-Object Security.Principal.NTAccount($Name)).Translate([Security.Principal.SecurityIdentifier]).Value }
+        catch { throw "Cannot resolve usr target '$Name' to an account on $env:COMPUTERNAME" }
+      }
+      function Read-Stamp([string]$Sid, [string]$SubKey, [string]$Value) {
+        $key = [Microsoft.Win32.Registry]::Users.OpenSubKey("$Sid\Software\win_workman\usr$SubKey")
+        if (-not $key) { return $null }
+        try { $v = $key.GetValue($Value) } finally { $key.Close() }
+        if (-not $v) { return $null }
+        return [DateTimeOffset]::Parse([string]$v)
+      }
+
+      if (-not (Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction SilentlyContinue)) {
+        throw "No usr agent task on $env:COMPUTERNAME: run $Schema-usr-on or $Schema-usr-off first"
+      }
+
+      # Interactive users are the owners of explorer.exe, one per session.
+      $loggedOn = @{}
+      foreach ($proc in @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'")) {
+        $owner = Invoke-CimMethod -InputObject $proc -MethodName GetOwnerSid
+        if ($owner.Sid) { $loggedOn[$owner.Sid] = $true }
+      }
+      $filter = @{}
+      foreach ($name in (ConvertFrom-Json -InputObject $FilterJson)) { $filter[(Resolve-TargetSid ([string]$name))] = $true }
+      $waitFor = @($loggedOn.Keys | Where-Object { $filter.Count -eq 0 -or $filter.ContainsKey($_) })
+
+      $Ansible.Changed = $false
+      if ($waitFor.Count -eq 0) {
+        $Ansible.Result = [ordered]@{ started = $false; message = 'no targeted user is logged on'; logged_on = @($loggedOn.Keys) }
+        return
+      }
+
+      $start = [DateTimeOffset]::UtcNow
+      Start-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName
+      $deadline = (Get-Date).AddSeconds($TimeoutSec)
+      do {
+        Start-Sleep -Seconds 3
+        $pending = @($waitFor | Where-Object { $s = Read-Stamp $_ '' 'LastRun'; -not $s -or $s -lt $start })
+      } while ($pending.Count -gt 0 -and (Get-Date) -lt $deadline)
+
+      $outcomes = foreach ($sid in $waitFor) {
+        $name = try { (New-Object Security.Principal.SecurityIdentifier($sid)).Translate([Security.Principal.NTAccount]).Value } catch { $sid }
+        $key = [Microsoft.Win32.Registry]::Users.OpenSubKey("$sid\Software\win_workman\usr\$Schema")
+        $receipt = [ordered]@{}
+        if ($key) { foreach ($n in $key.GetValueNames()) { $receipt[$n] = [string]$key.GetValue($n) }; $key.Close() }
+        $fresh = $receipt['Timestamp'] -and ([DateTimeOffset]::Parse($receipt['Timestamp']) -ge $start)
+        [pscustomobject][ordered]@{
+          user = $name; sid = $sid
+          finished = $pending -notcontains $sid
+          targeted = [bool]$fresh
+          outcome = if ($fresh) { [pscustomobject]$receipt } else { $null }
+        }
+      }
+      $Ansible.Changed = @($outcomes | Where-Object { $_.targeted -and $_.outcome.Changed -eq 'True' }).Count -gt 0
+      $errors = @($outcomes | Where-Object { $_.targeted -and $_.outcome.Result -eq 'error' })
+      $Ansible.Result = [ordered]@{ started = $true; users = @($outcomes) }
+      if ($pending.Count -gt 0) {
+        $Ansible.Failed = $true
+        $Ansible.Result['message'] = "agent still running after ${TimeoutSec}s for: $($pending -join ', ')"
+      }
+      elseif ($errors.Count -gt 0) {
+        $Ansible.Failed = $true
+        $Ansible.Result['message'] = "agent reported errors for: $(@($errors | ForEach-Object user) -join ', ')"
+      }
+    parameters:
+      Schema: "{{ win_workman_usr_schema }}"
+      TaskPath: "{{ win_workman_usr_task_path }}"
+      TaskName: "{{ win_workman_usr_task_name }}"
+      FilterJson: "{{ win_workman_usr_inline_targets | to_json }}"
+      TimeoutSec: "{{ win_workman_usr_apply_timeout | int }}"
+    # The default depth of 2 flattens nested results into their type name.
+    depth: 5
+  register: win_workman_usr_apply_result
+
+- name: Per-user apply outcome
+  ansible.builtin.debug:
+    var: win_workman_usr_apply_result.result

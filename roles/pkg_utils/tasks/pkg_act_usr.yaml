@@ -1,0 +1,100 @@
+---
+# Per-user deferred install: <schema>-usr-<verb>[-<target>[+<target>…]].
+#
+# Everything after the verb is joined back on '-' and split on '+', so user
+# names keep their dashes (mario-rossi). '+' cannot appear in a Windows or AD
+# account name, and ',' is out because it separates tasks in the t extra var.
+- name: Parse usr verb and targets
+  ansible.builtin.set_fact:
+    win_workman_usr_schema: >-
+      {{
+        (win_workman_schema.role | default('')).split('.') | last
+        or (win_workman_task_argv | default(['']))[0]
+      }}
+    win_workman_usr_verb: >-
+      {{
+        (win_workman_task_argv | default([]))[2]
+        if ((win_workman_task_argv | default([])) | length > 2)
+        else (win_workman_usr_verbs | selectattr('default', 'defined') | map(attribute='name') | first)
+      }}
+    win_workman_usr_inline: "{{ (win_workman_task_argv | default([])) | length > 3 }}"
+    win_workman_usr_inline_targets: >-
+      {{
+        ((win_workman_task_argv | default([]))[3:] | join('-')).split('+')
+        if ((win_workman_task_argv | default([])) | length > 3)
+        else []
+      }}
+
+- name: Validate usr verb
+  ansible.builtin.fail:
+    msg: >-
+      Unknown usr verb '{{ win_workman_usr_verb }}' for schema '{{ win_workman_schema.name }}'.
+      Valid verbs: {{ win_workman_usr_verbs | map(attribute='name') | join(', ') }}.
+  when: win_workman_usr_verb not in (win_workman_usr_verbs | map(attribute='name') | list)
+
+- name: Reject targets for usr-purge
+  ansible.builtin.fail:
+    msg: >-
+      usr-purge removes the whole policy of '{{ win_workman_schema.name }}' and takes no
+      targets; use usr-off-<targets> to remove it for some users only.
+  when:
+    - win_workman_usr_verb == 'purge'
+    - win_workman_usr_inline | bool
+
+- name: Validate usr targets
+  ansible.builtin.fail:
+    msg: >-
+      Invalid usr target(s) {{ win_workman_usr_bad_targets | to_json }}.
+      A target is an account or group name, optionally DOMAIN\name, or a SID;
+      it cannot be empty nor contain any of " / [ ] : ; | = , + * ? < >.
+  vars:
+    win_workman_usr_all_targets: >-
+      {{ win_workman_usr_inline_targets + (win_workman_usr_targets | default([])) }}
+    win_workman_usr_bad_targets: >-
+      {{
+        win_workman_usr_all_targets
+        | reject('match', win_workman_usr_target_pattern)
+        | list
+      }}
+  when: win_workman_usr_bad_targets | length > 0
+
+- name: Build usr policy base
+  ansible.builtin.set_fact:
+    win_workman_usr_policy_base:
+      schema: "{{ win_workman_usr_schema }}"
+      name: "{{ win_workman_schema.name }}"
+      version: "{{ win_workman_schema.usr.version | string }}"
+      setup_file: "{{ win_workman_schema.usr.setup_file }}"
+      sha256: "{{ win_workman_usr_setup_checksum | regex_replace('^sha256:', '') | upper }}"
+      payload_dir: >-
+        {{ win_workman_usr_path }}\payload\{{ win_workman_usr_schema }}\{{ win_workman_schema.usr.version }}
+      install_args: "{{ win_workman_schema.usr.install_args | default([]) }}"
+      uninstall_key: "{{ win_workman_schema.usr.uninstall_key }}"
+      uninstall_args: "{{ win_workman_schema.usr.uninstall_args | default([]) }}"
+      success_exit_codes: "{{ win_workman_schema.usr.success_exit_codes | default([0]) }}"
+      timeout: "{{ win_workman_schema.usr.timeout | default(win_workman_usr_timeout) | int }}"
+  vars:
+    win_workman_usr_setup_checksum: >-
+      {{
+        (
+          win_workman_schema.files | default([])
+          | selectattr('filename', 'equalto', win_workman_schema.usr.setup_file)
+          | map(attribute='checksum') | first
+        ) | default('', true)
+      }}
+
+- name: Validate usr schema
+  ansible.builtin.assert:
+    that:
+      - win_workman_schema.usr.uninstall_key is defined
+      - win_workman_usr_policy_base.sha256 is match('^[0-9A-F]{64}$')
+    fail_msg: >-
+      The usr block of '{{ win_workman_schema.name }}' needs uninstall_key, and
+      setup_file '{{ win_workman_schema.usr.setup_file }}' needs a files entry with a
+      sha256 checksum: the agent runs it as every targeted user and verifies it first.
+    quiet: true
+
+- name: Run usr verb {{ win_workman_usr_verb }}
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: "pkg_usr_{{ win_workman_usr_verb }}"

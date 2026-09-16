@@ -7,6 +7,35 @@
       Valid actions: {{ win_workman_pkg_actions | join(', ') }}.
   when: (win_workman_action or win_workman_schema.default_action) not in win_workman_pkg_actions
 
+# A schema declares the install scopes it supports by its blocks: package (sys,
+# machine-wide) and usr (per-user, deferred to logon). Without this check a
+# usr-only package would run its installer as the Ansible user and land, with
+# no error, in that user's profile.
+- name: Validate install scope
+  ansible.builtin.fail:
+    msg: >-
+      {{
+        (
+          "'" ~ win_workman_schema.name ~ "' does not support per-user install:"
+          ~ " its schema has no usr block."
+        )
+        if (win_workman_schema_action == 'usr')
+        else (
+          "'" ~ win_workman_schema.name ~ "' installs per user only."
+          ~ " Use " ~ (win_workman_task_argv | default(['<schema>']))[0]
+          ~ "-usr-<verb>, e.g. " ~ (win_workman_task_argv | default(['<schema>']))[0] ~ "-usr-on."
+        )
+      }}
+  vars:
+    win_workman_schema_action: "{{ win_workman_action or win_workman_schema.default_action }}"
+  when: >-
+    (win_workman_schema_action == 'usr' and win_workman_schema.usr is not defined)
+    or (
+      win_workman_schema_action not in ['usr', 'download']
+      and win_workman_schema.package is not defined
+      and win_workman_schema.usr is defined
+    )
+
 - name: Run action {{ win_workman_action or win_workman_schema.default_action }}
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils

@@ -123,6 +123,41 @@ removed from `autocadlt2026` in `fac39f0`.
 
 ---
 
+## Per-user deferred install (`usr`)
+
+### Validate with Samba AD domain users
+
+**Status:** blocking before lab-wide use — only local accounts tested (2026-09-16)
+
+The `usr` action was tested on `teacher` in a workgroup, with local accounts. The
+mechanism does not depend on S4U or Kerberos (logon task with a `BUILTIN\Users`
+principal, targets matched by SID against the user's token), so domain users
+are expected to behave the same, but three things are unverified: resolving
+`DOMAIN\name` and domain groups to SIDs when the policy is written, domain group
+SIDs appearing in the agent's token, and the first logon of a domain user who
+never logged on to that PC.
+
+### `extra_vars` for the MCP `run_tasks` tool
+
+**Status:** proposed
+
+`win_workman_usr_targets` can only be changed through inventory vars from MCP,
+since `run_tasks` passes nothing but `t`. Inline targets
+(`zed-usr-on-alunno1+alunno2`) cover the everyday case; a validated
+`extra_vars` parameter would cover group names with spaces. It must not let the
+caller override `t`.
+
+### Target kind for domain accounts
+
+**Status:** proposed
+
+Policy entries record `kind` so a name resolving to something unexpected is
+visible (on an Italian Windows `nessuno` resolves to the local group *None*).
+Domain accounts are reported as `domain` without distinguishing users from
+groups; `LookupAccountSid` would give the real type.
+
+---
+
 ## AutoCAD roles
 
 ### Promote `odis_uninstall` and `find_products` to `pkg_utils`

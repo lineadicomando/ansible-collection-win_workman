@@ -1,0 +1,7 @@
+---
+display_name: Zed
+notes: >
+  Per-user only: the installer cannot install machine-wide, so use zed-usr-<verb>
+  (zed alone means zed-usr-on). Installation happens at each target's next logon;
+  zed-usr-apply runs it now for logged-on users. Zed updates itself inside each
+  profile, and the agent never downgrades.
