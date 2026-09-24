@@ -1,4 +1,9 @@
 ---
+- name: Resolve which updates to install
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: run_selection
+
 - name: Read Windows build before updating
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.wu
@@ -25,7 +30,8 @@
 
 - name: Search updates
   ansible.windows.win_updates:
-    category_names: "*"
+    category_names: "{{ win_workman_wu_selection.categories }}"
+    skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
     state: searched
   register: win_workman_wu_search
 
@@ -55,7 +61,8 @@
 
 - name: Download updates
   ansible.windows.win_updates:
-    category_names: "*"
+    category_names: "{{ win_workman_wu_selection.categories }}"
+    skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
     state: downloaded
   register: win_workman_wu_download
 
@@ -89,7 +96,8 @@
   block:
     - name: Install updates
       ansible.windows.win_updates:
-        category_names: "*"
+        category_names: "{{ win_workman_wu_selection.categories }}"
+        skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
         reboot: false
         state: installed
       register: win_workman_wu_install
