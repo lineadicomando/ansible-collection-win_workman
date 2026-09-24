@@ -12,9 +12,9 @@ win_workman_zoom_schema:
   package:
     setup_file: ZoomInstallerFull64bit.msi
     searchName: "Zoom Workplace (64-bit)"
-    version: "7.1.46825"
-    product_id: "{92F7BF02-3608-401D-ABF0-1D9F1965FA42}"
+    version: "7.2.48556"
+    product_id: "{518AB954-56D5-4942-802D-ED4A1DAA61FD}"
   files:
     - filename: ZoomInstallerFull64bit.msi
-      url: https://cdn.zoom.us/prod/7.1.8.46825/x64/ZoomInstallerFull.msi
-      checksum: sha256:caa80801ac68d327014da0a6e387f37976d1e405e8a02ea40ce5b73cf47c3302
+      url: https://cdn.zoom.us/prod/7.2.1.48556/x64/ZoomInstallerFull.msi
+      checksum: sha256:b0dac9fa5237d2e18144ca723644460e7cc26675e5d3db0f89fdfe47ad8c429b
