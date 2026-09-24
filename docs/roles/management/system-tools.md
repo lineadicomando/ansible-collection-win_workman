@@ -142,7 +142,7 @@ Initiates a controlled system restart.
 |---|---|
 | `on` | Restart the system |
 
-Uses the global `win_workman_restart_timeout` (default: 180 seconds) to wait
+Uses the global `win_workman_restart_timeout` (default: 600 seconds) to wait
 for the host to come back online.
 
 ---

@@ -11,7 +11,7 @@ and inspect or adjust the maximum allowed pause duration.
 
 | Action | Description |
 |---|---|
-| `run` | Search, download, and install the updates selected by a profile or a category list (see below); reboots if required, then reports the outcome |
+| `run` | Install the updates selected by a profile or a category list (see below), rebooting and searching again until none is left, then report the outcome |
 | `on` | Resume Windows Update (alias for `resume`) |
 | `off` | Pause Windows Update at maximum duration (alias for `pause` at max days) |
 | `pause` | Pause quality and feature updates for `win_workman_wu_pause_days` days |
@@ -54,6 +54,17 @@ then the profile. Profiles are data in `win_workman_wu_profiles`, so an
 inventory can add its own (`categories` as aliases, `skip_optional` as bool)
 and call it as `wu-run-<name>`.
 
+### `run` reboots
+
+`run` first finishes any servicing already pending on the host (updates Windows
+staged on its own) with the `pkg_utils` restart. Then win_updates installs with
+`reboot: true`: after each reboot it searches again, so updates that only show
+up once another is in place (servicing stack, then cumulative) go in the same
+run. Its reboot waits until LogonUI is ready, i.e. until the update work done
+at boot is over, and uses `win_workman_restart_timeout` for each reboot. With
+`win_workman_restart: false` nothing reboots and the report says whether a
+reboot is still required.
+
 ### `run` report
 
 win_updates reports `ok` both when nothing was found and when a reboot finished
@@ -70,7 +81,7 @@ Pause had expired before the run: Windows may have installed updates on its own
 ```
 
 The same data is left in the `win_workman_wu_report` fact (`build_before`,
-`build_after`, `found`, `installed`, `failed`, `reboot_required`, `updates`,
+`build_after`, `found`, `installed`, `failed`, `reboot_required`, `rebooted`, `updates`,
 `filtered`). The report is printed even when the install task fails, and the host
 is marked failed when single updates fail although win_updates itself succeeded.
 
@@ -98,6 +109,7 @@ Passing `0` resets the cap to the role default (`win_workman_wu_default_max_paus
 | `win_workman_wu_profiles` | `security`, `full`, `upgrades` | Profiles for `wu-run-<name>`: `categories` (aliases) and `skip_optional` |
 | `win_workman_wu_categories` | `[]` | When set, replaces the categories of the chosen profile |
 | `win_workman_restart` | `true` | Allow reboot when `run` requires it |
+| `win_workman_restart_timeout` | `600` | Seconds to wait for the host after each reboot (shared with `pkg_utils` restart) |
 | `win_workman_wu_unpause` | `false` | Resume updates before running `run` (useful when updates are kept paused between runs) |
 
 ---

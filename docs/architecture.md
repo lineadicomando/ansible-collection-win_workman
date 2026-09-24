@@ -197,7 +197,7 @@ These variables are meaningful across the whole collection.
 | `win_workman_storage_path` | `~/win_workman_storage` | Path (controller-side) where installers are stored |
 | `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Temp directory on the Windows target |
 | `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |
-| `win_workman_restart_timeout` | `180` | Seconds to wait after a reboot |
+| `win_workman_restart_timeout` | `600` | Seconds to wait after a reboot |
 | `win_workman_restart` | `true` | Whether schema roles may trigger a reboot |
 | `win_workman_default_lang` | `en_US` | Default locale hint for multi-locale roles |
 

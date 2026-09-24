@@ -21,6 +21,8 @@
     win_workman_wu_state: "unpaused"
   when: win_workman_wu_unpause | bool
 
+# Finishes whatever servicing was already in progress before the run (e.g.
+# updates Windows staged on its own), so WUA starts from a clean state.
 - name: Check for pending reboot
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
@@ -28,68 +30,10 @@
   when:
     - win_workman_restart | bool
 
-- name: Search updates
-  ansible.windows.win_updates:
-    category_names: "{{ win_workman_wu_selection.categories }}"
-    skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
-    state: searched
-  register: win_workman_wu_search
-
-- name: Fail if reboot required after search and restart not allowed
-  ansible.builtin.fail:
-    msg: >-
-      A reboot is required before updates can be downloaded
-      but win_workman_restart is false. Reboot manually and re-run.
-  when:
-    - not (win_workman_restart | bool)
-    - win_workman_wu_search.reboot_required | default(false)
-
-- name: Restart if WUA reported reboot required after search
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: restart
-  when:
-    - win_workman_restart | bool
-    - win_workman_wu_search.reboot_required | default(false)
-
-- name: Check for pending reboot after search
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: pending_restart
-  when:
-    - win_workman_restart | bool
-
-- name: Download updates
-  ansible.windows.win_updates:
-    category_names: "{{ win_workman_wu_selection.categories }}"
-    skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
-    state: downloaded
-  register: win_workman_wu_download
-
-- name: Fail if reboot required after download and restart not allowed
-  ansible.builtin.fail:
-    msg: >-
-      A reboot is required before updates can be installed
-      but win_workman_restart is false. Reboot manually and re-run.
-  when:
-    - not (win_workman_restart | bool)
-    - win_workman_wu_download.reboot_required | default(false)
-
-- name: Restart if WUA reported reboot required after download
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: restart
-  when:
-    - win_workman_restart | bool
-    - win_workman_wu_download.reboot_required | default(false)
-
-- name: Check for pending reboot after download
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: pending_restart
-  when:
-    - win_workman_restart | bool
-
+# With reboot enabled win_updates reboots and searches again until nothing is
+# left, so updates unlocked by a reboot (servicing stack, then cumulative) go in
+# the same run. Its reboot waits for LogonUI, i.e. for the update work at boot
+# to finish, and takes only a timeout: the same one pkg_utils restart uses.
 # The report runs in "always" so that a failed install still says which
 # updates went through and which did not before the host is marked failed.
 - name: Install updates and report
@@ -98,17 +42,10 @@
       ansible.windows.win_updates:
         category_names: "{{ win_workman_wu_selection.categories }}"
         skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
-        reboot: false
+        reboot: "{{ win_workman_restart | bool }}"
+        reboot_timeout: "{{ win_workman_restart_timeout | default(600) | int }}"
         state: installed
       register: win_workman_wu_install
-
-    - name: Restart after updates if required
-      ansible.builtin.include_role:
-        name: lineadicomando.win_workman.pkg_utils
-        tasks_from: restart
-      when:
-        - win_workman_restart | bool
-        - win_workman_wu_install.reboot_required | default(false)
 
   always:
     - name: Read Windows build after updating
