@@ -3,3 +3,21 @@ win_workman_wu_schema:
   name: Windows Update
   role: lineadicomando.win_workman.wu
   default_action: "run"
+
+# Task strings cannot carry spaces, so wu-run-cat-... and the profiles use
+# these aliases for the Windows Update classification names.
+win_workman_wu_category_aliases:
+  application: Application
+  connectors: Connectors
+  critical: Critical Updates
+  definitions: Definition Updates
+  devkits: Developer Kits
+  drivers: Drivers
+  featurepacks: Feature Packs
+  guidance: Guidance
+  rollups: Update Rollups
+  security: Security Updates
+  servicepacks: Service Packs
+  tools: Tools
+  updates: Updates
+  upgrades: Upgrades

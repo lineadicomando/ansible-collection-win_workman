@@ -1,0 +1,51 @@
+---
+# Resolves which updates wu-run installs into win_workman_wu_selection:
+#   wu-run                     -> win_workman_wu_default_profile
+#   wu-run-<profile>           -> win_workman_wu_profiles[<profile>]
+#   wu-run-cat-<a>[+<b>...]    -> explicit category aliases, optional updates included
+# win_workman_wu_categories, when set, replaces the categories of a profile.
+- name: Read wu-run selector
+  ansible.builtin.set_fact:
+    win_workman_wu_selector: "{{ win_workman_task.argv[2] | default(win_workman_wu_default_profile) }}"
+    win_workman_wu_selector_arg: "{{ win_workman_task.argv[3] | default('') }}"
+
+- name: Validate wu-run selector
+  ansible.builtin.assert:
+    that:
+      - win_workman_task.argv | length <= (4 if win_workman_wu_selector == 'cat' else 3)
+      - win_workman_wu_selector == 'cat' or win_workman_wu_selector in win_workman_wu_profiles
+      - win_workman_wu_selector != 'cat' or win_workman_wu_selector_arg | length > 0
+    fail_msg: >-
+      Use wu-run, wu-run-<profile> or wu-run-cat-<category>[+<category>...].
+      Profiles: {{ win_workman_wu_profiles.keys() | join(', ') }}.
+      Categories: {{ win_workman_wu_category_aliases.keys() | join(', ') }}.
+
+- name: Resolve wu-run category aliases
+  ansible.builtin.set_fact:
+    win_workman_wu_selection_aliases: >-
+      {{
+        win_workman_wu_selector_arg.split('+') | map('trim') | map('lower') | select | list
+        if win_workman_wu_selector == 'cat' else
+        (win_workman_wu_categories | map('lower') | list
+         if win_workman_wu_categories | length > 0 else
+         win_workman_wu_profiles[win_workman_wu_selector].categories)
+      }}
+
+- name: Validate wu-run categories
+  ansible.builtin.assert:
+    that:
+      - win_workman_wu_selection_aliases | length > 0
+      - win_workman_wu_selection_aliases | reject('in', win_workman_wu_category_aliases) | list | length == 0
+    fail_msg: >-
+      Unknown Windows Update categories:
+      {{ win_workman_wu_selection_aliases | reject('in', win_workman_wu_category_aliases) | join(', ') }}.
+      Valid: {{ win_workman_wu_category_aliases.keys() | join(', ') }}.
+
+- name: Set wu-run selection
+  ansible.builtin.set_fact:
+    win_workman_wu_selection:
+      label: "{{ 'categories' if win_workman_wu_selector == 'cat' else 'profile ' ~ win_workman_wu_selector }}"
+      categories: "{{ win_workman_wu_selection_aliases | map('extract', win_workman_wu_category_aliases) | list }}"
+      skip_optional: >-
+        {{ false if win_workman_wu_selector == 'cat'
+           else win_workman_wu_profiles[win_workman_wu_selector].skip_optional | default(false) | bool }}

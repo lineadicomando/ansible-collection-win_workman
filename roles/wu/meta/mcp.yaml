@@ -2,7 +2,14 @@
 display_name: Windows Update
 custom_actions:
   - name: run
-    description: Search, download and install available Windows updates, then report build before/after and each update's outcome (fact win_workman_wu_report); fails if an update fails to install
+    description: >-
+      Install Windows updates. wu-run / wu-run-security: security, critical,
+      rollups, Defender definitions. wu-run-full: all but feature updates.
+      wu-run-upgrades: feature updates only. wu-run-cat-<a>+<b>: explicit
+      categories (security, critical, rollups, definitions, updates, drivers,
+      featurepacks, servicepacks, tools, upgrades, ...). Then reports build
+      before/after and each update's outcome (fact win_workman_wu_report);
+      fails if an update fails to install
   - name: "on"
     description: Resume Windows Update (alias for resume)
   - name: "off"
@@ -28,6 +35,14 @@ defaults:
     type: int
     default: 35
     description: Maximum pause duration used by 'off' and as reset target for max_pause_days-0
+  - var: win_workman_wu_default_profile
+    type: str
+    default: security
+    description: Profile used by a bare wu-run
+  - var: win_workman_wu_categories
+    type: list
+    default: []
+    description: Category aliases replacing the chosen profile's categories (a wu-run-cat-... selector still wins)
   - var: win_workman_restart
     type: bool
     default: true

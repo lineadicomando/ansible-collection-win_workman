@@ -5,6 +5,7 @@
 # states it, from the install result and the build read before and after.
 #
 # Inputs: win_workman_wu_install (registered win_updates result),
+# win_workman_wu_selection,
 # win_workman_wu_build_before, win_workman_wu_build, win_workman_wu_pause_status,
 # win_workman_wu_pause_expiry.
 - name: Build Windows Update report
@@ -43,6 +44,9 @@
     msg: >-
       {{
         [
+          'Selection: ' ~ win_workman_wu_selection.label ~ ' ('
+            ~ win_workman_wu_selection.categories | join(', ') ~ ')'
+            ~ (', optional updates skipped' if win_workman_wu_selection.skip_optional | bool else ''),
           'Build: ' ~ (win_workman_wu_report.build_before
             if win_workman_wu_report.build_before == win_workman_wu_report.build_after
             else win_workman_wu_report.build_before ~ ' -> ' ~ win_workman_wu_report.build_after),

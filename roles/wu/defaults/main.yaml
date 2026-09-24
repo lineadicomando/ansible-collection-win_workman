@@ -3,3 +3,25 @@ win_workman_wu_pause_days: 7
 win_workman_wu_default_max_pause_days: 35
 win_workman_restart: true
 win_workman_wu_unpause: false
+
+# wu-run profiles: a bare wu-run uses win_workman_wu_default_profile,
+# wu-run-<name> the named one. Categories are the aliases listed in
+# vars/main.yaml (win_workman_wu_category_aliases); skip_optional drops updates
+# Microsoft marks BrowseOnly, such as the monthly preview cumulatives.
+# Upgrades (feature updates, e.g. 25H2 -> 26H2) are left out of full on purpose:
+# they take an hour and several reboots, and have their own profile.
+win_workman_wu_default_profile: security
+win_workman_wu_profiles:
+  security:
+    categories: [security, critical, rollups, definitions]
+    skip_optional: true
+  full:
+    categories: [security, critical, rollups, definitions, updates, drivers, featurepacks, servicepacks, tools]
+    skip_optional: false
+  upgrades:
+    categories: [upgrades]
+    skip_optional: false
+
+# Overrides the profile categories when set (list of aliases); a wu-run-cat-...
+# selector in the task string still wins over it.
+win_workman_wu_categories: []
