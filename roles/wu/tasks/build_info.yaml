@@ -1,0 +1,28 @@
+---
+# Reads the Windows version and revision (UBR) into win_workman_wu_build,
+# e.g. "25H2 26200.9550": the revision is what a cumulative update moves.
+# Also reads the pause state, which explains updates Windows installed on its
+# own: PausedQualityStatus 2 means a pause expired and updates auto-resumed.
+- name: Read Windows build and pause state
+  ansible.windows.win_powershell:
+    script: |
+      $cv = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+      $policy = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UpdatePolicy\Settings' -ErrorAction SilentlyContinue
+      $ux = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -ErrorAction SilentlyContinue
+      $status = 0
+      if ($policy -and $null -ne $policy.PausedQualityStatus) { $status = [int]$policy.PausedQualityStatus }
+      $expiry = ''
+      if ($ux -and $ux.PauseUpdatesExpiryTime) { $expiry = [string]$ux.PauseUpdatesExpiryTime }
+      $Ansible.Result = @{
+        build        = '{0} {1}.{2}' -f $cv.DisplayVersion, $cv.CurrentBuild, $cv.UBR
+        pause_status = $status
+        pause_expiry = $expiry
+      }
+      $Ansible.Changed = $false
+  register: win_workman_wu_build_raw
+
+- name: Set Windows build and pause facts
+  ansible.builtin.set_fact:
+    win_workman_wu_build: "{{ win_workman_wu_build_raw.result.build }}"
+    win_workman_wu_pause_status: "{{ win_workman_wu_build_raw.result.pause_status | int }}"
+    win_workman_wu_pause_expiry: "{{ win_workman_wu_build_raw.result.pause_expiry }}"
