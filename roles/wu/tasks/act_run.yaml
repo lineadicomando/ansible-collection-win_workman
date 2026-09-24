@@ -1,4 +1,13 @@
 ---
+- name: Read Windows build before updating
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: build_info
+
+- name: Keep the build read before updating
+  ansible.builtin.set_fact:
+    win_workman_wu_build_before: "{{ win_workman_wu_build }}"
+
 - name: Windows Update Unpaused
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.wu
@@ -74,17 +83,40 @@
   when:
     - win_workman_restart | bool
 
-- name: Install updates
-  ansible.windows.win_updates:
-    category_names: "*"
-    reboot: false
-    state: installed
-  register: win_workman_wu_install
+# The report runs in "always" so that a failed install still says which
+# updates went through and which did not before the host is marked failed.
+- name: Install updates and report
+  block:
+    - name: Install updates
+      ansible.windows.win_updates:
+        category_names: "*"
+        reboot: false
+        state: installed
+      register: win_workman_wu_install
 
-- name: Restart after updates if required
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: restart
-  when:
-    - win_workman_restart | bool
-    - win_workman_wu_install.reboot_required | default(false)
+    - name: Restart after updates if required
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.pkg_utils
+        tasks_from: restart
+      when:
+        - win_workman_restart | bool
+        - win_workman_wu_install.reboot_required | default(false)
+
+  always:
+    - name: Read Windows build after updating
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.wu
+        tasks_from: build_info
+
+    - name: Report Windows Update result
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.wu
+        tasks_from: run_report
+
+# win_updates can succeed as a task while single updates fail to install.
+- name: Fail if some updates failed to install
+  ansible.builtin.fail:
+    msg: >-
+      {{ win_workman_wu_report.failed }} update(s) failed to install:
+      {{ win_workman_wu_report.updates | select('match', '\[failed') | join('; ') }}
+  when: win_workman_wu_report.failed | int > 0
