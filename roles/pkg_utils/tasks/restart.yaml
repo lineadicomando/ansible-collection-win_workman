@@ -1,11 +1,23 @@
 ---
+# The host counts as back once sshd runs, it has been up a minute and component
+# servicing has stayed idle for 20 seconds: no TrustedInstaller, no TiWorker.
+# After updates, Windows finishes their install at boot and may reboot again on
+# its own once the logon screen is already there; waiting for servicing to be
+# idle keeps the next task from running into that reboot. A connection lost
+# meanwhile only makes win_reboot try the test again, until the timeout.
 - name: Restart
   ansible.windows.win_reboot:
     reboot_timeout: "{{ win_workman_restart_timeout | default(600) }}"
     pre_reboot_delay: 10
     post_reboot_delay: 5
-    test_command: >
-      if (
-        (Get-Service -Name sshd).Status -eq "Running" -and
-        (Get-CimInstance Win32_OperatingSystem).LastBootUpTime -lt (Get-Date).AddSeconds(-60)
-      ) { exit 0 } else { exit 1 }
+    test_command: |
+      function Test-Servicing {
+        (Get-Service -Name TrustedInstaller).Status -ne 'Stopped' -or
+          [bool](Get-Process -Name TiWorker -ErrorAction SilentlyContinue)
+      }
+      if ((Get-Service -Name sshd).Status -ne 'Running') { exit 1 }
+      if ((Get-CimInstance Win32_OperatingSystem).LastBootUpTime -gt (Get-Date).AddSeconds(-60)) { exit 1 }
+      if (Test-Servicing) { exit 1 }
+      Start-Sleep -Seconds 20
+      if (Test-Servicing) { exit 1 }
+      exit 0
