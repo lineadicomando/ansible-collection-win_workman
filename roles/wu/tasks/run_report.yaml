@@ -4,7 +4,8 @@
 # staged on its own, so the recap alone cannot tell what happened: this file
 # states it, from the install result and the build read before and after.
 #
-# Inputs: win_workman_wu_install (registered win_updates result),
+# Inputs: win_workman_wu_install (the install rounds merged by act_run, shaped
+# like a win_updates result plus reboots, rounds and rounds_exhausted),
 # win_workman_wu_selection,
 # win_workman_wu_build_before, win_workman_wu_build, win_workman_wu_pause_status,
 # win_workman_wu_pause_expiry.
@@ -17,7 +18,9 @@
       installed: "{{ win_workman_wu_install.installed_update_count | default(0) | int }}"
       failed: "{{ win_workman_wu_install.failed_update_count | default(0) | int }}"
       reboot_required: "{{ win_workman_wu_install.reboot_required | default(false) | bool }}"
-      rebooted: "{{ win_workman_wu_install.rebooted | default(false) | bool }}"
+      reboots: "{{ win_workman_wu_install.reboots | default(0) | int }}"
+      rounds: "{{ win_workman_wu_install.rounds | default(0) | int }}"
+      rounds_exhausted: "{{ win_workman_wu_install.rounds_exhausted | default(false) | bool }}"
       updates: >-
         {%- set ns = namespace(lines=[]) -%}
         {%- for u in (win_workman_wu_install.updates | default({})).values() -%}
@@ -61,8 +64,12 @@
             if win_workman_wu_pause_status | int == 2 else [])
         + (['Paused before the run, until ' ~ win_workman_wu_pause_expiry]
             if win_workman_wu_pause_status | int == 1 else [])
-        + (['Rebooted by win_updates to complete the install']
-            if win_workman_wu_report.rebooted | bool else [])
+        + (['Restarted ' ~ win_workman_wu_report.reboots ~ ' time(s) to complete the install, '
+              ~ win_workman_wu_report.rounds ~ ' install round(s)']
+            if win_workman_wu_report.reboots | int > 0 else [])
+        + (['Stopped after ' ~ win_workman_wu_report.rounds
+              ~ ' rounds (win_workman_wu_max_rounds): more updates may be waiting, run wu-run again']
+            if win_workman_wu_report.rounds_exhausted | bool else [])
         + (['Reboot still required: win_workman_restart is false']
             if win_workman_wu_report.reboot_required and not (win_workman_restart | bool) else [])
       }}

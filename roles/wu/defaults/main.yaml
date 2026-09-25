@@ -3,6 +3,13 @@ win_workman_wu_pause_days: 7
 win_workman_wu_default_max_pause_days: 35
 win_workman_restart: true
 win_workman_wu_unpause: false
+# Seconds wu-run waits for the host after each restart, until servicing is
+# idle. Longer than win_workman_restart_timeout: after a cumulative update
+# Windows may reboot again on its own (twice in 13 minutes on a test VM).
+win_workman_wu_reboot_timeout: 1800
+# Install rounds in one wu-run, each followed by a restart when needed. Another
+# round starts only after a restart.
+win_workman_wu_max_rounds: 5
 
 # wu-run profiles: a bare wu-run uses win_workman_wu_default_profile,
 # wu-run-<name> the named one. Categories are the aliases listed in

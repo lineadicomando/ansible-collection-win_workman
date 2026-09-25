@@ -1,0 +1,57 @@
+---
+# One install round of wu-run: install what the selection finds, then restart
+# when Windows asks for it. act_run includes this file in a loop; once a round
+# needs no restart, the rounds left are skipped. The
+# condition sits on the block, not on the include, because a looped include
+# evaluates its own condition for every item before any round runs.
+#
+# Inputs: win_workman_wu_round_number, win_workman_wu_rounds,
+# win_workman_wu_reboots, win_workman_wu_done.
+- name: "Install round {{ win_workman_wu_round_number }}"
+  when: not (win_workman_wu_done | bool)
+  block:
+    - name: Install updates
+      block:
+        - name: "Install updates (round {{ win_workman_wu_round_number }})"
+          ansible.windows.win_updates:
+            category_names: "{{ win_workman_wu_selection.categories }}"
+            skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
+            reboot: false
+            state: installed
+          register: win_workman_wu_round
+
+      always:
+        - name: Keep the round result for the report
+          ansible.builtin.set_fact:
+            win_workman_wu_rounds: "{{ win_workman_wu_rounds + [win_workman_wu_round] }}"
+
+    - name: Restart to complete the install
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.pkg_utils
+        tasks_from: restart
+      vars:
+        win_workman_restart_timeout: "{{ win_workman_wu_reboot_timeout }}"
+      when:
+        - win_workman_restart | bool
+        - win_workman_wu_round.reboot_required | default(false) | bool
+
+    - name: Count the restart
+      ansible.builtin.set_fact:
+        win_workman_wu_reboots: "{{ win_workman_wu_reboots | int + 1 }}"
+      when:
+        - win_workman_restart | bool
+        - win_workman_wu_round.reboot_required | default(false) | bool
+
+    # Set last: the tasks above share the block condition on this fact.
+    # Another round follows a restart only, since an update may show up once
+    # another is in place (servicing stack, then cumulative). Not after an
+    # install that needed none: WUA offers some updates again at every search
+    # (the Windows Security platform, Defender definitions), and the rounds
+    # would run out on those alone.
+    - name: Decide whether another round is needed
+      ansible.builtin.set_fact:
+        win_workman_wu_done: >-
+          {{
+            not (win_workman_restart | bool)
+            or not (win_workman_wu_round.reboot_required | default(false) | bool)
+          }}

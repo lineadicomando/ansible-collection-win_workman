@@ -57,13 +57,24 @@ and call it as `wu-run-<name>`.
 ### `run` reboots
 
 `run` first finishes any servicing already pending on the host (updates Windows
-staged on its own) with the `pkg_utils` restart. Then win_updates installs with
-`reboot: true`: after each reboot it searches again, so updates that only show
+staged on its own) with the `pkg_utils` restart. Then it installs in rounds:
+win_updates installs with `reboot: false`, the `pkg_utils` restart follows when
+Windows asks for one, and a new round searches again, so updates that only show
 up once another is in place (servicing stack, then cumulative) go in the same
-run. Its reboot waits until LogonUI is ready, i.e. until the update work done
-at boot is over, and uses `win_workman_restart_timeout` for each reboot. With
-`win_workman_restart: false` nothing reboots and the report says whether a
-reboot is still required.
+run. A round that needs no restart ends the run (WUA offers some updates, such
+as the Windows Security platform, again at every search), and
+`win_workman_wu_max_rounds` caps the rounds.
+
+The restart is not left to win_updates on purpose. Its reboot is over as soon as
+the logon screen is up, but after a cumulative update Windows may reboot again on
+its own right after (TrustedInstaller, twice in 13 minutes on a test VM), while
+win_updates is already searching: the host drops as unreachable and the report
+is lost. The `pkg_utils` restart waits until component servicing is idle and
+rides out a reboot that happens meanwhile, for up to
+`win_workman_wu_reboot_timeout` in `run`, longer than the default
+`win_workman_restart_timeout`. With `win_workman_restart: false` nothing
+reboots, a single round runs and the report says whether a reboot is still
+required.
 
 ### `run` report
 
@@ -81,7 +92,8 @@ Pause had expired before the run: Windows may have installed updates on its own
 ```
 
 The same data is left in the `win_workman_wu_report` fact (`build_before`,
-`build_after`, `found`, `installed`, `failed`, `reboot_required`, `rebooted`, `updates`,
+`build_after`, `found`, `installed`, `failed`, `reboot_required`, `reboots`, `rounds`,
+`rounds_exhausted`, `updates`,
 `filtered`). The report is printed even when the install task fails, and the host
 is marked failed when single updates fail although win_updates itself succeeded.
 
@@ -109,7 +121,8 @@ Passing `0` resets the cap to the role default (`win_workman_wu_default_max_paus
 | `win_workman_wu_profiles` | `security`, `full`, `upgrades` | Profiles for `wu-run-<name>`: `categories` (aliases) and `skip_optional` |
 | `win_workman_wu_categories` | `[]` | When set, replaces the categories of the chosen profile |
 | `win_workman_restart` | `true` | Allow reboot when `run` requires it |
-| `win_workman_restart_timeout` | `600` | Seconds to wait for the host after each reboot (shared with `pkg_utils` restart) |
+| `win_workman_wu_reboot_timeout` | `1800` | Seconds `run` waits after each restart for the host to be back with servicing idle |
+| `win_workman_wu_max_rounds` | `5` | Install rounds in one `run`, each followed by a restart when needed |
 | `win_workman_wu_unpause` | `false` | Resume updates before running `run` (useful when updates are kept paused between runs) |
 
 ---

@@ -27,27 +27,56 @@
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
     tasks_from: pending_restart
+  vars:
+    win_workman_restart_timeout: "{{ win_workman_wu_reboot_timeout }}"
   when:
     - win_workman_restart | bool
 
-# With reboot enabled win_updates reboots and searches again until nothing is
-# left, so updates unlocked by a reboot (servicing stack, then cumulative) go in
-# the same run. Its reboot waits for LogonUI, i.e. for the update work at boot
-# to finish, and takes only a timeout: the same one pkg_utils restart uses.
-# The report runs in "always" so that a failed install still says which
-# updates went through and which did not before the host is marked failed.
+- name: Start with no install round done
+  ansible.builtin.set_fact:
+    win_workman_wu_rounds: []
+    win_workman_wu_reboots: 0
+    win_workman_wu_done: false
+
+# Updates install in rounds, with a pkg_utils restart between them, so updates
+# unlocked by a reboot (servicing stack, then cumulative) go in the same run.
+# The restart is not left to win_updates: its reboot is over as soon as the
+# logon screen is up, and Windows may reboot again on its own right after, while
+# win_updates is already searching, which drops the host as unreachable. The
+# pkg_utils restart also waits for servicing to be idle, and rides out such a
+# reboot. The report runs in "always" so that a failed install still says
+# which updates went through and which did not before the host is marked failed.
 - name: Install updates and report
   block:
-    - name: Install updates
-      ansible.windows.win_updates:
-        category_names: "{{ win_workman_wu_selection.categories }}"
-        skip_optional: "{{ win_workman_wu_selection.skip_optional }}"
-        reboot: "{{ win_workman_restart | bool }}"
-        reboot_timeout: "{{ win_workman_restart_timeout | default(600) | int }}"
-        state: installed
-      register: win_workman_wu_install
+    - name: Install updates in rounds
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.wu
+        tasks_from: run_round
+      loop: "{{ range(1, win_workman_wu_max_rounds | int + 1) | list }}"
+      loop_control:
+        loop_var: win_workman_wu_round_number
 
   always:
+    - name: Merge the install rounds
+      ansible.builtin.set_fact:
+        win_workman_wu_install: >-
+          {%- set updates = win_workman_wu_rounds | map(attribute='updates', default={}) | combine -%}
+          {%- set last = win_workman_wu_rounds | last | default({}) -%}
+          {{
+            {
+              'found_update_count': updates | length,
+              'installed_update_count': updates.values() | rejectattr('failure_hresult_code', 'defined')
+                                          | selectattr('installed', 'defined') | selectattr('installed') | list | length,
+              'failed_update_count': updates.values() | selectattr('failure_hresult_code', 'defined') | list | length,
+              'reboot_required': (last.reboot_required | default(false) | bool) and not (win_workman_restart | bool),
+              'reboots': win_workman_wu_reboots | int,
+              'rounds': win_workman_wu_rounds | length,
+              'rounds_exhausted': not (win_workman_wu_done | bool) and win_workman_wu_rounds | length >= win_workman_wu_max_rounds | int,
+              'updates': updates,
+              'filtered_updates': last.filtered_updates | default({}),
+            }
+          }}
+
     - name: Read Windows build after updating
       ansible.builtin.include_role:
         name: lineadicomando.win_workman.wu
