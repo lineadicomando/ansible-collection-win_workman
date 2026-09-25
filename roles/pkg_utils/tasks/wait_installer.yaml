@@ -1,0 +1,54 @@
+---
+# Waits, up to win_workman_installer_wait_timeout seconds, until Windows
+# Installer and component servicing are idle: no MSI transaction holds the
+# Global\_MSIExecute mutex and no TiWorker is running. Right after Windows
+# Update, whether driven by wu or by Windows itself, an MSI can otherwise fail
+# with 1601 (Windows Installer service not accessible) or 1618 (another
+# install in progress). On timeout it warns and lets the install go on: the
+# install task retries on those codes anyway.
+- name: Wait for Windows Installer and servicing to be idle
+  ansible.windows.win_powershell:
+    script: |
+      param([int]$Timeout)
+
+      function Test-MsiBusy {
+        $mutex = $null
+        try {
+          if ([System.Threading.Mutex]::TryOpenExisting('Global\_MSIExecute', [ref]$mutex)) {
+            $mutex.Dispose()
+            return $true
+          }
+          return $false
+        } catch [System.UnauthorizedAccessException] {
+          return $true
+        }
+      }
+
+      $start = Get-Date
+      $waited = $false
+      $busy = @()
+      do {
+        $busy = @()
+        if (Test-MsiBusy) { $busy += 'msi' }
+        if (Get-Process -Name TiWorker -ErrorAction SilentlyContinue) { $busy += 'servicing' }
+        if ($busy.Count -eq 0) { break }
+        $waited = $true
+        Start-Sleep -Seconds 10
+      } while (((Get-Date) - $start).TotalSeconds -lt $Timeout)
+
+      $Ansible.Result = @{
+        waited  = [int]((Get-Date) - $start).TotalSeconds
+        busy    = $busy
+        timeout = ($busy.Count -gt 0)
+      }
+      $Ansible.Changed = $false
+    parameters:
+      Timeout: "{{ win_workman_installer_wait_timeout | default(900) | int }}"
+  register: win_workman_installer_wait
+
+- name: Warn when Windows Installer is still busy
+  ansible.builtin.debug:
+    msg: >-
+      Still busy after {{ win_workman_installer_wait.result.waited }}s
+      ({{ win_workman_installer_wait.result.busy | join(', ') }}): installing anyway
+  when: win_workman_installer_wait.result.timeout | bool

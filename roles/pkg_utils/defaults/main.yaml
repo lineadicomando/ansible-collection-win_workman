@@ -12,6 +12,15 @@ win_workman_mode_force_logoff: true
 win_workman_restart_timeout: 600
 win_workman_restart: true
 
+# Before win_package installs or uninstalls, wait up to this many seconds for
+# Windows Installer and component servicing to be idle (see wait_installer).
+win_workman_installer_wait_timeout: 900
+# win_package return codes that mean Windows Installer was busy, not that the
+# package is broken: 1601 service not accessible, 1618 another install running.
+win_workman_installer_retry_codes: [1601, 1618]
+win_workman_installer_retries: 3
+win_workman_installer_retry_delay: 60
+
 # After a successful uninstall, remove the install directory when nothing is
 # left in it but the uninstaller's own files. Inno Setup cannot delete the
 # running unins000.exe, so it always leaves one behind.

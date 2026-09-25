@@ -235,6 +235,14 @@
     - win_workman_schema.package.before_uninstall_ps_script is defined
     - win_workman_schema.package.before_uninstall_ps_script is not none
 
+- name: Wait for Windows Installer before uninstalling
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: wait_installer
+  when:
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_needs_action | default(false) | bool
+
 - name: "Uninstall package '{{ win_workman_schema.name }}'"
   ansible.windows.win_package:
     product_id: "{{ win_workman_product_id }}"
@@ -246,6 +254,9 @@
     - win_workman_needs_action | default(false) | bool
     - win_workman_schema.package.uninstall_via_helper is not defined or win_workman_schema.package.uninstall_via_helper is false
   register: win_workman_uninstall_result
+  until: win_workman_uninstall_result.rc | default(0) | int not in win_workman_installer_retry_codes
+  retries: "{{ win_workman_installer_retries | int }}"
+  delay: "{{ win_workman_installer_retry_delay | int }}"
 
 - name: "Silently uninstall via helper: {{ win_workman_schema.name }}"
   ansible.windows.win_powershell:
