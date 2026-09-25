@@ -403,6 +403,16 @@
     - win_workman_schema.package.before_install_ps_script is defined
     - win_workman_schema.package.before_install_ps_script is not none
 
+- name: Wait for Windows Installer before installing
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: wait_installer
+  when:
+    - win_workman_needs_action | bool
+    - not (win_workman_pkg_portable | bool)
+
+# 1601 and 1618 mean Windows Installer was busy or restarting, typically while
+# servicing after updates: worth another try rather than a failed host.
 - name: "Install package '{{ win_workman_schema.name }}'"
   ansible.windows.win_package:
     path: "{{ ansible_remote_tmp }}\\{{ win_workman_install_setup_path }}"
@@ -414,6 +424,9 @@
     - win_workman_needs_action | bool
     - not (win_workman_pkg_portable | bool)
   register: win_workman_install_result
+  until: win_workman_install_result.rc | default(0) | int not in win_workman_installer_retry_codes
+  retries: "{{ win_workman_installer_retries | int }}"
+  delay: "{{ win_workman_installer_retry_delay | int }}"
 
 - name: After install hook
   ansible.builtin.include_role:
