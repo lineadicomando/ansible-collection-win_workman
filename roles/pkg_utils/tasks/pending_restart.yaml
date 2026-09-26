@@ -1,45 +1,80 @@
 ---
+# Restarts when Windows has a reboot pending, and says why first: the flags
+# that were set and, for PendingFileRenameOperations, the file operations
+# queued. Those are consumed by the reboot itself, so the run log is the only
+# place left to read them afterwards. Only the first entries are listed, since
+# servicing can queue hundreds.
 - name: Check Pending Reboot and Reboot if needed (or set)
   ansible.windows.win_powershell:
     script: |
+      param([int]$MaxEntries)
+
       $Ansible.Changed = $false
-      $Ansible.Failed  = $false
-      $Ansible.Result  = $false
+      $reasons = @()
+      $operations = @()
+      $operationCount = 0
 
       try {
-        $paths = @(
-          'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending',
-          'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'
-        )
+        $flags = [ordered]@{
+          'CBS RebootPending' = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending'
+          'WU RebootRequired' = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'
+        }
+        foreach ($name in $flags.Keys) {
+          if (Test-Path -Path $flags[$name]) { $reasons += $name }
+        }
 
-        foreach ($p in $paths) {
-          if (Test-Path -Path $p) {
-            $Ansible.Result  = $true
+        # Pairs of source and destination; an empty destination means delete.
+        # Paths carry an NT prefix (\??\), on Windows 11 preceded by a "*1"
+        # marker, and "!" on a destination that replaces an existing file.
+        $prefix = '^(\*\d+)?!?\\\?\?\\'
+        $pfro = (Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager').GetValue('PendingFileRenameOperations', $null)
+        if ($null -ne $pfro -and $pfro.Length -gt 0) {
+          $reasons += 'PendingFileRenameOperations'
+          for ($i = 0; $i + 1 -lt $pfro.Length; $i += 2) {
+            $source = $pfro[$i] -replace $prefix, ''
+            $target = $pfro[$i + 1] -replace $prefix, ''
+            $operationCount++
+            if ($operations.Count -lt $MaxEntries) {
+              $operation = "delete $source"
+              if ($target) { $operation = "rename $source -> $target" }
+              $operations += $operation
+            }
           }
         }
 
-        $sessionMgrKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
-        if (Test-Path -Path $sessionMgrKey) {
-          $sessionMgr = Get-Item -Path $sessionMgrKey
-          $pendingOps = $sessionMgr.GetValue('PendingFileRenameOperations', $null)
-          if ($pendingOps -ne $null -and $pendingOps.Length -gt 0) {
-            $Ansible.Result  = $true
-          }
-        }
-
-        $pendingXml = Join-Path $env:windir 'WinSxS\pending.xml'
-        if (Test-Path -Path $pendingXml) {
-          $Ansible.Result  = $true
+        if (Test-Path -Path (Join-Path $env:windir 'WinSxS\pending.xml')) {
+          $reasons += 'WinSxS pending.xml'
         }
       } catch {
-        $Ansible.Failed  = $true
+        $Ansible.Failed = $true
       }
 
+      $Ansible.Result = @{
+        pending         = ($reasons.Count -gt 0)
+        reasons         = $reasons
+        operations      = $operations
+        operation_count = $operationCount
+      }
+    parameters:
+      MaxEntries: 20
   register: win_workman_pending_restart
+
+- name: Report why a reboot is pending
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        ['Reboot pending: ' ~ win_workman_pending_restart.result.reasons | join(', ')]
+        + win_workman_pending_restart.result.operations
+        + (['... ' ~ (win_workman_pending_restart.result.operation_count | int
+                      - win_workman_pending_restart.result.operations | length) ~ ' more file operations']
+            if win_workman_pending_restart.result.operation_count | int
+               > win_workman_pending_restart.result.operations | length else [])
+      }}
+  when: win_workman_pending_restart.result.pending | default(false) | bool
 
 - name: Restart
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
     tasks_from: restart
   when:
-    - win_workman_pending_restart.result | bool | default(false, true)
+    - win_workman_pending_restart.result.pending | default(false) | bool
