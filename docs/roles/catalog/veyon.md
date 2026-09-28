@@ -17,6 +17,18 @@ agent (student) machines.
 | `download` | Download installer only |
 | `info` | Report installation state |
 
+An upgrade uninstalls the previous release first (`uninstall_before_upgrade`)
+and then deletes `%ProgramFiles%\Veyon` (`cleanup_paths`), as `off` does.
+Normally there is nothing left to delete: the Veyon uninstaller removes the whole
+directory, unknown and read-only files included. It cannot remove files that a
+running process holds open, and an installer laid over those mixes two releases:
+4.10.0 → 4.11.2 left stale DLLs that failed every binary with `0xC0000139` and
+took the service down. With `cleanup_paths` the same situation stops the run at
+the cleanup step, with Veyon uninstalled and the locked file named in the error.
+Close whatever holds it (typically a Veyon Master left open) and run `veyon`
+again. Configuration (registry) and keys (`%ProgramData%\Veyon`) are outside the
+directory and survive both the upgrade and `off`.
+
 ---
 
 ## Master vs agent distinction

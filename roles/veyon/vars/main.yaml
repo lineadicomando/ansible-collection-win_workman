@@ -2,7 +2,7 @@
 #  Software Information:
 #      - Name:        Veyon
 #      - Homepage:    https://veyon.io
-#      - Download:    https://veyon.io/it/download/
+#      - Download:    https://github.com/veyon/veyon/releases
 # ==============================================================================
 ---
 win_workman_veyon_master_args: >-
@@ -19,9 +19,9 @@ win_workman_veyon_schema:
   role: lineadicomando.win_workman.veyon
   default_action: !!str on
   package:
-    setup_file: veyon-4.11.2.0-win64-setup.exe
+    setup_file: veyon-4.11.3.0-win64-setup.exe
     searchName: "Veyon"
-    version: "4.11.2.0"
+    version: "4.11.3.0"
     product_id: Veyon
     provider: registry
     uninstall_before_upgrade: true
@@ -31,10 +31,17 @@ win_workman_veyon_schema:
       }}
     uninstall_args: "/S"
     uninstall_via_helper: true
+    # The uninstaller removes the whole directory unless a file is locked, and
+    # an installer laid over locked leftovers mixes two releases: 4.10.0 ->
+    # 4.11.2 left stale DLLs that broke every binary with 0xC0000139. Deleting
+    # the directory fails on those files, which stops the run instead. Config
+    # lives in the registry and the keys under %ProgramData%, not in here.
+    cleanup_paths:
+      - '%ProgramFiles%\Veyon'
   files:
-    - filename: veyon-4.11.2.0-win64-setup.exe
-      url: https://github.com/veyon/veyon/releases/download/v4.11.2/veyon-4.11.2.0-win64-setup.exe
-      checksum: sha256:7ec3f0689f995fe7c79d3f5b106e85dade089ab24f534e92a168543197f0e428
+    - filename: veyon-4.11.3.0-win64-setup.exe
+      url: https://github.com/veyon/veyon/releases/download/v4.11.3/veyon-4.11.3.0-win64-setup.exe
+      checksum: sha256:6acad4fc310e915a631477373f7649d51b74fbe8c41c5b0ab38d2fa852876b73
   services:
     - name: VeyonService
       start_mode: auto

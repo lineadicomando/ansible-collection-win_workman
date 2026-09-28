@@ -14,14 +14,15 @@ Priorities, assigned 2026-09-28:
 
 | Priority | Entry |
 | --- | --- |
-| P1 | Clean install directory on upgrade — Veyon only |
 | P1 | Kill declared processes before install |
 | P1 | `pkg_act_on` reads from `ansible_remote_tmp` |
 | P1 / P3 | AutoCAD: end-to-end validation on a real host (P1 only before a rollout) |
 | P2 | Verify the upgrade path of the `uninstall_before_upgrade` roles |
+| P2 | `pkg_act_off` does not stop declared services |
 | P2 | `usr`: test a version upgrade |
 | P2 | Audit the catalog drafts |
 | P3 | Wait mode for the helper uninstall in `pkg_act_off` |
+| P3 | veyon `config`: a crashing `veyon-cli` export reads as a missing key |
 | P3 | `usr`: fewer round trips in `usr-on` |
 | P3 | `usr`: test several policies at once |
 | P3 | `usr`: a role with both scopes |
@@ -35,40 +36,9 @@ Priorities, assigned 2026-09-28:
 
 ## Package workflow
 
-### Clean install directory on upgrade — Veyon only
-
-**Priority:** P1 — the fix for a real outage on `ario_info`; one schema entry once the VM check is done  
-**Status:** proposed — narrowed on 2026-09-28, the general design is settled
-
-The original entry proposed an opt-in `clean_install_dir` schema field, blocked
-on whether it should exist next to `cleanup_paths`. Later work settled it:
-
-- `524298f` added a global leftovers pass to `pkg_act_off`
-  (`win_workman_cleanup_uninstaller_dir`, on by default) that removes an install
-  directory holding nothing but `unins*`, and states explicitly that a role
-  needing a non-empty directory removed wholesale says so with `cleanup_paths`.
-- `c0f7c5c` and `2e3dddf` made `cleanup_paths` actually run: it was ignored at
-  the top level of six schemas, and skipped whenever `cleanup_registry_key`
-  had removed the uninstall entry.
-- `c7817bf` (Audacity) is the worked example of `cleanup_paths` used to drop a
-  dead install tree.
-
-So no new field. What is left is the case that started it: Veyon 4.10.0 to
-4.11.2 on `ario_info` (2026-09-10) left 48 stale DLLs on 8 of 30 hosts, the
-service gone and every binary failing with `0xC0000139`. `veyon` sets
-`uninstall_before_upgrade: true`, so `pkg_act_off` runs before the new
-installer and would honour a `cleanup_paths` entry for the install directory.
-Before adding it, confirm on a VM that the directory holds no state:
-configuration lives in the registry and the auth keys under `%ProgramData%`
-(an upgrade is known to preserve both), but check it rather than assume it.
-
-Note that `cleanup_paths` only runs before an install for roles with
-`uninstall_before_upgrade: true` (today postman, winscp, inkscape, putty,
-mysql_server, veyon). Every other role upgrades in place.
-
 ### Kill declared processes before install
 
-**Priority:** P1 — the other half of the Veyon outage: stopping services alone did not prevent it  
+**Priority:** P1 — the root cause of the Veyon outage: stopping services alone did not prevent it  
 **Status:** proposed — still unimplemented, verified 2026-09-28
 
 `pkg_utils` stops the services listed under `services:` before installing, but
@@ -82,6 +52,14 @@ chrome, firefox, edge, libreoffice, autocadlt2026, and `autocadlt2023` through
 its own `win_workman_autocadlt2023_kill_processes` variable — which a schema
 field would make redundant. `kill.yaml` only handles lists of more than one name
 since `0f0ae61`.
+
+Since 2026-09-28 `veyon` lists `%ProgramFiles%\Veyon` under `cleanup_paths`, so
+a file still locked after the uninstall now fails the run at *Cleanup paths*
+instead of leaving a mixed install — tested on `teacher` with a DLL held open by
+another process. That turns the outage into a loud failure, with Veyon
+uninstalled until the lock is released; only killing the processes first
+prevents it. Veyon's own uninstaller removes the whole directory, unknown and
+read-only files included, whenever nothing is locked.
 
 ### Verify the upgrade path of the `uninstall_before_upgrade` roles
 
@@ -105,6 +83,20 @@ The roles whose upgrade really goes through `pkg_act_off` are postman, winscp,
 inkscape, putty, mysql_server and veyon. Run an upgrade of each on a test VM
 (install the previous release, then `<role>-on`) and check that the state save
 and restore around the uninstall leaves the install step running.
+
+### `pkg_act_off` does not stop declared services
+
+**Priority:** P2 — every uninstall relies on the vendor uninstaller stopping its own service  
+**Status:** found 2026-09-28 while testing the Veyon cleanup on `teacher`
+
+`pkg_act_on` stops the services under `services:` before the preliminary
+uninstall of an upgrade, but an explicit `<role>-off` goes straight to
+`pkg_act_off`, which never does. Veyon gets away with it because its uninstaller
+stops the service through `veyon-cli`; when `veyon-cli` could not start (a test
+held `veyon-core.dll` open exclusively), `VeyonService` kept running, the
+uninstaller removed the registry entry and left 48 files behind. Move the
+`services_stop` include into `pkg_act_off`, before *Uninstall package*; the
+upgrade path then gets it for free and the call in `pkg_act_on` can go.
 
 ### Wait mode for the helper uninstall in `pkg_act_off`
 
@@ -147,6 +139,20 @@ only because every `win_edulab` inventory sets
 It is the last reference to `ansible_remote_tmp` in the roles. A consumer who
 does not set the variable gets either the wrong path or an undefined-variable
 error. The same coupling was removed from `autocadlt2026` in `fac39f0`.
+
+### veyon `config`: a crashing `veyon-cli` export reads as a missing key
+
+**Priority:** P3 — 4.10.x only; matters while a lab still runs it  
+**Status:** found 2026-09-28; not reproduced on 4.11.2 and 4.11.3
+
+`tasks/import_keys.yaml` decides whether a key is installed from the exit code
+of `veyon-cli authkeys export`. On 4.10.0 the export succeeds and then crashes
+on exit (`0xC0000005`), so the key reads as missing, the import runs again and
+fails with "one or more key files already exist". Base the check on the
+exported file (`Test-Path` plus the fingerprint) rather than on `$LASTEXITCODE`.
+On `teacher` (2026-09-28) `config` imported the key on a fresh 4.11.2 and found it
+unchanged after the upgrade to 4.11.3, so the export exits cleanly there. Fix it
+only if a 4.10.x lab needs `config` before being upgraded.
 
 ---
 
