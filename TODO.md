@@ -2,87 +2,114 @@
 
 Planned improvements for the `lineadicomando.win_workman` collection.
 
-Reviewed 2026-09-11: every entry below was checked against the current tree, and
+Reviewed 2026-09-28: every entry below was checked against the current tree, and
 the notes say what has changed since each was written.
+
+Priorities, assigned 2026-09-28:
+
+- **P1** — affects the labs in production or is a correctness bug; do next.
+- **P2** — merged or written code that has never been exercised; do before
+  relying on it.
+- **P3** — improvements, refactoring and work that waits on something else.
+
+| Priority | Entry |
+| --- | --- |
+| P1 | Clean install directory on upgrade — Veyon only |
+| P1 | Kill declared processes before install |
+| P1 | `pkg_act_on` reads from `ansible_remote_tmp` |
+| P1 / P3 | AutoCAD: end-to-end validation on a real host (P1 only before a rollout) |
+| P2 | Verify the upgrade path of the `uninstall_before_upgrade` roles |
+| P2 | `usr`: test a version upgrade |
+| P2 | Audit the catalog drafts |
+| P3 | Wait mode for the helper uninstall in `pkg_act_off` |
+| P3 | `usr`: fewer round trips in `usr-on` |
+| P3 | `usr`: test several policies at once |
+| P3 | `usr`: a role with both scopes |
+| P3 | `usr`: `usr-purge` with copies still installed |
+| P3 | `usr`: agent log rotation |
+| P3 | `usr`: adopt more per-user packages |
+| P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
+| P3 | Roles with no documentation at all |
 
 ---
 
 ## Package workflow
 
-### Opt-in clean install directory (`clean_install_dir`)
+### Clean install directory on upgrade — Veyon only
 
-**Status:** proposed — still unimplemented, verified 2026-09-11
+**Priority:** P1 — the fix for a real outage on `ario_info`; one schema entry once the VM check is done  
+**Status:** proposed — narrowed on 2026-09-28, the general design is settled
 
-Add an optional `clean_install_dir: true` field to the package schema. When set,
-`pkg_utils` removes the leftover installation directory after the preliminary
-uninstall of an upgrade and before the new installer runs, so that the package
-is always laid down on a clean directory.
+The original entry proposed an opt-in `clean_install_dir` schema field, blocked
+on whether it should exist next to `cleanup_paths`. Later work settled it:
 
-**Why:** silent installers (NSIS in particular) skip files that are locked by
-running processes and exit with a success code. The result is an installation
-that mixes binaries of two versions while the registry reports the new version,
-so both `win_package` and the schema `info` action report success. Veyon 4.10.0
-to 4.11.2 on the `ario_info` lab (2026-09-10) left 48 stale DLLs on 8 of 30
-hosts: the service was gone and every binary failed with `0xC0000139`
-(`STATUS_ENTRYPOINT_NOT_FOUND`).
+- `524298f` added a global leftovers pass to `pkg_act_off`
+  (`win_workman_cleanup_uninstaller_dir`, on by default) that removes an install
+  directory holding nothing but `unins*`, and states explicitly that a role
+  needing a non-empty directory removed wholesale says so with `cleanup_paths`.
+- `c0f7c5c` and `2e3dddf` made `cleanup_paths` actually run: it was ignored at
+  the top level of six schemas, and skipped whenever `cleanup_registry_key`
+  had removed the uninstall entry.
+- `c7817bf` (Audacity) is the worked example of `cleanup_paths` used to drop a
+  dead install tree.
 
-Stopping the declared services before installing (implemented, `pkg_act_on`
-calls `services_stop`) prevents the common case, but a clean directory is the
-only way to also drop files that the new version no longer ships.
+So no new field. What is left is the case that started it: Veyon 4.10.0 to
+4.11.2 on `ario_info` (2026-09-10) left 48 stale DLLs on 8 of 30 hosts, the
+service gone and every binary failing with `0xC0000139`. `veyon` sets
+`uninstall_before_upgrade: true`, so `pkg_act_off` runs before the new
+installer and would honour a `cleanup_paths` entry for the install directory.
+Before adding it, confirm on a VM that the directory holds no state:
+configuration lives in the registry and the auth keys under `%ProgramData%`
+(an upgrade is known to preserve both), but check it rather than assume it.
 
-**Design notes:**
-
-- Opt-in per schema, never a global default: removing an install directory is
-  destructive and only safe for packages that keep no state there.
-- Derive the directory from the detected `install_location` when available, with
-  an explicit schema override for packages that do not register one.
-- Skip the removal when the preliminary uninstall did not run or still reports
-  the package as present.
-- Overlaps with the existing `cleanup_paths` field, which several roles already
-  use for the same purpose. Decide whether `clean_install_dir` should be its own
-  field or whether `cleanup_paths` should simply be documented as the supported
-  way to do this. **This decision is still open and blocks the rest.**
+Note that `cleanup_paths` only runs before an install for roles with
+`uninstall_before_upgrade: true` (today postman, winscp, inkscape, putty,
+mysql_server, veyon). Every other role upgrades in place.
 
 ### Kill declared processes before install
 
-**Status:** proposed — still unimplemented, verified 2026-09-11
+**Priority:** P1 — the other half of the Veyon outage: stopping services alone did not prevent it  
+**Status:** proposed — still unimplemented, verified 2026-09-28
 
-`pkg_utils` can now stop the services listed under `services:` in the schema,
-but user-facing processes still lock their own files. On the teacher station of
-the `ario_info` lab the Veyon Master GUI was running during the upgrade, which
-is how the stale DLLs got there.
+`pkg_utils` stops the services listed under `services:` before installing, but
+user-facing processes still lock their own files. On the teacher station of the
+`ario_info` lab the Veyon Master GUI was running during the upgrade, which is
+how the stale DLLs got there.
 
-A `kill_processes:` schema field handled by `pkg_utils` would cover this, reusing
-the existing `tasks/kill.yaml` implementation. Roles such as chrome, firefox,
-edge and libreoffice already call it from their own task files, so the logic is
-in place and only needs a declarative entry point in the install workflow.
+A `kill_processes:` schema field handled by `pkg_utils` would cover this,
+reusing `tasks/kill.yaml`. Roles already call it from their own task files:
+chrome, firefox, edge, libreoffice, autocadlt2026, and `autocadlt2023` through
+its own `win_workman_autocadlt2023_kill_processes` variable — which a schema
+field would make redundant. `kill.yaml` only handles lists of more than one name
+since `0f0ae61`.
 
-**Correction (2026-09-11):** "the logic is in place" was too optimistic.
-`kill.yaml` parsed its JSON name lists through a pipeline, which does not unroll
-a `ConvertFrom-Json` array, so a list of more than one name silently collapsed
-into a single bogus entry and killed nothing. Fixed in `0f0ae61`. Anyone
-implementing `kill_processes:` before that commit would have shipped a field
-that works with exactly one process name.
+### Verify the upgrade path of the `uninstall_before_upgrade` roles
 
-### Validate the shared uninstall path across roles
+**Priority:** P2 — merged code on a production path, but no failure observed; veyon is covered by the P1 entries  
+**Status:** follow-up to a change already merged — rewritten 2026-09-28
 
-**Status:** follow-up to a change already merged — still unverified
+The preliminary uninstall of an upgrade goes through `pkg_act_off` instead of
+calling `win_package` directly, so `uninstall_via_helper`, the
+`before_uninstall` / `after_uninstall` hooks, the Windows Installer wait
+(`65b0e03`), `cleanup_registry_key`, `cleanup_paths` and the leftovers pass all
+apply to upgrades.
 
-The preliminary uninstall of an upgrade now goes through `pkg_act_off` instead
-of calling `win_package` directly, so `uninstall_via_helper`, the
-`before_uninstall` / `after_uninstall` hooks, `cleanup_registry_key` and
-`cleanup_paths` finally apply to upgrades as they already did to explicit
-`<role>-off` runs.
+The earlier version of this entry asked to verify the thirteen roles that
+declare `cleanup_paths` or `cleanup_registry_key`. That was wrong:
+`uninstall_before_upgrade` defaults to `false` and none of those thirteen sets
+it, so their upgrade never calls `pkg_act_off`. Their uninstall path has
+meanwhile been exercised with `off` in `c0f7c5c` and `2e3dddf` (python313,
+embarcadero_devcpp, winrar, foxit_pdf_reader, p7zip).
 
-Thirteen roles declare `cleanup_paths` or `cleanup_registry_key` (brave, chrome,
-embarcadero_devcpp, foxit_pdf_reader, opera, p7zip, vivaldi, winrar and
-python310 through python314 — list re-checked 2026-09-11, still exact). Their
-upgrade path now performs cleanup steps it previously skipped. Verify each of
-them against a test VM before relying on the new behaviour in production.
+The roles whose upgrade really goes through `pkg_act_off` are postman, winscp,
+inkscape, putty, mysql_server and veyon. Run an upgrade of each on a test VM
+(install the previous release, then `<role>-on`) and check that the state save
+and restore around the uninstall leaves the install step running.
 
 ### Wait mode for the helper uninstall in `pkg_act_off`
 
-**Status:** proposed — deliberately left out of `0f0ae61`
+**Priority:** P3 — do it when a hang is actually observed; the current default is the right one  
+**Status:** proposed — role list updated 2026-09-28
 
 `Start-Process -Wait` does not simply `WaitForExit()` on the process it
 launched: it waits for the whole job object, every descendant included. That is
@@ -90,36 +117,36 @@ what makes bootstrapper-style installers work, where the parent hands off to a
 child and exits at once, and it is also what hangs forever when a program leaves
 a stray helper running.
 
-`tasks/start_process.yaml` now exposes the choice: `win_workman_exec_wait_tree`
-defaults to `true` (the job-object wait, unchanged behaviour) and can be set to
-`false` to wait on the launched process alone, with an optional
-`win_workman_exec_timeout`. The same option is **not** available for the helper
-uninstall inside `pkg_act_off`, which still hardcodes `-Wait`.
+`tasks/start_process.yaml` exposes the choice: `win_workman_exec_wait_tree`
+defaults to `true` (the job-object wait) and can be set to `false` to wait on
+the launched process alone, with an optional `win_workman_exec_timeout`. The
+helper uninstall inside `pkg_act_off` still hardcodes `-Wait`
+(`pkg_act_off.yaml:296` and `:298`).
 
-Adding it there means touching the seven roles that declare
-`uninstall_via_helper: true` — firefox, vivaldi, veyon, vlc, filezilla,
-puredata, winrar. For those the job-object wait is load-bearing, not accidental:
-NSIS uninstallers copy themselves to `%TEMP%` and the launched process exits
-immediately. Switching them to a process-only wait would report a barely started
-uninstall as finished, and nothing downstream fails if the product is still
-there — `pkg_act_off` re-detects afterwards only to feed the registry cleanup.
+Twelve roles declare `uninstall_via_helper: true`: dbeaver, driver_reviver,
+embarcadero_devcpp, filezilla, firefox, orwell_devcpp, puredata, redpanda_cpp,
+veyon, vivaldi, vlc, winrar. For most of them the job-object wait is
+load-bearing: NSIS uninstallers copy themselves to `%TEMP%` and the launched
+process exits immediately — `5a0e983` is exactly that failure on the Dev-C++
+roles. A process-only wait would report a barely started uninstall as finished.
 
 So: add the option with `true` as the default, then enable it per role only
 where a hang is actually observed. Do not flip the default.
 
 ### `pkg_act_on` reads from `ansible_remote_tmp`
 
-**Status:** proposed — one line, `tasks/pkg_act_on.yaml:408`
+**Priority:** P1 — one-line correctness fix, breaks any consumer that does not set the variable  
+**Status:** proposed — one line, `tasks/pkg_act_on.yaml:418`
 
 `win_copy` puts the installer in `win_workman_remote_tmp` (the collection's own
-default, `C:\Windows\Temp\ansible`), but `pkg_act_on:408` reads it back from
-`ansible_remote_tmp`, an Ansible connection variable. The two coincide only
-because every `win_edulab` inventory happens to set
+default, `C:\Windows\Temp\ansible`), but the *Install package* task reads it
+back from `ansible_remote_tmp`, an Ansible connection variable. The two coincide
+only because every `win_edulab` inventory sets
 `ansible_remote_tmp: C:\Windows\Temp\ansible` in `group_vars/windows11/vars.yaml`.
 
-Drop that dependency: a consumer of the collection who does not set the variable
-gets either the wrong path or an undefined-variable error. The same coupling was
-removed from `autocadlt2026` in `fac39f0`.
+It is the last reference to `ansible_remote_tmp` in the roles. A consumer who
+does not set the variable gets either the wrong path or an undefined-variable
+error. The same coupling was removed from `autocadlt2026` in `fac39f0`.
 
 ---
 
@@ -148,6 +175,7 @@ maps it:
 
 ### Fewer round trips in `usr-on`
 
+**Priority:** P3 — performance only; ~90 s per host is tolerable with one `usr` role  
 **Status:** proposed — measured 2026-09-16
 
 On the domain-joined lab VMs every `win_powershell` task costs 10-20 s
@@ -168,6 +196,7 @@ idempotency check is running `zed-usr-on` twice and expecting `changed=0`.
 
 ### Test a version upgrade
 
+**Priority:** P2 — the first zed release bump runs this path in production untested  
 **Status:** proposed — upgrade path written, never exercised on a host
 
 Expected: bumping `usr.version` and running `usr-on` stages
@@ -186,6 +215,7 @@ steps to `tests/usr_zed.yaml` once they pass.
 
 ### Test several policies at once
 
+**Priority:** P3 — blocked until a second `usr` role exists  
 **Status:** proposed — blocked on a second `usr` role (see *Adopt*)
 
 The agent applies `policies\*.json` sequentially, sorted by name, in one run
@@ -197,6 +227,7 @@ whole tree.
 
 ### A role with both scopes
 
+**Priority:** P3 — no demand yet; do it when a dual-scope package is actually needed  
 **Status:** proposed
 
 No schema carries `package` and `usr` together, so the dual case is untested:
@@ -213,6 +244,7 @@ two scopes must be documented as mutually exclusive per host.
 
 ### `usr-purge` with copies still installed
 
+**Priority:** P3 — only bites on an explicit purge, and the manual sequence works  
 **Status:** proposed
 
 `usr-purge` removes policy and payload but leaves copies in profiles, which
@@ -226,6 +258,7 @@ rejects inline arguments because they would be parsed as targets
 
 ### Agent log rotation
 
+**Priority:** P3 — at 4-6 lines per logon the log takes years to reach 1 MB  
 **Status:** proposed — small
 
 `%LOCALAPPDATA%\win_workman\usr-agent.log` grows forever (4-6 lines per
@@ -235,6 +268,7 @@ at the next `usr-on`/`usr-off` (`Deploy usr agent` is a `win_copy`).
 
 ### Adopt more per-user packages
 
+**Priority:** P3 — on demand; also unblocks *Test several policies at once*  
 **Status:** proposed
 
 Candidates to verify, none checked yet: Obsidian, GitHub Desktop, Discord,
@@ -254,6 +288,7 @@ copy of `tests/usr_zed.yaml`.
 
 ### Promote `odis_uninstall` and `find_products` to `pkg_utils`
 
+**Priority:** P3 — refactoring; waits for the end-to-end validation below  
 **Status:** proposed
 
 `roles/autocadlt2023/tasks/` and `roles/autocadlt2026/tasks/` carry byte-identical
@@ -270,7 +305,9 @@ roles include them from there.
 
 ### End-to-end validation on a real host
 
-**Status:** blocking before lab-wide use
+**Priority:** P1 if AutoCAD LT 2026 is to be rolled out to a lab, P3 otherwise  
+**Status:** blocking before lab-wide use — no run found in the project logs as
+of 2026-09-28
 
 - `autocadlt2026-on` has never been run end to end since `fac39f0` rewrote its
   presence detection. The install path — 2.7 GB per host, the `db-bootstrap`
@@ -289,9 +326,10 @@ roles include them from there.
 
 ### Audit the catalog drafts
 
+**Priority:** P2 — a wrong page reads as documentation; start from the roles in use in the labs  
 **Status:** proposed
 
-39 of the 53 files in `docs/roles/catalog/` still open with
+43 of the 57 files in `docs/roles/catalog/` still open with
 `> **Work in progress** — preliminary draft.` The banner says nothing about
 whether the content is right, and both cases exist:
 
@@ -307,9 +345,12 @@ ones that earn it.
 
 ### Roles with no documentation at all
 
+**Priority:** P3 — four pages, no wrong information in the meantime  
 **Status:** proposed
 
 Four roles have no page in `docs/roles/`: `googledrive`, `tinycad`, `winmerge`,
-`winrar`. (`chkdsk`, `logoff`, `ms_account`, `oobe`, `ping`, `secure_ssh`,
-`sfc`, `shutdown`, `widgets`, `wim` and `wol` are covered collectively by
-`docs/roles/management/system-tools.md`, which is correct and needs nothing.)
+`winrar` (re-checked 2026-09-28; `winmerge` is only named in passing in
+`docs/roles/core/pkg_utils.md`). `chkdsk`, `logoff`, `ms_account`, `oobe`,
+`ping`, `secure_ssh`, `sfc`, `shutdown`, `widgets`, `wim` and `wol` are covered
+collectively by `docs/roles/management/system-tools.md`, which is correct and
+needs nothing.
