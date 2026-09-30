@@ -1,0 +1,29 @@
+---
+# shutdown-if-<condition>. The only condition is nouser: shut down when no user
+# session is open, in any state, so a locked or disconnected session also keeps
+# the host on. Hosts left on say who is logged on.
+- name: Validate shutdown-if argument
+  ansible.builtin.assert:
+    that:
+      - win_workman_task_argv[2] is defined
+      - win_workman_task_argv[2] in ['nouser']
+    fail_msg: "shutdown-if requires a condition argument. Supported: nouser"
+
+- name: List user sessions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: user_sessions
+
+- name: Report the users keeping the host on
+  ansible.builtin.debug:
+    msg: >-
+      Not shutting down, logged on:
+      {{ win_workman_user_sessions | map(attribute='UserName') | zip(win_workman_user_sessions | map(attribute='State'))
+         | map('join', ' (') | map('regex_replace', '$', ')') | join(', ') }}
+  when: win_workman_user_sessions | length > 0
+
+- name: Shut down, no user logged on
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.shutdown
+    tasks_from: act_on
+  when: win_workman_user_sessions | length == 0
