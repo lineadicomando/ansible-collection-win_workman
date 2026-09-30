@@ -14,7 +14,9 @@ win_workman_wu_max_rounds: 5
 # wu-run profiles: a bare wu-run uses win_workman_wu_default_profile,
 # wu-run-<name> the named one. Categories are the aliases listed in
 # vars/main.yaml (win_workman_wu_category_aliases); skip_optional drops updates
-# Microsoft marks BrowseOnly, such as the monthly preview cumulatives.
+# Microsoft marks BrowseOnly. It does not concern the monthly preview
+# cumulatives: those are OptionalInstallation, not BrowseOnly, and no profile
+# reaches them (see "Optional updates" in docs/roles/management/wu.md).
 # Upgrades (feature updates, e.g. 25H2 -> 26H2) are left out of full on purpose:
 # they take an hour and several reboots, and have their own profile.
 win_workman_wu_default_profile: security

@@ -27,9 +27,9 @@ and inspect or adjust the maximum allowed pause duration.
 |---|---|
 | `wu-run`, `wu` | the `win_workman_wu_default_profile` profile (`security`) |
 | `wu-run-security` | security, critical, rollups, definitions; optional (BrowseOnly) updates skipped |
-| `wu-run-full` | `security` plus updates, drivers, featurepacks, servicepacks, tools, optional updates included |
+| `wu-run-full` | `security` plus updates, drivers, featurepacks, servicepacks, tools, BrowseOnly updates included (not the preview cumulatives, see below) |
 | `wu-run-upgrades` | feature updates only (e.g. 25H2 -> 26H2) |
-| `wu-run-cat-<a>[+<b>...]` | exactly the listed categories, optional updates included |
+| `wu-run-cat-<a>[+<b>...]` | exactly the listed categories, BrowseOnly updates included |
 
 Feature updates are left out of `full` on purpose: an upgrade takes an hour and
 several reboots, and fails outright on hosts that do not meet the requirements
@@ -43,7 +43,7 @@ Category aliases, since task strings cannot carry spaces:
 | `critical` | Critical Updates |
 | `rollups` | Update Rollups |
 | `definitions` | Definition Updates (Microsoft Defender) |
-| `updates` | Updates (non-security fixes, preview cumulatives) |
+| `updates` | Updates (non-security fixes; the preview cumulatives carry it too but are never offered, see below) |
 | `drivers` | Drivers |
 | `featurepacks`, `servicepacks`, `tools` | Feature Packs, Service Packs, Tools |
 | `upgrades` | Upgrades (feature updates) |
@@ -53,6 +53,43 @@ Precedence: a `cat-` selector in the task string, then `win_workman_wu_categorie
 then the profile. Profiles are data in `win_workman_wu_profiles`, so an
 inventory can add its own (`categories` as aliases, `skip_optional` as bool)
 and call it as `wu-run-<name>`.
+
+### Optional updates: the preview cumulatives are out of reach
+
+`run` never installs the monthly **optional non-security preview** cumulative
+(the "D week" release, fourth week of the month), whatever the profile or
+categories. Settings shows it as a banner that waits for the user:
+
+```
+2026-09 Aggiornamento della versione di anteprima (KB5124010) (26200.9550) è disponibile.   Scarica e installa
+```
+
+Windows Update publishes the preview with `DeploymentAction` =
+`OptionalInstallation`. win_updates searches with the fixed query
+`IsInstalled = 0`, and a WUA query that does not name a `DeploymentAction`
+implies `DeploymentAction='Installation'`: the preview is not returned at all,
+so it shows up neither among the found updates nor under "Filtered out" in the
+report. No option of win_updates changes the query. `skip_optional` is not
+involved either: it drops `BrowseOnly` updates, and the preview is not
+`BrowseOnly` (it is `AutoSelectOnWebSites`, in the `Updates` classification).
+
+This matches what Microsoft intends for devices without an update policy: the
+**Enable optional updates** policy (`AllowOptionalContent` under
+`HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate`) is not configured by
+default, and then optional updates are only installed when the user clicks
+"Scarica e installa" or turns on "Ottieni gli ultimi aggiornamenti non appena
+sono disponibili". Leaving them out is harmless: the preview content ships in
+the following month's security cumulative, which `run` installs.
+
+Seen on spalla_info2 on 2026-09-30: KB5124010 pending on all 29 hosts,
+`wu-run-cat-updates` on PC101 reported `0 found`. To list a pending preview,
+query WUA directly:
+
+```powershell
+$s = (New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher()
+$s.Search("IsInstalled=0 and DeploymentAction='OptionalInstallation'").Updates |
+  ForEach-Object Title
+```
 
 ### `run` reboots
 
@@ -84,9 +121,9 @@ what happened. At the end of `run` each host prints:
 
 ```
 Selection: profile security (Security Updates, Critical Updates, Update Rollups, Definition Updates), optional updates skipped
-Build: 25H2 26200.9457 -> 26200.9550
+Build: 25H2 26200.9309 -> 26200.9457
 Updates: 2 found, 1 installed, 1 failed
-[installed] 2026-09 Cumulative Update (KB5124010)
+[installed] 2026-09 Cumulative Update (KB5129195)
 [failed 0x80240020] ... - WU_E_NO_INTERACTIVE_USER
 Pause had expired before the run: Windows may have installed updates on its own
 ```

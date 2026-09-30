@@ -1,5 +1,19 @@
 ---
 display_name: Windows Update
+notes: >
+  wu-run does not install the monthly optional non-security preview cumulative
+  (Settings shows "Aggiornamento della versione di anteprima (KBxxxxxxx) è
+  disponibile" with "Scarica e installa"), with any profile or category. Windows
+  Update publishes it with DeploymentAction OptionalInstallation, and win_updates
+  searches with the fixed query "IsInstalled = 0", which implies
+  DeploymentAction='Installation': the preview is not even among the found or
+  filtered updates in the report. By design on unmanaged devices: without the
+  AllowOptionalContent policy, optional updates wait for the user to click
+  "Scarica e installa" (or to turn on "Ottieni gli ultimi aggiornamenti non appena
+  sono disponibili"). Its content reaches every host anyway with the next monthly
+  security cumulative, which wu-run installs. To list a pending preview, search
+  with "IsInstalled=0 and DeploymentAction='OptionalInstallation'" through
+  run_powershell.
 custom_actions:
   - name: run
     description: >-
