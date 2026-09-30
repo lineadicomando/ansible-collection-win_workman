@@ -1,0 +1,85 @@
+---
+# Lists the user sessions open on the host into win_workman_user_sessions
+# (SessionId, UserName, State). Unlike logoff, every state with a user counts,
+# not only WTSActive: a locked workstation is still Active, but a user switched
+# away from (fast user switching) or dropped from RDP is WTSDisconnected, and
+# still holds open documents. Session 0 (services, the Ansible SSH session)
+# and system accounts are left out.
+- name: List user sessions
+  ansible.windows.win_powershell:
+    script: |
+      $Ansible.Changed = $false
+
+      if (-not ('WinMgmtWtsSessions' -as [type])) {
+        Add-Type -ErrorAction Stop -TypeDefinition (@(
+          'using System;',
+          'using System.Runtime.InteropServices;',
+          '[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]',
+          'public struct WinMgmtWtsSessionEntry {',
+          '  public int SessionId;',
+          '  [MarshalAs(UnmanagedType.LPTStr)] public string WinStationName;',
+          '  public int State;',
+          '}',
+          'public static class WinMgmtWtsSessions {',
+          '  [DllImport("wtsapi32.dll", SetLastError=true)]',
+          '  public static extern bool WTSEnumerateSessions(IntPtr hServer, int reserved, int version, out IntPtr ppSessionInfo, out int count);',
+          '  [DllImport("wtsapi32.dll")]',
+          '  public static extern void WTSFreeMemory(IntPtr pMemory);',
+          '  [DllImport("wtsapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]',
+          '  public static extern bool WTSQuerySessionInformation(IntPtr hServer, int sessionId, int infoClass, out IntPtr ppBuffer, out int bytesReturned);',
+          '}'
+        ) -join [Environment]::NewLine)
+      }
+
+      # WTS_CONNECTSTATE_CLASS and WTS_INFO_CLASS values
+      $stateNames = 'Active', 'Connected', 'ConnectQuery', 'Shadow', 'Disconnected', 'Idle', 'Listen', 'Reset', 'Down', 'Init'
+      $WTSUserName = 5
+      $WTSDomainName = 7
+
+      function Get-WtsText([int]$SessionId, [int]$InfoClass) {
+        $buffer = [IntPtr]::Zero
+        $bytes = 0
+        try {
+          if (-not [WinMgmtWtsSessions]::WTSQuerySessionInformation([IntPtr]::Zero, $SessionId, $InfoClass, [ref]$buffer, [ref]$bytes) -or $bytes -le 2) {
+            return ''
+          }
+          return [Runtime.InteropServices.Marshal]::PtrToStringUni($buffer)
+        }
+        finally {
+          if ($buffer -ne [IntPtr]::Zero) { [WinMgmtWtsSessions]::WTSFreeMemory($buffer) }
+        }
+      }
+
+      $list = [IntPtr]::Zero
+      $count = 0
+      if (-not [WinMgmtWtsSessions]::WTSEnumerateSessions([IntPtr]::Zero, 0, 1, [ref]$list, [ref]$count)) {
+        throw "WTSEnumerateSessions failed with Win32Error=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+      }
+      $sessions = @()
+      try {
+        $size = [Runtime.InteropServices.Marshal]::SizeOf([type]'WinMgmtWtsSessionEntry')
+        for ($i = 0; $i -lt $count; $i++) {
+          $entry = [Runtime.InteropServices.Marshal]::PtrToStructure([IntPtr]($list.ToInt64() + $i * $size), [type]'WinMgmtWtsSessionEntry')
+          if ($entry.SessionId -le 0) { continue }
+          $user = Get-WtsText $entry.SessionId $WTSUserName
+          if (-not $user) { continue }
+          $domain = Get-WtsText $entry.SessionId $WTSDomainName
+          $full = if ($domain) { "$domain\$user" } else { $user }
+          if ($full -match '^NT (AUTHORITY|SERVICE)\\') { continue }
+          $sessions += [ordered]@{ SessionId = $entry.SessionId; UserName = $full; State = $stateNames[$entry.State] }
+        }
+      }
+      finally {
+        [WinMgmtWtsSessions]::WTSFreeMemory($list)
+      }
+      # Wrapped, so a single session still comes back as a list
+      $Ansible.Result = @{ sessions = @($sessions) }
+    depth: 4
+    # Any error fails the task: an empty list must mean no session, never a
+    # listing that broke halfway, or shutdown-if-nouser would act on it.
+    error_action: stop
+  register: _win_workman_user_sessions
+
+- name: Keep the user sessions
+  ansible.builtin.set_fact:
+    win_workman_user_sessions: "{{ _win_workman_user_sessions.result.sessions }}"

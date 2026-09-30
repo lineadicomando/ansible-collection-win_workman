@@ -158,6 +158,22 @@ aborting a pending shutdown and waiting for the host to go offline.
 | `abort` | Abort a pending shutdown previously scheduled with `on` |
 | `a` | Alias for `abort` |
 | `wait` | Shut down the system and block until the host goes offline |
+| `if-nouser` | Shut down as `on` only if no user session is open; otherwise leave the host on and report who is logged on |
+
+`if-nouser` counts every session that carries a user, in any state: a locked
+workstation (Active) and a user switched away from or dropped from RDP
+(Disconnected) both keep the host on, since they may hold unsaved work. Session 0,
+where services and the Ansible SSH connection run, does not count. The sessions
+come from `pkg_utils` `user_sessions`, which leaves them in the
+`win_workman_user_sessions` fact (`SessionId`, `UserName`, `State`). A host left
+on prints:
+
+```
+Not shutting down, logged on: PC05\student (Active)
+```
+
+A lab with autologon always has a user logged on, so there `if-nouser` never
+shuts down.
 
 The port monitored by `wait` is resolved in order: `ansible_port` → 22
 (SSH) → 5986 (WinRM HTTPS) → 5985 (WinRM HTTP), based on

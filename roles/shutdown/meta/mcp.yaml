@@ -9,4 +9,11 @@ custom_actions:
     description: Alias for 'abort'
   - name: wait
     description: Shut down the host and wait until it goes offline
+  - name: if
+    description: >-
+      Shut down only if the condition holds; the condition is required, and the
+      only one supported is nouser: shutdown-if-nouser shuts down when no user
+      session is open in any state (a locked or disconnected session keeps the
+      host on) and otherwise reports who is logged on. A bare shutdown-if fails
+      validation
 notes: "Does not install software. Override delay with -e win_workman_shutdown_timeout=<seconds>."
