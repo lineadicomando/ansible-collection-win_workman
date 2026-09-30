@@ -4,5 +4,9 @@ custom_actions:
   - name: "on"
     description: Restart the host immediately
   - name: if
-    description: Restart only if a pending reboot is detected
-notes: "Does not install software. Use 'restart-if' after updates or installs that require a reboot."
+    description: >-
+      Restart only if the condition holds; the condition is required, and the
+      only one supported is pending: restart-if-pending restarts when a reboot is
+      pending (CBS, WUA, PendingFileRenameOperations, WinSxS). A bare restart-if
+      fails validation
+notes: "Does not install software. Use 'restart-if-pending' after updates or installs that require a reboot."
