@@ -3,7 +3,8 @@
 Planned improvements for the `lineadicomando.win_workman` collection.
 
 Reviewed 2026-09-28: every entry below was checked against the current tree, and
-the notes say what has changed since each was written.
+the notes say what has changed since each was written. Re-checked 2026-10-01
+against the tree at `b599405`.
 
 Priorities, assigned 2026-09-28:
 
@@ -51,7 +52,10 @@ reusing `tasks/kill.yaml`. Roles already call it from their own task files:
 chrome, firefox, edge, libreoffice, autocadlt2026, and `autocadlt2023` through
 its own `win_workman_autocadlt2023_kill_processes` variable — which a schema
 field would make redundant. `kill.yaml` only handles lists of more than one name
-since `0f0ae61`.
+since `0f0ae61`. `sketchup2026` (`b599405`) closes SketchUp in its own
+`tasks/ensure_closed.yaml` with a direct `Stop-Process`, bypassing `kill.yaml`;
+it guards the licence actions rather than an install, but is one more
+role-local kill to fold in.
 
 Since 2026-09-28 `veyon` lists `%ProgramFiles%\Veyon` under `cleanup_paths`, so
 a file still locked after the uninstall now fails the run at *Cleanup paths*
@@ -117,7 +121,9 @@ helper uninstall inside `pkg_act_off` still hardcodes `-Wait`
 
 Twelve roles declare `uninstall_via_helper: true`: dbeaver, driver_reviver,
 embarcadero_devcpp, filezilla, firefox, orwell_devcpp, puredata, redpanda_cpp,
-veyon, vivaldi, vlc, winrar. For most of them the job-object wait is
+veyon, vivaldi, vlc, winrar. A thirteenth caller sits outside the schema:
+`audacity/tasks/remove_superseded.yaml` sets it to run the old release's Inno
+uninstaller. For most of them the job-object wait is
 load-bearing: NSIS uninstallers copy themselves to `%TEMP%` and the launched
 process exits immediately — `5a0e983` is exactly that failure on the Dev-C++
 roles. A process-only wait would report a barely started uninstall as finished.
@@ -134,7 +140,8 @@ where a hang is actually observed. Do not flip the default.
 default, `C:\Windows\Temp\ansible`), but the *Install package* task reads it
 back from `ansible_remote_tmp`, an Ansible connection variable. The two coincide
 only because every `win_edulab` inventory sets
-`ansible_remote_tmp: C:\Windows\Temp\ansible` in `group_vars/windows11/vars.yaml`.
+`ansible_remote_tmp: C:\Windows\Temp\ansible` in `group_vars/lab_win/vars.yaml`
+(re-checked 2026-10-01 on all seven inventories).
 
 It is the last reference to `ansible_remote_tmp` in the roles. A consumer who
 does not set the variable gets either the wrong path or an undefined-variable
