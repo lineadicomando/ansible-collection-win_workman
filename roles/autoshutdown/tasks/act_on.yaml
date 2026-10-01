@@ -1,0 +1,28 @@
+---
+- name: Resolve the autoshutdown schedule
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.autoshutdown
+    tasks_from: schedule
+
+# start_when_available stays off: a host that was already off at the scheduled
+# time would otherwise shut down as soon as it is switched on the next morning.
+- name: Register the autoshutdown scheduled task
+  community.windows.win_scheduled_task:
+    name: "{{ win_workman_autoshutdown_task_name }}"
+    path: "{{ win_workman_autoshutdown_task_path }}"
+    description: "Shuts the host down at the scheduled times (win_workman autoshutdown, mode {{ win_workman_autoshutdown_mode }})"
+    actions:
+      - path: '%SystemRoot%\System32\shutdown.exe'
+        arguments: "{{ win_workman_autoshutdown_arguments }}"
+    triggers: "{{ win_workman_autoshutdown_triggers }}"
+    username: SYSTEM
+    run_level: highest
+    start_when_available: false
+    wake_to_run: false
+    disallow_start_if_on_batteries: false
+    stop_if_going_on_batteries: false
+    execution_time_limit: PT5M
+    multiple_instances: 2
+    enabled: true
+    state: present
+  register: win_workman_autoshutdown_result

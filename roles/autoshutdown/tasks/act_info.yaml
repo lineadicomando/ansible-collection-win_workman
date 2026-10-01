@@ -1,0 +1,34 @@
+---
+- name: Read the autoshutdown scheduled task
+  community.windows.win_scheduled_task_stat:
+    name: "{{ win_workman_autoshutdown_task_name }}"
+    path: "{{ win_workman_autoshutdown_task_path }}"
+  register: win_workman_autoshutdown_info
+
+- name: Report that no autoshutdown is scheduled
+  ansible.builtin.debug:
+    msg: >-
+      No autoshutdown scheduled: task
+      {{ win_workman_autoshutdown_task_path }}\{{ win_workman_autoshutdown_task_name }} not found
+  when: not (win_workman_autoshutdown_info.task_exists | default(false))
+
+- name: Show the autoshutdown schedule
+  ansible.builtin.debug:
+    msg:
+      task: "{{ win_workman_autoshutdown_task_path }}\\{{ win_workman_autoshutdown_task_name }}"
+      enabled: "{{ win_workman_autoshutdown_info.settings.enabled }}"
+      status: "{{ win_workman_autoshutdown_info.state.status }}"
+      schedule: >-
+        {{
+          win_workman_autoshutdown_info.triggers | map(attribute='start_boundary')
+          | map('regex_replace', '^.*T(\d\d:\d\d).*$', '\1')
+          | zip(win_workman_autoshutdown_info.triggers | map(attribute='days_of_week', default='every day')
+                | map('default', 'every day', true))
+          | map('join', ' ') | list
+        }}
+      command: >-
+        {{ win_workman_autoshutdown_info.actions | map(attribute='arguments') | join(' ; ') }}
+      next_run_time: "{{ win_workman_autoshutdown_info.state.next_run_time | default('') }}"
+      last_run_time: "{{ win_workman_autoshutdown_info.state.last_run_time | default('') }}"
+      last_task_result: "{{ win_workman_autoshutdown_info.state.last_task_result | default('') }}"
+  when: win_workman_autoshutdown_info.task_exists | default(false)

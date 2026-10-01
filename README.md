@@ -209,6 +209,7 @@ dispatcher interface.
 | `logoff` | `on` | Force logoff all interactive sessions |
 | `restart` | `on`, `if-pending` | Controlled system restart |
 | `shutdown` | `on`, `wait` | Controlled system shutdown |
+| `autoshutdown` | `on`, `off`, `info` | Scheduled task that shuts the host down at fixed times |
 
 ### Network & Security
 

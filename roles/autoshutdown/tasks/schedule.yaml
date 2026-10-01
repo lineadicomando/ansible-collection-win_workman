@@ -1,0 +1,101 @@
+---
+# Validates the settings and turns the schedule into the trigger list of the
+# scheduled task, in win_workman_autoshutdown_triggers.
+- name: Validate the autoshutdown settings
+  ansible.builtin.assert:
+    that:
+      - win_workman_autoshutdown_mode in win_workman_autoshutdown_modes_known
+      - win_workman_autoshutdown_task_name is string
+      - win_workman_autoshutdown_task_name | trim | length > 0
+      - win_workman_autoshutdown_task_path is string
+      - win_workman_autoshutdown_task_path.startswith(win_workman_autoshutdown_path_root)
+      - win_workman_autoshutdown_warning | int(-1) >= 0
+      - win_workman_autoshutdown_warning | int(-1) <= 315360000
+      - win_workman_autoshutdown_arg | string | length == 0
+        or win_workman_autoshutdown_arg | string is match('^([01][0-9]|2[0-3])[0-5][0-9]$')
+      - win_workman_autoshutdown_entries is sequence
+      - win_workman_autoshutdown_entries is not string
+      - win_workman_autoshutdown_entries is not mapping
+      - win_workman_autoshutdown_entries | length > 0
+    fail_msg: >-
+      Invalid autoshutdown settings. The mode is one of
+      {{ win_workman_autoshutdown_modes_known | join(', ') }}; the task path
+      starts with a backslash; the warning is a number of seconds from 0; the
+      task argument is a time as HHMM (autoshutdown-on-1830); the schedule is a
+      quoted "HH:MM" time or a non-empty list of entries.
+
+- name: Refuse a mode that is not implemented yet
+  ansible.builtin.assert:
+    that:
+      - win_workman_autoshutdown_mode in win_workman_autoshutdown_modes_implemented
+    fail_msg: >-
+      The autoshutdown mode '{{ win_workman_autoshutdown_mode }}' is not
+      implemented yet. Implemented:
+      {{ win_workman_autoshutdown_modes_implemented | join(', ') }}.
+
+- name: Validate the schedule entries
+  ansible.builtin.assert:
+    that:
+      - _autoshutdown_entry is string or _autoshutdown_entry is mapping
+      - _autoshutdown_time is string
+      - _autoshutdown_time is match(win_workman_autoshutdown_time_pattern)
+      - _autoshutdown_days is sequence
+      - _autoshutdown_days is not string
+      - _autoshutdown_days is not mapping
+      - _autoshutdown_days | length > 0
+      - _autoshutdown_days | map('string') | map('lower')
+        | difference(win_workman_autoshutdown_weekdays) | length == 0
+    fail_msg: >-
+      Invalid autoshutdown schedule entry '{{ _autoshutdown_entry }}'. An entry
+      is a "HH:MM" time, or a mapping with a "HH:MM" time and an optional list
+      of days among {{ win_workman_autoshutdown_weekdays | join(', ') }}.
+      Quote the times: YAML reads a bare 18:30 as the number 1110.
+    quiet: true
+  vars:
+    _autoshutdown_time: >-
+      {{ _autoshutdown_entry.time | default('') if _autoshutdown_entry is mapping else _autoshutdown_entry }}
+    _autoshutdown_days: >-
+      {{
+        _autoshutdown_entry.days | default(win_workman_autoshutdown_weekdays)
+        if _autoshutdown_entry is mapping else win_workman_autoshutdown_weekdays
+      }}
+  loop: "{{ win_workman_autoshutdown_entries }}"
+  loop_control:
+    loop_var: _autoshutdown_entry
+    label: "{{ _autoshutdown_entry }}"
+
+# Facts outlive the role, so a second call in the same play starts from empty
+- name: Reset the autoshutdown triggers
+  ansible.builtin.set_fact:
+    win_workman_autoshutdown_triggers: []
+
+# The date of the start boundary only has to be in the past. Without a time
+# zone suffix the time is the local one of the host, daylight saving included.
+- name: Build the autoshutdown triggers
+  ansible.builtin.set_fact:
+    win_workman_autoshutdown_triggers: >-
+      {{
+        win_workman_autoshutdown_triggers + [
+          {'type': 'daily', 'start_boundary': _autoshutdown_start}
+          if (_autoshutdown_days | length) == (win_workman_autoshutdown_weekdays | length)
+          else {'type': 'weekly', 'start_boundary': _autoshutdown_start,
+                'days_of_week': _autoshutdown_days | join(',')}
+        ]
+      }}
+  vars:
+    _autoshutdown_start: >-
+      2020-01-01T{{ _autoshutdown_entry.time if _autoshutdown_entry is mapping else _autoshutdown_entry }}:00
+    # In week order whatever the order they were written in, and without repeats
+    _autoshutdown_days: >-
+      {{
+        win_workman_autoshutdown_weekdays
+        | intersect(
+            (_autoshutdown_entry.days | default(win_workman_autoshutdown_weekdays)
+             if _autoshutdown_entry is mapping else win_workman_autoshutdown_weekdays)
+            | map('string') | map('lower') | list
+          )
+      }}
+  loop: "{{ win_workman_autoshutdown_entries }}"
+  loop_control:
+    loop_var: _autoshutdown_entry
+    label: "{{ _autoshutdown_entry }}"

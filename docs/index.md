@@ -122,6 +122,7 @@ The collection has two distinct role families:
 | [roles/management/display_scale.md](roles/management/display_scale.md) | `display_scale` — display scaling percentage across all profiles |
 | [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
 | [roles/management/autologon.md](roles/management/autologon.md) | `autologon` — automatic logon configuration |
+| [roles/management/autoshutdown.md](roles/management/autoshutdown.md) | `autoshutdown` — scheduled task that shuts the host down at fixed times |
 | [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `secure_ssh`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
 
 ---
@@ -154,7 +155,7 @@ The collection has two distinct role families:
 [`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim)
 
 ### Management — Session & Access
-[`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown)
+[`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown) · [`autoshutdown`](roles/management/autoshutdown.md)
 
 ### Management — Network & Security
 [`secure_ssh`](roles/management/system-tools.md#secure_ssh) · [`wol`](roles/management/system-tools.md#wol) · [`ping`](roles/management/system-tools.md#ping)

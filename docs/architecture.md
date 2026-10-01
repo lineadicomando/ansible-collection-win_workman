@@ -113,6 +113,7 @@ Some roles extend the standard set with their own actions or support a subset:
 | `veyon` | `on`, `off`, `config` |
 | `lock` | `on`, `off` |
 | `autologon` | `on`, `off` |
+| `autoshutdown` | `on` *(default)*, `off`, `info` |
 | `secure_ssh` | `on`, `off` |
 | `ms_account` | `on`, `off` |
 | `oobe` | `on`, `off` |

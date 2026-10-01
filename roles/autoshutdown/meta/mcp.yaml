@@ -1,0 +1,51 @@
+---
+display_name: Automatic Shutdown
+custom_actions:
+  - name: "on"
+    description: >-
+      Create or update the scheduled task that shuts the host down at the times
+      in win_workman_autoshutdown_schedule (default action). A time passed as
+      task argument, HHMM, means that time on every day and wins over the
+      variable, e.g. autoshutdown-on-1830
+  - name: "off"
+    description: Remove the scheduled task
+  - name: info
+    description: Report the scheduled times, the task state and its last outcome without changing anything
+defaults:
+  - var: win_workman_autoshutdown_schedule
+    type: str
+    default: "18:30"
+    description: >-
+      A quoted "HH:MM" time for every day, or a list of entries, each a time or
+      a mapping {time: "HH:MM", days: [monday, ...]}; an entry without days
+      applies to every day, a day in no entry has no shutdown. Host local time
+  - var: win_workman_autoshutdown_warning
+    type: int
+    default: 60
+    description: Seconds of warning shown to the logged-on user before the shutdown; 0 shuts down at once
+  - var: win_workman_autoshutdown_message
+    type: str
+    default: "Spegnimento automatico programmato: salvare il lavoro."
+    description: Text of the warning shown to the logged-on user
+  - var: win_workman_autoshutdown_mode
+    type: str
+    default: always
+    description: >-
+      always shuts down whoever is logged on. nouser (only when no user session
+      is open) is reserved and not implemented yet: it fails validation
+  - var: win_workman_autoshutdown_task_path
+    type: str
+    default: \win_workman
+    description: Task Scheduler folder of the task, starting with a backslash
+  - var: win_workman_autoshutdown_task_name
+    type: str
+    default: AutoShutdown
+    description: Name of the scheduled task
+notes: >-
+  Does not install software and does not shut down anything when run: it leaves
+  a scheduled task on the host, which then shuts down on its own with no
+  controller involved. To shut hosts down now use the shutdown role. Per-lab
+  times belong in the inventory group_vars. off removes only the task with the
+  current name and path, so run autoshutdown-off before changing either. During
+  the warning a logged-on user can normally cancel with 'shutdown /a'. A host
+  that was off at the scheduled time does not shut down at the next boot.
