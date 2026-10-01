@@ -1,0 +1,29 @@
+---
+# A running instance keeps its seat on the license it started with, so the license
+# files are only touched once SketchUp is closed. Included only when a change is due.
+- name: Ensure SketchUp is not running
+  ansible.windows.win_powershell:
+    parameters:
+      Names: '{{ win_workman_sketchup2026_process_names }}'
+      Force: '{{ win_workman_sketchup2026_force_close | bool }}'
+    script: |
+      param([string[]]$Names, [bool]$Force)
+      $running = @(Get-Process -Name $Names -ErrorAction SilentlyContinue)
+      $Ansible.Changed = $false
+      $Ansible.Result = @{ running = @($running | ForEach-Object { $_.Name } | Sort-Object -Unique) }
+      if ($running.Count -eq 0) { return }
+      if (-not $Force) { return }
+      $running | Stop-Process -Force
+      $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+      $Ansible.Changed = $true
+  register: win_workman_sketchup2026_closed
+
+- name: Fail when SketchUp is still open
+  ansible.builtin.fail:
+    msg: >-
+      {{ win_workman_sketchup2026_closed.result.running | join(', ') }} is running on
+      {{ inventory_hostname }}: the license was left untouched. Close it and re-run, or
+      set win_workman_sketchup2026_force_close=true to kill it (unsaved work is lost).
+  when:
+    - win_workman_sketchup2026_closed.result.running | length > 0
+    - not win_workman_sketchup2026_force_close | bool

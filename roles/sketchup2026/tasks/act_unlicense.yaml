@@ -1,7 +1,26 @@
 ---
-# NOTE: this only removes the pre-fill file. It does NOT release the license seat:
-# Trimble documents seat removal only through Help > License > Remove License.
+# Removes the pre-fill file and the activated license, so the workstation stops using
+# the license. Trimble documents seat removal only through Help > License > Remove
+# License: whether the vendor side counts the seat as released is not verified here.
+- name: Look for deployed license files
+  ansible.windows.win_stat:
+    path: '{{ item }}'
+    get_checksum: false
+  loop:
+    - '{{ win_workman_sketchup2026_activation_info_dest }}'
+    - '{{ win_workman_sketchup2026_license_file }}'
+  register: win_workman_sketchup2026_license_stat
+
+- name: Ensure SketchUp is closed before removing the license
+  ansible.builtin.include_tasks: ensure_closed.yaml
+  when: win_workman_sketchup2026_license_stat.results | map(attribute='stat.exists') | select | list | length > 0
+
 - name: Remove activation_info.txt
   ansible.windows.win_file:
     path: '{{ win_workman_sketchup2026_activation_info_dest }}'
+    state: absent
+
+- name: Remove the activated license
+  ansible.windows.win_file:
+    path: '{{ win_workman_sketchup2026_license_file }}'
     state: absent
