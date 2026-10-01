@@ -4,10 +4,12 @@ custom_actions:
   - name: license
     description: >
       Deploy activation_info.txt with the classic/network serial number and authorization
-      code, so the License window opens pre-filled instead of being typed by hand
+      code, so the License window opens pre-filled instead of being typed by hand. When
+      the credentials differ from the deployed ones it also removes SketchUp.lic, so the
+      next launch activates the new license
   - name: unlicense
     description: >
-      Remove the deployed activation_info.txt (does not release the license seat)
+      Remove the deployed activation_info.txt and the activated SketchUp.lic
 defaults:
   - var: win_workman_sketchup2026_serial_number
     type: str
@@ -25,10 +27,21 @@ defaults:
     type: str
     default: 'C:\ProgramData\SketchUp\SketchUp 2026'
     description: Directory SketchUp reads activation_info.txt from
+  - var: win_workman_sketchup2026_force_close
+    type: bool
+    default: false
+    description: >-
+      'license' and 'unlicense' fail on a host where SketchUp or LayOut is running
+      and a license change is due; true kills the processes instead (unsaved work is lost)
 notes: >
   Trimble offers no command-line activation. The 'license' action deploys
   activation_info.txt; verified on SketchUp 2026, simply opening the application once
   per workstation then activates the license with no user interaction at all (Trimble's
   docs still describe a manual "Add License" click, which turns out not to be needed).
-  Removing a seat is GUI-only (Help > License > Remove License), and uninstalling
-  SketchUp does not free it.
+  The activated license lives in SketchUp.lic next to it and wins over
+  activation_info.txt: 'license' removes it when the credentials change, which was
+  verified to switch a workstation from one network license to another on the next
+  launch. Trimble documents seat removal only through Help > License > Remove License.
+  A seat extracted for offline use is not detected and stays taken until it expires.
+  Run 'unlicense' before 'off': whether the uninstaller removes SketchUp.lic on its
+  own has not been verified.

@@ -6,6 +6,10 @@ win_workman_sketchup2026_program_data_dir: 'C:\ProgramData\SketchUp\SketchUp 202
 win_workman_sketchup2026_activation_info_dest: >-
   {{ win_workman_sketchup2026_program_data_dir }}\activation_info.txt
 
+# Written by SketchUp on activation; it holds the license in use.
+win_workman_sketchup2026_license_file: >-
+  {{ win_workman_sketchup2026_program_data_dir }}\SketchUp.lic
+
 # Classic/network license credentials. Keep these in a vault, never in vars.yaml.
 win_workman_sketchup2026_serial_number: ''
 win_workman_sketchup2026_auth_code: ''
@@ -13,3 +17,11 @@ win_workman_sketchup2026_auth_code: ''
 # Lets SketchUp re-activate the same license when it expires or is renewed,
 # without redeploying the file.
 win_workman_sketchup2026_allow_reactivation: true
+
+# The license actions refuse to touch the license files while one of these processes
+# is running. Set force_close to kill them instead: unsaved work is lost.
+win_workman_sketchup2026_process_names:
+  - SketchUp
+  - LayOut
+  - Style Builder
+win_workman_sketchup2026_force_close: false

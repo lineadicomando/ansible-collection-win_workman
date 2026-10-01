@@ -13,6 +13,29 @@
     path: '{{ win_workman_sketchup2026_program_data_dir }}'
     state: directory
 
+- name: Check whether activation_info.txt would change
+  ansible.windows.win_copy:
+    dest: '{{ win_workman_sketchup2026_activation_info_dest }}'
+    content: |
+      {{
+        {
+          'serial_number': win_workman_sketchup2026_serial_number,
+          'auth_code': win_workman_sketchup2026_auth_code,
+        }
+        | combine(
+            {'allow_reactivation': 'true'}
+            if win_workman_sketchup2026_allow_reactivation | bool else {}
+          )
+        | to_nice_json
+      }}
+  no_log: true
+  check_mode: true
+  register: win_workman_sketchup2026_activation_probe
+
+- name: Ensure SketchUp is closed before changing the license
+  ansible.builtin.include_tasks: ensure_closed.yaml
+  when: win_workman_sketchup2026_activation_probe is changed
+
 - name: Deploy activation_info.txt
   ansible.windows.win_copy:
     dest: '{{ win_workman_sketchup2026_activation_info_dest }}'
@@ -29,6 +52,16 @@
         | to_nice_json
       }}
   no_log: true
+  register: win_workman_sketchup2026_activation_info
+
+# SketchUp.lic holds the activated license and wins over activation_info.txt for as
+# long as it exists. Dropping it when the credentials change makes the next launch
+# activate from the new file; verified switching a workstation between two licenses.
+- name: Reset the activated license when the credentials change
+  ansible.windows.win_file:
+    path: '{{ win_workman_sketchup2026_license_file }}'
+    state: absent
+  when: win_workman_sketchup2026_activation_info is changed
 
 - name: Report deployed license file
   ansible.builtin.debug:
