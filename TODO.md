@@ -31,6 +31,7 @@ Priorities, assigned 2026-09-28:
 | P3 | `usr`: agent log rotation |
 | P3 | `usr`: adopt more per-user packages |
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
+| P3 | `autoshutdown`: implement the `nouser` mode |
 | P3 | Roles with no documentation at all |
 
 ---
@@ -332,6 +333,38 @@ of 2026-09-28
   packages, the emptied install directory, the ACDLT2023 licensing logs).
 - `autocadlt2026-off-full` has never been run since the GUIDs became
   runtime-resolved in `93a26d7`.
+
+---
+
+## Management roles
+
+### `autoshutdown`: implement the `nouser` mode
+
+**Priority:** P3 — the first release ships `always` only; nothing depends on `nouser` yet  
+**Status:** proposed 2026-10-01 — the role shipped the same day with `always` only
+
+`autoshutdown` registers a scheduled task that shuts the host down at the times
+in `win_workman_autoshutdown_schedule`. `win_workman_autoshutdown_mode` is
+foreseen with two values, `always` (the default) and `nouser`; the first release
+implements `always` and its validation rejects `nouser` with an explicit
+message (`win_workman_autoshutdown_modes_implemented` in `vars/main.yaml`,
+checked in `tasks/schedule.yaml`).
+
+`nouser` shuts down only when no user session is open, in any state, as
+`shutdown-if-nouser` does from the controller. The check has to run on the host,
+so the task action becomes a PowerShell command instead of a bare
+`shutdown.exe`. Use the same session logic as `pkg_utils`
+`tasks/user_sessions.yaml`, so a locked or disconnected session keeps the host
+on in both roles.
+
+To decide when implementing: whether a host found busy at the scheduled time
+stays on until the next trigger, or the trigger repeats (say every 30 minutes
+for a few hours) so the host goes down once the last user leaves. A repetition
+needs its own variables and a stop time.
+
+Test on the model of `tests/shutdown_if_nouser.yaml` in the project repo:
+Active, Disconnected and no session, asserting the host stays on in the first
+two and goes offline in the third.
 
 ---
 

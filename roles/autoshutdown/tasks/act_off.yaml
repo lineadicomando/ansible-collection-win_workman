@@ -1,0 +1,9 @@
+---
+# Removes the task with the current name and path only: after changing either
+# variable, a task registered under the old ones has to be removed first.
+- name: Remove the autoshutdown scheduled task
+  community.windows.win_scheduled_task:
+    name: "{{ win_workman_autoshutdown_task_name }}"
+    path: "{{ win_workman_autoshutdown_task_path }}"
+    state: absent
+  register: win_workman_autoshutdown_result

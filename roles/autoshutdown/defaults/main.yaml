@@ -1,0 +1,9 @@
+---
+win_workman_autoshutdown_task_path: \win_workman
+win_workman_autoshutdown_task_name: AutoShutdown
+# One time for every day ("18:30"), or a list of entries with their own days.
+# Always quote the times: YAML reads a bare 18:30 as the number 1110.
+win_workman_autoshutdown_schedule: "18:30"
+win_workman_autoshutdown_warning: 60
+win_workman_autoshutdown_message: "Spegnimento automatico programmato: salvare il lavoro."
+win_workman_autoshutdown_mode: always

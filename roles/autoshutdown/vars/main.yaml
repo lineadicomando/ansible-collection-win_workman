@@ -1,0 +1,61 @@
+# ==============================================================================
+#  Automatic shutdown: a scheduled task that shuts the host down at fixed times,
+#  with no controller involved. The shutdown role is the push counterpart.
+# ==============================================================================
+---
+win_workman_autoshutdown_schema:
+  name: Automatic Shutdown
+  role: lineadicomando.win_workman.autoshutdown
+  default_action: !!str on
+
+win_workman_autoshutdown_weekdays:
+  - monday
+  - tuesday
+  - wednesday
+  - thursday
+  - friday
+  - saturday
+  - sunday
+
+# always is the only mode implemented; nouser is reserved, see TODO.md.
+win_workman_autoshutdown_modes_known:
+  - always
+  - nouser
+win_workman_autoshutdown_modes_implemented:
+  - always
+
+# Kept here as plain YAML: a backslash literal inside a Jinja expression stays
+# doubled.
+win_workman_autoshutdown_path_root: \
+
+win_workman_autoshutdown_time_pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+
+# The task string argument (autoshutdown-on-1830) wins over the variable and
+# means that time on every day.
+win_workman_autoshutdown_arg: >-
+  {{
+    (win_workman_task_argv | default([]))[2]
+    if ((win_workman_task_argv | default([]) | length) > 2)
+    else ''
+  }}
+
+win_workman_autoshutdown_schedule_requested: >-
+  {{
+    (win_workman_autoshutdown_arg | string | regex_replace('^(..)(..)$', '\1:\2'))
+    if (win_workman_autoshutdown_arg | string | length) > 0
+    else win_workman_autoshutdown_schedule
+  }}
+
+# A single time or a single entry is a schedule of one.
+win_workman_autoshutdown_entries: >-
+  {{
+    [win_workman_autoshutdown_schedule_requested]
+    if (win_workman_autoshutdown_schedule_requested is string
+        or win_workman_autoshutdown_schedule_requested is mapping)
+    else win_workman_autoshutdown_schedule_requested
+  }}
+
+# A double quote would close the /c argument of shutdown.exe early.
+win_workman_autoshutdown_arguments: >-
+  /s /f /t {{ win_workman_autoshutdown_warning | int }}
+  /c "{{ win_workman_autoshutdown_message | replace('"', "'") }}"
