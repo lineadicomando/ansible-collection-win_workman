@@ -3,7 +3,11 @@
 #   wu-run                     -> win_workman_wu_default_profile
 #   wu-run-<profile>           -> win_workman_wu_profiles[<profile>]
 #   wu-run-cat-<a>[+<b>...]    -> explicit category aliases, optional updates included
+#   wu-run-optional-<a>[+<b>...] -> the same aliases, among the updates Windows Update
+#                                 offers as OptionalInstallation (run_optional.yaml)
 # win_workman_wu_categories, when set, replaces the categories of a profile.
+# source tells run_round which engine installs: win_updates ('installation') or
+# run_optional ('optional').
 - name: Read wu-run selector
   ansible.builtin.set_fact:
     win_workman_wu_selector: "{{ win_workman_task.argv[2] | default(win_workman_wu_default_profile) }}"
@@ -12,11 +16,12 @@
 - name: Validate wu-run selector
   ansible.builtin.assert:
     that:
-      - win_workman_task.argv | length <= (4 if win_workman_wu_selector == 'cat' else 3)
-      - win_workman_wu_selector == 'cat' or win_workman_wu_selector in win_workman_wu_profiles
-      - win_workman_wu_selector != 'cat' or win_workman_wu_selector_arg | length > 0
+      - win_workman_task.argv | length <= (4 if win_workman_wu_selector in ['cat', 'optional'] else 3)
+      - win_workman_wu_selector in ['cat', 'optional'] or win_workman_wu_selector in win_workman_wu_profiles
+      - win_workman_wu_selector not in ['cat', 'optional'] or win_workman_wu_selector_arg | length > 0
     fail_msg: >-
-      Use wu-run, wu-run-<profile> or wu-run-cat-<category>[+<category>...].
+      Use wu-run, wu-run-<profile>, wu-run-cat-<category>[+<category>...] or
+      wu-run-optional-<category>[+<category>...].
       Profiles: {{ win_workman_wu_profiles.keys() | join(', ') }}.
       Categories: {{ win_workman_wu_category_aliases.keys() | join(', ') }}.
 
@@ -25,7 +30,7 @@
     win_workman_wu_selection_aliases: >-
       {{
         win_workman_wu_selector_arg.split('+') | map('trim') | map('lower') | select | list
-        if win_workman_wu_selector == 'cat' else
+        if win_workman_wu_selector in ['cat', 'optional'] else
         (win_workman_wu_categories | map('lower') | list
          if win_workman_wu_categories | length > 0 else
          win_workman_wu_profiles[win_workman_wu_selector].categories)
@@ -44,8 +49,12 @@
 - name: Set wu-run selection
   ansible.builtin.set_fact:
     win_workman_wu_selection:
-      label: "{{ 'categories' if win_workman_wu_selector == 'cat' else 'profile ' ~ win_workman_wu_selector }}"
+      label: >-
+        {{ 'categories' if win_workman_wu_selector == 'cat'
+           else 'optional updates' if win_workman_wu_selector == 'optional'
+           else 'profile ' ~ win_workman_wu_selector }}
+      source: "{{ 'optional' if win_workman_wu_selector == 'optional' else 'installation' }}"
       categories: "{{ win_workman_wu_selection_aliases | map('extract', win_workman_wu_category_aliases) | list }}"
       skip_optional: >-
-        {{ false if win_workman_wu_selector == 'cat'
+        {{ false if win_workman_wu_selector in ['cat', 'optional']
            else win_workman_wu_profiles[win_workman_wu_selector].skip_optional | default(false) | bool }}

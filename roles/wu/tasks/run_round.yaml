@@ -19,6 +19,14 @@
             reboot: false
             state: installed
           register: win_workman_wu_round
+          when: win_workman_wu_selection.source != 'optional'
+
+        # Sets win_workman_wu_round itself, shaped like a win_updates result.
+        - name: "Install optional updates (round {{ win_workman_wu_round_number }})"
+          ansible.builtin.include_role:
+            name: lineadicomando.win_workman.wu
+            tasks_from: run_optional
+          when: win_workman_wu_selection.source == 'optional'
 
       always:
         - name: Keep the round result for the report

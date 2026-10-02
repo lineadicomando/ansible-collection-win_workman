@@ -1,0 +1,140 @@
+---
+# One install of the updates Windows Update offers as OptionalInstallation
+# (monthly preview cumulatives, feature updates such as 25H2 -> 26H2, optional
+# drivers), for wu-run-optional-<category>[+<category>...]. win_updates cannot
+# reach them: its query is the fixed "IsInstalled = 0", which implies
+# DeploymentAction='Installation'.
+#
+# Leaves win_workman_wu_round shaped like a win_updates result (updates,
+# filtered_updates, the counts, reboot_required), so run_round, act_run and
+# run_report treat both engines alike. A single update that fails to download
+# or install is reported in its entry (failure_hresult_code), not as a failed
+# task, as win_updates does.
+#
+# Inputs: win_workman_wu_selection, win_workman_wu_round_number.
+# The Windows Update Agent refuses to download or install from a network
+# logon, hence SYSTEM. Async, since a feature update outlasts the connection
+# timeout. The entries stay flat (kb and categories as strings) to fit the
+# serialization depth.
+# The remote tmp is moved for this task: Ansible creates the inventory's
+# ansible_remote_tmp (C:\Windows\Temp\ansible) readable by the connecting user
+# only, and the become wrapper, running as SYSTEM, then fails there with
+# "CompileAssemblyFromSource ... path not found" before the script starts.
+- name: "Download and install optional updates (round {{ win_workman_wu_round_number }})"
+  ansible.windows.win_powershell:
+    parameters:
+      Categories: "{{ win_workman_wu_selection.categories | join('|') }}"
+    depth: 4
+    script: |
+      param([String]$Categories)
+      $wanted = @($Categories -split '\|' | Where-Object { $_ })
+
+      function ConvertTo-HResult([int]$Value) {
+          [BitConverter]::ToUInt32([BitConverter]::GetBytes($Value), 0)
+      }
+
+      $session = New-Object -ComObject Microsoft.Update.Session
+      $searcher = $session.CreateUpdateSearcher()
+      $found = $searcher.Search("IsInstalled=0 and IsHidden=0 and DeploymentAction='OptionalInstallation'").Updates
+
+      $updates = @{}
+      $filtered = @{}
+      $selected = @()
+      foreach ($u in $found) {
+          $classes = @($u.Categories | Where-Object { $_.Type -eq 'UpdateClassification' } | ForEach-Object { [string]$_.Name })
+          $entry = @{
+              id         = [string]$u.Identity.UpdateID
+              title      = [string]$u.Title
+              kb         = (@($u.KBArticleIDs | ForEach-Object { "KB$_" }) -join ', ')
+              categories = ($classes -join ', ')
+              downloaded = [bool]$u.IsDownloaded
+              installed  = $false
+          }
+          if (@($classes | Where-Object { $wanted -contains $_ }).Count -gt 0) {
+              if (-not $u.EulaAccepted) { $u.AcceptEula() }
+              $updates[$entry.id] = $entry
+              $selected += $u
+          } else {
+              $entry.filtered_reasons = @('category_names')
+              $filtered[$entry.id] = $entry
+          }
+      }
+
+      $rebootRequired = $false
+      if ($selected.Count -gt 0) {
+          $toDownload = New-Object -ComObject Microsoft.Update.UpdateColl
+          foreach ($u in $selected) { [void]$toDownload.Add($u) }
+          try {
+              $downloader = $session.CreateUpdateDownloader()
+              $downloader.Updates = $toDownload
+              $dl = $downloader.Download()
+              for ($i = 0; $i -lt $toDownload.Count; $i++) {
+                  $r = $dl.GetUpdateResult($i)
+                  $entry = $updates[[string]$toDownload.Item($i).Identity.UpdateID]
+                  $entry.downloaded = [bool]$toDownload.Item($i).IsDownloaded
+                  if (-not $entry.downloaded) {
+                      $entry.failure_hresult_code = ConvertTo-HResult $r.HResult
+                      $entry.failure_msg = 'download failed'
+                  }
+              }
+          } catch {
+              foreach ($entry in $updates.Values) {
+                  $entry.failure_hresult_code = ConvertTo-HResult $_.Exception.HResult
+                  $entry.failure_msg = "download failed: $($_.Exception.Message)"
+              }
+          }
+
+          $toInstall = New-Object -ComObject Microsoft.Update.UpdateColl
+          foreach ($u in $selected) {
+              $entry = $updates[[string]$u.Identity.UpdateID]
+              if ($u.IsDownloaded -and -not $entry.ContainsKey('failure_hresult_code')) { [void]$toInstall.Add($u) }
+          }
+          if ($toInstall.Count -gt 0) {
+              try {
+                  $installer = $session.CreateUpdateInstaller()
+                  $installer.Updates = $toInstall
+                  $in = $installer.Install()
+                  $rebootRequired = [bool]$in.RebootRequired
+                  for ($i = 0; $i -lt $toInstall.Count; $i++) {
+                      $r = $in.GetUpdateResult($i)
+                      $entry = $updates[[string]$toInstall.Item($i).Identity.UpdateID]
+                      # 2 = succeeded, 3 = succeeded with errors
+                      if ($r.ResultCode -in 2, 3) {
+                          $entry.installed = $true
+                      } else {
+                          $entry.failure_hresult_code = ConvertTo-HResult $r.HResult
+                          $entry.failure_msg = "install failed (result code $([int]$r.ResultCode))"
+                      }
+                  }
+              } catch {
+                  foreach ($u in $toInstall) {
+                      $entry = $updates[[string]$u.Identity.UpdateID]
+                      $entry.failure_hresult_code = ConvertTo-HResult $_.Exception.HResult
+                      $entry.failure_msg = "install failed: $($_.Exception.Message)"
+                  }
+              }
+          }
+      }
+
+      $installed = @($updates.Values | Where-Object { $_.installed }).Count
+      $Ansible.Changed = $installed -gt 0
+      $Ansible.Result = @{
+          updates                = $updates
+          filtered_updates       = $filtered
+          found_update_count     = $updates.Count
+          installed_update_count = $installed
+          failed_update_count    = @($updates.Values | Where-Object { $_.ContainsKey('failure_hresult_code') }).Count
+          reboot_required        = $rebootRequired
+      }
+  vars:
+    ansible_remote_tmp: C:\Windows\Temp
+  become: true
+  become_method: ansible.builtin.runas
+  become_user: SYSTEM
+  async: "{{ win_workman_wu_optional_timeout | int }}"
+  poll: 30
+  register: win_workman_wu_optional_raw
+
+- name: Keep the optional install as the round result
+  ansible.builtin.set_fact:
+    win_workman_wu_round: "{{ win_workman_wu_optional_raw.result }}"

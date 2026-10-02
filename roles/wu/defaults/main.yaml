@@ -10,13 +10,16 @@ win_workman_wu_reboot_timeout: 1800
 # Install rounds in one wu-run, each followed by a restart when needed. Another
 # round starts only after a restart.
 win_workman_wu_max_rounds: 5
+# Seconds wu-run-optional-... may take to download and install in one round.
+win_workman_wu_optional_timeout: 7200
 
 # wu-run profiles: a bare wu-run uses win_workman_wu_default_profile,
 # wu-run-<name> the named one. Categories are the aliases listed in
 # vars/main.yaml (win_workman_wu_category_aliases); skip_optional drops updates
-# Microsoft marks BrowseOnly. It does not concern the monthly preview
-# cumulatives: those are OptionalInstallation, not BrowseOnly, and no profile
-# reaches them (see "Optional updates" in docs/roles/management/wu.md).
+# Microsoft marks BrowseOnly. It does not concern the updates published as
+# OptionalInstallation (monthly preview cumulatives, some feature updates):
+# no profile reaches them, wu-run-optional-<category> does (see "Optional
+# updates" in docs/roles/management/wu.md).
 # Upgrades (feature updates, e.g. 25H2 -> 26H2) are left out of full on purpose:
 # they take an hour and several reboots, and have their own profile.
 win_workman_wu_default_profile: security
