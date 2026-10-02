@@ -1,0 +1,49 @@
+---
+# Read-only: lists what Windows Update offers the host, installing nothing.
+# Two searches, since the Windows Update Agent keeps them apart: the updates a
+# wu-run profile or wu-run-cat-... can install, and those published as
+# OptionalInstallation, which only wu-run-optional-<category> reaches.
+# Leaves the lists in win_workman_wu_scan (pending, optional).
+- name: Read Windows build and pause state
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: build_info
+
+- name: Search for available updates
+  ansible.windows.win_powershell:
+    script: |
+      $searcher = (New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher()
+      function Get-Offered([String]$Criteria) {
+          @($searcher.Search($Criteria).Updates | ForEach-Object {
+              $classes = @($_.Categories | Where-Object { $_.Type -eq 'UpdateClassification' } | ForEach-Object { $_.Name })
+              '[{0}] {1}' -f ($classes -join ', '), $_.Title
+          })
+      }
+      $Ansible.Result = @{
+          pending  = @(Get-Offered "IsInstalled=0 and IsHidden=0")
+          optional = @(Get-Offered "IsInstalled=0 and IsHidden=0 and DeploymentAction='OptionalInstallation'")
+      }
+      $Ansible.Changed = $false
+  register: win_workman_wu_scan_raw
+
+- name: Set Windows Update scan fact
+  ansible.builtin.set_fact:
+    win_workman_wu_scan:
+      build: "{{ win_workman_wu_build }}"
+      pending: "{{ win_workman_wu_scan_raw.result.pending | default([], true) }}"
+      optional: "{{ win_workman_wu_scan_raw.result.optional | default([], true) }}"
+
+- name: Report Windows Update scan
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        ['Build: ' ~ win_workman_wu_scan.build,
+         'Pending (wu-run): ' ~ win_workman_wu_scan.pending | length]
+        + win_workman_wu_scan.pending
+        + ['Optional (wu-run-optional-<category>): ' ~ win_workman_wu_scan.optional | length]
+        + win_workman_wu_scan.optional
+        + (['Pause had expired: Windows may install updates on its own']
+            if win_workman_wu_pause_status | int == 2 else [])
+        + (['Paused until ' ~ win_workman_wu_pause_expiry]
+            if win_workman_wu_pause_status | int == 1 else [])
+      }}
