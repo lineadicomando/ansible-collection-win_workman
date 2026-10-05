@@ -41,18 +41,35 @@ def validate_extra_vars(extra_vars) -> str | None:
         return f"extra_vars is not JSON-serialisable: {e}"
     return None
 
+# Each fork is a Python process on the controller holding a connection open.
+MAX_FORKS = 100
+
+
+def validate_forks(forks) -> str | None:
+    """Return an error message if forks is not a usable -f value, else None."""
+    if forks is None:
+        return None
+    if isinstance(forks, bool) or not isinstance(forks, int):
+        return "forks must be an integer"
+    if not 1 <= forks <= MAX_FORKS:
+        return f"forks must be between 1 and {MAX_FORKS}"
+    return None
+
 
 def build_wm_command(
     t: list[str],
     l: str = "all",
     inventory: str = "school",
     extra_vars: dict | None = None,
+    forks: int | None = None,
 ) -> list[str]:
     root = _project_root()
     cmd = ["ansible-playbook", "lineadicomando.win_workman.win_workman"]
     cmd += ["-i", str(root / "inventories" / inventory / "hosts.yaml")]
     if l and l != "all":
         cmd += ["-l", l]
+    if forks is not None:
+        cmd += ["-f", str(forks)]
     cmd += ["-e", json.dumps({**(extra_vars or {}), "t": ",".join(t)})]
     return cmd
 
@@ -96,7 +113,7 @@ def format_command(cmd: list[str]) -> str:
     i = 0
     while i < len(cmd):
         token = cmd[i]
-        if token in ("-e", "-i", "-l") and i + 1 < len(cmd):
+        if token in ("-e", "-i", "-l", "-f") and i + 1 < len(cmd):
             parts.append(f"{token} '{cmd[i + 1]}'")
             i += 2
         else:

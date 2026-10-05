@@ -8,7 +8,7 @@ from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, Pagina
 
 from roles import get_role_info, list_roles, pkg_actions
 from runlog import NotifyFn, done_path, format_status
-from runner import build_wm_command, format_command, validate_extra_vars, run_command, run_status, start_run, wait_run
+from runner import MAX_FORKS, build_wm_command, format_command, validate_extra_vars, validate_forks, run_command, run_status, start_run, wait_run
 
 app = Server("win-workman")
 
@@ -87,6 +87,17 @@ def _get_tools() -> list[Tool]:
                             "get_role_info lists each role's variables under 'defaults'. "
                             "'t' and ansible_* connection variables are refused."
                         ),
+                    },
+                    "forks": {
+                        "type": "integer",
+                        "description": (
+                            "Hosts worked on in parallel (ansible -f). Omit it to keep "
+                            "the configured value, 5 unless ansible.cfg or ANSIBLE_FORKS "
+                            "say otherwise; set it to the number of hosts to run a whole "
+                            "lab at once instead of five at a time."
+                        ),
+                        "minimum": 1,
+                        "maximum": MAX_FORKS,
                     },
                     "preview": {
                         "type": "boolean",
@@ -237,11 +248,12 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
         inventory: str = arguments.get("inventory", "school")
         preview: bool = arguments.get("preview", False)
         extra_vars = arguments.get("extra_vars")
-        error = validate_extra_vars(extra_vars)
+        forks = arguments.get("forks")
+        error = validate_extra_vars(extra_vars) or validate_forks(forks)
         if error:
             return CallToolResult(content=[TextContent(type="text", text=f"Error: {error}")])
 
-        cmd = build_wm_command(t, l, inventory, extra_vars)
+        cmd = build_wm_command(t, l, inventory, extra_vars, forks)
 
         if preview:
             return CallToolResult(content=[TextContent(
