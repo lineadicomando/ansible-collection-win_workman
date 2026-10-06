@@ -18,8 +18,9 @@
       $psi.RedirectStandardError  = $true
       $psi.UseShellExecute = $false
       $psi.CreateNoWindow = $true
-      $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::UTF8
-      $psi.StandardErrorEncoding  = [System.Text.UTF8Encoding]::UTF8
+      $oem = [System.Text.Encoding]::GetEncoding((Get-Culture).TextInfo.OEMCodePage)
+      $psi.StandardOutputEncoding = $oem
+      $psi.StandardErrorEncoding  = $oem
 
       $process = New-Object System.Diagnostics.Process
 
@@ -28,6 +29,7 @@
         $process.Start() | Out-Null
         $stdOut = $process.StandardOutput.ReadToEnd()
         $stdErr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
         $exitCode = $process.ExitCode
 
         $resultMap = @{

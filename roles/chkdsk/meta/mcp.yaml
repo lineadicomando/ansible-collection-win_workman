@@ -2,10 +2,10 @@
 display_name: Check Disk (chkdsk)
 custom_actions:
   - name: "on"
-    description: Schedule chkdsk on target volumes; runs on next reboot
+    description: Run an online scan (chkdsk /scan) on target volumes and report the outcome
 defaults:
   - var: win_workman_chkdsk_volumes
     type: list
     default: ["C"]
-    description: Drive letters to schedule chkdsk on
-notes: "chkdsk runs at next reboot; a restart is typically needed after scheduling."
+    description: Drive letters to scan
+notes: "The scan runs at once with the volume in use: no restart, and nothing is scheduled for the next boot. It only detects: a volume with errors fails the task and still needs an offline repair (chkdsk /spotfix or /f)."
