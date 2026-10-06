@@ -1,0 +1,9 @@
+---
+# scan: whether a Repairable store fails the task. false reports state and
+# counts only, so the tasks after it still run.
+win_workman_wim_scan_fail_on_repairable: true
+# repair: local source, either wim:C:\Temp\install.wim:1 (or esd:) or a folder
+# holding the components. Empty means Windows Update.
+win_workman_wim_repair_source: ""
+# repair: with a source, keep DISM from falling back on Windows Update.
+win_workman_wim_repair_limit_access: true
