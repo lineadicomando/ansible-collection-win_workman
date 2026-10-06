@@ -2,11 +2,17 @@
 - name: Scan Windows image health (ScanHealth)
   ansible.windows.win_powershell:
     script: |
+      param(
+        [Parameter(Mandatory = $false)]
+        [bool]$FailOnRepairable = $true
+      )
+
       $Ansible.Changed = $false
       $Ansible.Failed  = $false
       $Ansible.Result  = @{}
 
       try {
+        $started = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         $scan = Repair-WindowsImage -Online -ScanHealth -ErrorAction Stop
 
         $healthState = $null
@@ -14,32 +20,73 @@
           $healthState = [string]$scan.ImageHealthState
         }
 
+        # The cmdlet only gives the state: how much is corrupted is in the
+        # summary this scan wrote to CBS.log
+        $detected   = $null
+        $payload    = $null
+        $components = $null
+        $logFile    = Join-Path $env:windir 'Logs\CBS\CBS.log'
+        if (Test-Path -Path $logFile) {
+          $lines = @(Select-String -Path $logFile `
+              -Pattern 'Total Detected Corruption:\s*(\d+)', 'CSI Payload Corruption:\s*(\d+)', 'CSI Payload Corrupt\s+\(\w\)\s+(\S+)' `
+              -ErrorAction SilentlyContinue |
+            Where-Object { $_.Line.Substring(0, [math]::Min(19, $_.Line.Length)) -ge $started })
+
+          $total = $lines | Where-Object { $_.Line -match 'Total Detected Corruption:' } | Select-Object -Last 1
+          if ($total) {
+            $detected = [int]$total.Matches[0].Groups[1].Value
+          }
+          $csi = $lines | Where-Object { $_.Line -match 'CSI Payload Corruption:' } | Select-Object -Last 1
+          if ($csi) {
+            $payload = [int]$csi.Matches[0].Groups[1].Value
+          }
+          if ($null -ne $detected) {
+            $components = @($lines | Where-Object { $_.Line -match 'CSI Payload Corrupt\s+\(' } |
+              ForEach-Object { ($_.Matches[0].Groups[1].Value -split '\\')[0] } |
+              Sort-Object -Unique).Count
+          }
+        }
+
+        $counts = ''
+        if ($null -ne $detected) {
+          $counts = " Detected corruption: $detected (payload: $payload, in $components components)."
+        }
+
         switch ($healthState) {
           'Healthy' {
             $Ansible.Failed = $false
             $Ansible.Result = @{
-              Status    = 'Healthy'
-              Message   = 'Image health: Healthy.'
-              ScanState = $healthState
-              ScanRaw   = $scan
+              Status     = 'Healthy'
+              Message    = "Image health: Healthy.$counts"
+              ScanState  = $healthState
+              Detected   = $detected
+              Payload    = $payload
+              Components = $components
+              ScanRaw    = $scan
             }
           }
           'Repairable' {
-            $Ansible.Failed = $true
+            $Ansible.Failed = $FailOnRepairable
             $Ansible.Result = @{
-              Status    = 'Repairable'
-              Message   = 'Image health: Repairable.'
-              ScanState = $healthState
-              ScanRaw   = $scan
+              Status     = 'Repairable'
+              Message    = "Image health: Repairable.$counts"
+              ScanState  = $healthState
+              Detected   = $detected
+              Payload    = $payload
+              Components = $components
+              ScanRaw    = $scan
             }
           }
           'NonRecoverable' {
             $Ansible.Failed = $true
             $Ansible.Result = @{
-              Status    = 'NonRecoverable'
-              Message   = 'Image health: NonRecoverable.'
-              ScanState = $healthState
-              ScanRaw   = $scan
+              Status     = 'NonRecoverable'
+              Message    = "Image health: NonRecoverable.$counts"
+              ScanState  = $healthState
+              Detected   = $detected
+              Payload    = $payload
+              Components = $components
+              ScanRaw    = $scan
             }
           }
           Default {
@@ -67,4 +114,10 @@
           Message = "Repair-WindowsImage failed: $($_.Exception.Message)"
         }
       }
+    parameters:
+      FailOnRepairable: "{{ win_workman_wim_scan_fail_on_repairable | default(true) | bool }}"
   register: win_workman_wim_scan
+
+- name: Show scan result
+  ansible.builtin.debug:
+    msg: "{{ win_workman_wim_scan.result.Message | default('no result') }}"
