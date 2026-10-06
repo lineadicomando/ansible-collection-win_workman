@@ -150,6 +150,6 @@
         }
       }
     parameters:
-      Source: "{{ win_workman_wim_repair_source | default('') }}"
-      LimitAccess: "{{ win_workman_wim_repair_limit_access | default(true) | bool }}"
+      Source: "{{ win_workman_wim_repair_source }}"
+      LimitAccess: "{{ win_workman_wim_repair_limit_access | bool }}"
   register: win_workman_wim_repair

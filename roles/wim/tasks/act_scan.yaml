@@ -115,7 +115,7 @@
         }
       }
     parameters:
-      FailOnRepairable: "{{ win_workman_wim_scan_fail_on_repairable | default(true) | bool }}"
+      FailOnRepairable: "{{ win_workman_wim_scan_fail_on_repairable | bool }}"
   register: win_workman_wim_scan
 
 - name: Show scan result
