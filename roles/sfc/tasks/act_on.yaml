@@ -4,7 +4,7 @@
     name: lineadicomando.win_workman.pkg_utils
     tasks_from: pending_restart
   when:
-    - win_workman_restart | bool | default(true)
+    - win_workman_restart | default(true) | bool
 
 - name: Run sfc /scannow
   ansible.windows.win_powershell:
@@ -59,8 +59,14 @@
         $repaired     = $false
         $cannotRepair = $false
         $repairFailed = $false
+        $scanRan      = $false
 
         if (Test-Path -Path $logFile) {
+          # sfc logs every step as [SR]; none of them means it never scanned
+          $scanRan = Select-String -Path $logFile `
+            -Pattern '\[SR\]' `
+            -Quiet -ErrorAction SilentlyContinue
+
           $repaired = Select-String -Path $logFile `
             -Pattern '.*Repaired file.*', '.*Repairing corrupted file.*' `
             -Quiet -ErrorAction SilentlyContinue
@@ -75,7 +81,7 @@
         }
 
         $Ansible.Changed = [bool]$repaired
-        $Ansible.Failed  = [bool]($cannotRepair -or $repairFailed)
+        $Ansible.Failed  = [bool]($cannotRepair -or $repairFailed -or -not $scanRan)
 
         $lines = ($stdOut -replace "`0","") -split "(`r`n|`n)" |
           ForEach-Object { $_.Trim() } |
@@ -83,11 +89,18 @@
 
         $cleanStdOut = ($lines -join ' - ') -replace '\s{2,}', ' '
 
+        $message = ''
+        if (-not $scanRan) {
+          $message = "sfc did not scan (exit code $exitCode): no [SR] entry was written to CBS.log."
+        }
+
         $Ansible.Result = @{
           ExitCode      = $exitCode
+          Message       = $message
           StdOut        = $cleanStdOut
           StdErr        = $stdErr
           LogFile       = $logFile
+          ScanRan       = [bool]$scanRan
           Repaired      = $repaired
           CannotRepair  = $cannotRepair
           RepairFailed  = $repairFailed

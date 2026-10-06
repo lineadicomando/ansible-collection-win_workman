@@ -20,13 +20,22 @@
           $params.Defrag = $true
         }
 
-        $result = Optimize-Volume @params 4>&1
+        # Optimize-Volume reports what it did only on the verbose stream
+        $output = Optimize-Volume @params -Verbose 4>&1 | ForEach-Object { "$_".Trim() }
 
         $Ansible.Changed = $true
-        $Ansible.Result  = $result
+        $Ansible.Result  = @{
+          Drive  = "$DriveLetter`:"
+          Output = @($output | Where-Object { $_ })
+        }
       } catch {
-        $Ansible.Failed = "Optimize-Volume failed on drive ${DriveLetter}: $($_.Exception.Message)"
+        $Ansible.Failed  = $true
         $Ansible.Changed = $false
+        $Ansible.Result  = @{
+          Drive  = "$DriveLetter`:"
+          Error  = "Optimize-Volume failed on drive ${DriveLetter}: $($_.Exception.Message)"
+          Output = @()
+        }
       }
     parameters:
       DriveLetter: "{{ win_workman_optimize_volume }}"
@@ -39,3 +48,11 @@
   when:
     - win_workman_optimize_volumes is defined
     - win_workman_optimize_volumes | length > 0
+
+- name: Show optimize results
+  ansible.builtin.debug:
+    msg: "{{ item.result.Drive }} | {{ item.result.Output | default([]) | join(' - ') | default('no output', true) }}"
+  loop: "{{ win_workman_optimize_vol.results | default([]) }}"
+  loop_control:
+    label: "{{ item.result.Drive | default(item.win_workman_optimize_volume | default('')) }}"
+  when: item.result is defined

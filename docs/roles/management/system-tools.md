@@ -99,13 +99,19 @@ No variables.
 
 ## chkdsk
 
-Runs Check Disk (`chkdsk`) to detect and repair file system errors.
+Runs an online Check Disk scan (`chkdsk /scan`) to detect file system errors.
 
 | Action | Description |
 |---|---|
-| `on` | Run Check Disk on next boot |
+| `on` | Scan the volumes at once, with the system running |
 
-No variables. Operation is queued for the next system restart.
+| Variable | Default | Description |
+|---|---|---|
+| `win_workman_chkdsk_volumes` | `["C"]` | Drive letters to scan |
+
+No restart, and nothing is scheduled for the next boot. The scan only detects:
+a volume with errors fails the task and still needs an offline repair
+(`chkdsk /spotfix` or `/f`).
 
 ---
 
@@ -118,7 +124,13 @@ system file integrity.
 |---|---|
 | `on` | Scan and repair system files |
 
-No variables. Operation may require a restart to complete repairs.
+| Variable | Default | Description |
+|---|---|---|
+| `win_workman_restart` | `true` | Restart the host first when Windows has a reboot pending, whoever is logged on; `false` skips the check |
+
+The task fails when `sfc` cannot repair a file and when it did not scan at all,
+e.g. with a repair pending that needs a restart. Repairs may require a restart
+to complete.
 
 ---
 

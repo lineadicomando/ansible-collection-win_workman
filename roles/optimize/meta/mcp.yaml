@@ -12,4 +12,4 @@ defaults:
     type: bool
     default: false
     description: Force defragmentation even on SSDs (not recommended)
-notes: "Only 'on' is meaningful; the standard 'off' action is a no-op."
+notes: "Only 'on' is implemented; there is no 'off'. Without win_workman_optimize_defrag Windows picks the operation by media type: retrim on SSDs, analysis and defragmentation on HDDs, which can take long."
