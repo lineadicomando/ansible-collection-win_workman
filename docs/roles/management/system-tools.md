@@ -75,11 +75,35 @@ health operations.
 | `scan` | Run `DISM /ScanHealth` |
 | `repair` | Run `DISM /RestoreHealth` |
 
-No variables. Operations run against the live Windows image (`/Online`).
+| Variable | Default | Description |
+|---|---|---|
+| `win_workman_wim_scan_fail_on_repairable` | `true` | `scan` fails on a `Repairable` store; `false` only reports it, so the tasks after it still run |
+| `win_workman_wim_repair_source` | `""` | Local repair source for `repair`; empty means Windows Update |
+| `win_workman_wim_repair_limit_access` | `true` | With a source, keep DISM from falling back on Windows Update (`/LimitAccess`) |
+
+Operations run against the live Windows image (`/Online`).
 Bare `wim` (no action token) defaults to `check`.
 
-> `repair` downloads missing files from Windows Update; the host must have
-> internet access or a local WSUS/WIM source.
+`scan` reports the state together with the corruption counted in the summary
+it wrote to `CBS.log`: total, payload files and the components they belong to.
+`check` only reads a flag left by the last scan or repair, so it can be stale
+either way; `scan` is the actual check. `NonRecoverable` and errors fail the
+task whatever the variable says.
+
+`repair` scans first and calls `RestoreHealth` only on a `Repairable` store.
+Without a source it downloads the missing files from Windows Update. A source
+is a path on the host itself, not a UNC path, in one of two forms:
+
+```yaml
+# An image file and the index of the edition in it (esd: likewise)
+win_workman_wim_repair_source: 'wim:C:\Temp\install.wim:1'
+
+# A folder holding the components: a Windows directory or its WinSxS
+win_workman_wim_repair_source: 'C:\Temp\Windows'
+```
+
+> DISM repairs a component only from a copy in the very same version: an image
+> of the base build does not hold what a later cumulative update installed.
 
 ---
 

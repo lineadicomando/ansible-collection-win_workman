@@ -4,32 +4,42 @@
     script: |
       param(
         [Parameter(Mandatory = $false)]
-        [string]$Source = ''
+        [string]$Source = '',
+
+        [Parameter(Mandatory = $false)]
+        [bool]$LimitAccess = $true
       )
 
       $Ansible.Changed = $false
       $Ansible.Failed  = $false
       $Ansible.Result  = @{}
 
+      # Either an image file with its index (wim:C:\Temp\install.wim:1) or a
+      # folder holding the components: a Windows directory or its WinSxS
       $Source = $Source.Trim()
       if ($Source) {
         $sourceMatch = [regex]::Match(
           $Source,
-          '^wim:(?<path>[A-Za-z]:\\.+):(?<index>\d+)$'
+          '^(?:wim|esd):(?<path>[A-Za-z]:\\.+):(?<index>\d+)$'
         )
 
-        if (-not $sourceMatch.Success) {
+        if ($sourceMatch.Success) {
+          $sourcePath = $sourceMatch.Groups['path'].Value
+          $sourceType = 'Leaf'
+        } elseif ($Source -match '^[A-Za-z]:\\') {
+          $sourcePath = $Source
+          $sourceType = 'Container'
+        } else {
           $Ansible.Failed = $true
           $Ansible.Result = @{
             Status  = 'InvalidSource'
-            Message = "Invalid -Source format. Expected: wim:C:\Temp\install.wim:1 (got: $Source)"
+            Message = "Invalid -Source format. Expected wim:C:\Temp\install.wim:1 or a local folder such as C:\Temp\Windows (got: $Source)"
             Source  = $Source
           }
           return
         }
 
-        $sourcePath = $sourceMatch.Groups['path'].Value
-        if (-not (Test-Path -Path $sourcePath)) {
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType $sourceType)) {
           $Ansible.Failed = $true
           $Ansible.Result = @{
             Status  = 'MissingSourcePath'
@@ -67,6 +77,11 @@
 
             if ($Source) {
               $restoreParams['Source'] = $Source
+              # Without it DISM still goes to Windows Update for what the
+              # source lacks, and the outcome no longer tells if the source works
+              if ($LimitAccess) {
+                $restoreParams['LimitAccess'] = $true
+              }
             }
 
             $restore = Repair-WindowsImage @restoreParams
@@ -81,6 +96,7 @@
               $Ansible.Result  = @{
                 Status       = 'Repaired'
                 Message      = 'Image health: Repairable. RestoreHealth succeeded.'
+                Source       = $Source
                 ScanState    = $healthState
                 RestoreState = $restoreState
                 ScanRaw      = $scan
@@ -91,6 +107,7 @@
               $Ansible.Result = @{
                 Status       = 'RepairFailed'
                 Message      = "Image health: Repairable. RestoreHealth did not reach Healthy (state: $restoreState)."
+                Source       = $Source
                 ScanState    = $healthState
                 RestoreState = $restoreState
                 ScanRaw      = $scan
@@ -134,4 +151,5 @@
       }
     parameters:
       Source: "{{ win_workman_wim_repair_source | default('') }}"
+      LimitAccess: "{{ win_workman_wim_repair_limit_access | default(true) | bool }}"
   register: win_workman_wim_repair

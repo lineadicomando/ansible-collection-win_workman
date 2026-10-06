@@ -2,9 +2,22 @@
 display_name: Windows Image (DISM)
 custom_actions:
   - name: scan
-    description: Scan the component store for corruption (DISM /ScanHealth)
+    description: Scan the component store for corruption (DISM /ScanHealth) and report how much was detected
   - name: check
     description: Check whether the component store is repairable (DISM /CheckHealth)
   - name: repair
-    description: Repair the component store using Windows Update (DISM /RestoreHealth)
-notes: "Does not install software. Typical sequence: check → scan → repair."
+    description: Repair the component store (DISM /RestoreHealth), from Windows Update or from a local source
+defaults:
+  - var: win_workman_wim_scan_fail_on_repairable
+    type: bool
+    default: true
+    description: "'scan' fails on a Repairable store. false reports state and counts without failing, so the tasks after it still run; NonRecoverable and errors fail anyway."
+  - var: win_workman_wim_repair_source
+    type: str
+    default: ""
+    description: "Local source for 'repair': an image and its index (wim:C:\\Temp\\install.wim:1, or esd:) or a folder with the components (a Windows directory or its WinSxS). Empty: Windows Update."
+  - var: win_workman_wim_repair_limit_access
+    type: bool
+    default: true
+    description: With a source, keep DISM from falling back on Windows Update (/LimitAccess). Ignored without a source.
+notes: "Does not install software. Typical sequence: check → scan → repair. The source path is local to the host: no UNC paths. DISM repairs a component only from a copy in the very same version."
