@@ -17,6 +17,10 @@
 
       try {
         secedit.exe /export /areas USER_RIGHTS /cfg $tmpFile | Out-Null
+        # A failed export must not read as a right nobody holds
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $tmpFile)) {
+          throw "secedit /export failed with exit code $LASTEXITCODE"
+        }
 
         $line = Select-String -Path $tmpFile -Pattern $pattern | Select-Object -First 1
         if (-not $line) {

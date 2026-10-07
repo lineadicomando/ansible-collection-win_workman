@@ -2,5 +2,10 @@
 display_name: User Logoff
 custom_actions:
   - name: "on"
-    description: Force logoff of all interactive user sessions
+    description: Force logoff of every user session, Active or Disconnected, and wait for them to end
+defaults:
+  - var: win_workman_logoff_timeout_seconds
+    type: int
+    default: 300
+    description: Seconds to wait for the sessions to end; the task fails if any is left
 notes: "Does not install software."

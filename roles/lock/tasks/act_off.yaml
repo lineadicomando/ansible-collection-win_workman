@@ -1,19 +1,19 @@
 ---
-- name: Set Banner Title
+- name: Restore the banner
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.lock
     tasks_from: maint_mode_banner
   vars:
     win_workman_mode_state: absent
 
-- name: Set display last username
+- name: Restore the last username setting
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.lock
     tasks_from: maint_mode_display_last_username
   vars:
     win_workman_mode_state: absent
 
-- name: Set Se Interactive Logon Rights
+- name: Restore the interactive logon right
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.lock
     tasks_from: maint_mode_se_logon

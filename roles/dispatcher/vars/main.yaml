@@ -1,4 +1,3 @@
 ---
 _win_workman_tasks_parsed: >-
   {{ win_workman_tasks | lineadicomando.win_workman.parse_tasks }}
-_win_workman_executed: []

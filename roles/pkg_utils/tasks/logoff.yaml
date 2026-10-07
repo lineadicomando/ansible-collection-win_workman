@@ -1,343 +1,130 @@
 ---
+# Logs off every session that carries a user, then waits for them to end.
+# Like user_sessions, every state counts, not only WTSActive: a user switched
+# away from (fast user switching) or dropped from RDP is WTSDisconnected and
+# still holds a loaded profile and open files. Session 0 (services, the Ansible
+# SSH session) and system accounts are left out.
 - name: Force logoff interactive sessions
   ansible.windows.win_powershell:
-      script: |
-          $Ansible.Changed = $false
-          $Ansible.Failed = $false
+    parameters:
+      TimeoutSeconds: "{{ win_workman_logoff_timeout_seconds }}"
+    script: |
+      param(
+        [int]$TimeoutSeconds = 300
+      )
 
-          function Ensure-WtsTypes {
-            if ('WinMgmtWtsNative' -as [type]) {
-              return
-            }
-            $typeDefinition = @(
-              'using System;',
-              'using System.Runtime.InteropServices;',
-              'public enum WinMgmtWtsConnectState {',
-              '  WTSActive, WTSConnected, WTSConnectQuery, WTSShadow, WTSDisconnected,',
-              '  WTSIdle, WTSListen, WTSReset, WTSDown, WTSInit',
-              '}',
-              'public enum WinMgmtWtsInfoClass {',
-              '  WTSInitialProgram, WTSApplicationName, WTSWorkingDirectory, WTSOEMId,',
-              '  WTSSessionId, WTSUserName, WTSWinStationName, WTSDomainName',
-              '}',
-              '[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]',
-              'public struct WinMgmtWtsSessionInfo {',
-              '  public int SessionId;',
-              '  [MarshalAs(UnmanagedType.LPTStr)] public string WinStationName;',
-              '  public WinMgmtWtsConnectState State;',
-              '}',
-              'public static class WinMgmtWtsNative {',
-              '  [DllImport("wtsapi32.dll", SetLastError=true)]',
-              '  public static extern bool WTSEnumerateSessions(IntPtr hServer, int reserved, int version, out IntPtr ppSessionInfo, out int count);',
-              '  [DllImport("wtsapi32.dll")]',
-              '  public static extern void WTSFreeMemory(IntPtr pMemory);',
-              '  [DllImport("wtsapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]',
-              '  public static extern bool WTSQuerySessionInformation(IntPtr hServer, int sessionId, WinMgmtWtsInfoClass infoClass, out IntPtr ppBuffer, out int bytesReturned);',
-              '  [DllImport("wtsapi32.dll", SetLastError=true)]',
-              '  public static extern bool WTSLogoffSession(IntPtr hServer, int sessionId, bool bWait);',
-              '}'
-            ) -join [Environment]::NewLine
-            Add-Type -TypeDefinition $typeDefinition -ErrorAction Stop | Out-Null
+      $Ansible.Changed = $false
+      $Ansible.Failed = $false
+
+      if (-not ('WinMgmtWtsLogoff' -as [type])) {
+        Add-Type -ErrorAction Stop -TypeDefinition (@(
+          'using System;',
+          'using System.Runtime.InteropServices;',
+          '[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]',
+          'public struct WinMgmtWtsLogoffEntry {',
+          '  public int SessionId;',
+          '  [MarshalAs(UnmanagedType.LPTStr)] public string WinStationName;',
+          '  public int State;',
+          '}',
+          'public static class WinMgmtWtsLogoff {',
+          '  [DllImport("wtsapi32.dll", SetLastError=true)]',
+          '  public static extern bool WTSEnumerateSessions(IntPtr hServer, int reserved, int version, out IntPtr ppSessionInfo, out int count);',
+          '  [DllImport("wtsapi32.dll")]',
+          '  public static extern void WTSFreeMemory(IntPtr pMemory);',
+          '  [DllImport("wtsapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]',
+          '  public static extern bool WTSQuerySessionInformation(IntPtr hServer, int sessionId, int infoClass, out IntPtr ppBuffer, out int bytesReturned);',
+          '  [DllImport("wtsapi32.dll", SetLastError=true)]',
+          '  public static extern bool WTSLogoffSession(IntPtr hServer, int sessionId, bool bWait);',
+          '}'
+        ) -join [Environment]::NewLine)
+      }
+
+      # WTS_CONNECTSTATE_CLASS and WTS_INFO_CLASS values
+      $stateNames = 'Active', 'Connected', 'ConnectQuery', 'Shadow', 'Disconnected', 'Idle', 'Listen', 'Reset', 'Down', 'Init'
+      $WTSUserName = 5
+      $WTSDomainName = 7
+
+      function Get-WtsText([int]$SessionId, [int]$InfoClass) {
+        $buffer = [IntPtr]::Zero
+        $bytes = 0
+        try {
+          if (-not [WinMgmtWtsLogoff]::WTSQuerySessionInformation([IntPtr]::Zero, $SessionId, $InfoClass, [ref]$buffer, [ref]$bytes) -or $bytes -le 2) {
+            return ''
           }
+          return [Runtime.InteropServices.Marshal]::PtrToStringUni($buffer)
+        }
+        finally {
+          if ($buffer -ne [IntPtr]::Zero) { [WinMgmtWtsLogoff]::WTSFreeMemory($buffer) }
+        }
+      }
 
-          function Get-WtsText {
-            param(
-              [int]$SessionId,
-              [object]$InfoClass
-            )
-
-            $buffer = [IntPtr]::Zero
-            $bytesReturned = 0
-            try {
-              $ok = [WinMgmtWtsNative]::WTSQuerySessionInformation(
-                [IntPtr]::Zero,
-                $SessionId,
-                $InfoClass,
-                [ref]$buffer,
-                [ref]$bytesReturned
-              )
-              if (-not $ok -or $buffer -eq [IntPtr]::Zero -or $bytesReturned -le 1) {
-                return ''
-              }
-              return [Runtime.InteropServices.Marshal]::PtrToStringUni($buffer)
-            } finally {
-              if ($buffer -ne [IntPtr]::Zero) {
-                [WinMgmtWtsNative]::WTSFreeMemory($buffer)
-              }
-            }
+      function Get-UserSessions {
+        $list = [IntPtr]::Zero
+        $count = 0
+        if (-not [WinMgmtWtsLogoff]::WTSEnumerateSessions([IntPtr]::Zero, 0, 1, [ref]$list, [ref]$count)) {
+          throw "WTSEnumerateSessions failed with Win32Error=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+        }
+        $sessions = @()
+        try {
+          $size = [Runtime.InteropServices.Marshal]::SizeOf([type]'WinMgmtWtsLogoffEntry')
+          for ($i = 0; $i -lt $count; $i++) {
+            $entry = [Runtime.InteropServices.Marshal]::PtrToStructure([IntPtr]($list.ToInt64() + $i * $size), [type]'WinMgmtWtsLogoffEntry')
+            if ($entry.SessionId -le 0) { continue }
+            $user = Get-WtsText $entry.SessionId $WTSUserName
+            if (-not $user) { continue }
+            $domain = Get-WtsText $entry.SessionId $WTSDomainName
+            $full = if ($domain) { "$domain\$user" } else { $user }
+            if ($full -match '^NT (AUTHORITY|SERVICE)\\') { continue }
+            $sessions += [pscustomobject]@{ SessionId = $entry.SessionId; UserName = $full; State = $stateNames[$entry.State] }
           }
+        }
+        finally {
+          [WinMgmtWtsLogoff]::WTSFreeMemory($list)
+        }
+        return $sessions
+      }
 
-          function Get-InteractiveSessions {
-            Ensure-WtsTypes
-
-            $sessionInfoPtr = [IntPtr]::Zero
-            $sessionCount = 0
-            $result = @()
-            $structSize = [Runtime.InteropServices.Marshal]::SizeOf([type]'WinMgmtWtsSessionInfo')
-            try {
-              $ok = [WinMgmtWtsNative]::WTSEnumerateSessions([IntPtr]::Zero, 0, 1, [ref]$sessionInfoPtr, [ref]$sessionCount)
-              if (-not $ok) {
-                $lastErr = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-                throw "WTSEnumerateSessions failed with Win32Error=$lastErr"
-              }
-
-              for ($i = 0; $i -lt $sessionCount; $i++) {
-                $itemPtr = [IntPtr]($sessionInfoPtr.ToInt64() + ($i * $structSize))
-                $sessionInfo = [Runtime.InteropServices.Marshal]::PtrToStructure($itemPtr, [type]'WinMgmtWtsSessionInfo')
-                if ([int]$sessionInfo.SessionId -le 0) {
-                  continue
-                }
-                if ($sessionInfo.State -ne [WinMgmtWtsConnectState]::WTSActive) {
-                  continue
-                }
-
-                $userName = Get-WtsText -SessionId ([int]$sessionInfo.SessionId) -InfoClass ([WinMgmtWtsInfoClass]::WTSUserName)
-                if (-not $userName) {
-                  continue
-                }
-                $domainName = Get-WtsText -SessionId ([int]$sessionInfo.SessionId) -InfoClass ([WinMgmtWtsInfoClass]::WTSDomainName)
-                $fullUserName = if ($domainName) { "$domainName\$userName" } else { $userName }
-                if ($fullUserName -match '^NT AUTHORITY\\' -or $fullUserName -match '^NT SERVICE\\') {
-                  continue
-                }
-
-                $result += [pscustomobject]@{
-                  SessionId = [int]$sessionInfo.SessionId
-                  UserName  = [string]$fullUserName
-                  State     = [string]$sessionInfo.State
-                }
-              }
-            } finally {
-              if ($sessionInfoPtr -ne [IntPtr]::Zero) {
-                [WinMgmtWtsNative]::WTSFreeMemory($sessionInfoPtr)
-              }
-            }
-            return @($result | Sort-Object SessionId, UserName -Unique)
-          }
-
-          function Get-TargetSessions {
-            return @(Get-InteractiveSessions)
-          }
-
-          try {
-            $targets = Get-TargetSessions
-            if (-not $targets -or $targets.Count -eq 0) {
-              $Ansible.Result = @{
-                UsersConnected = 0
-                SessionsTargeted = 0
-                Message = 'No interactive sessions found.'
-              }
-              return
-            }
-
-            $sessionIds = @($targets | Select-Object -ExpandProperty SessionId -Unique)
-            $users = @($targets | Select-Object -ExpandProperty UserName -Unique)
-            $logoffErrors = @()
-            $logoffCount = 0
-            $logoffMethodsUsed = @()
-
-            function Invoke-WtsLogoff {
-              param(
-                [int]$SessionId
-              )
-
-              Ensure-WtsTypes
-              $ok = [WinMgmtWtsNative]::WTSLogoffSession([IntPtr]::Zero, $SessionId, $false)
-              if (-not $ok) {
-                $lastErr = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-                throw "WTSLogoffSession failed with Win32Error=$lastErr"
-              }
-            }
-
-            foreach ($sid in $sessionIds) {
-              try {
-                Invoke-WtsLogoff -SessionId ([int]$sid)
-                $logoffCount++
-                $logoffMethodsUsed += 'WTSLogoffSession'
-              } catch {
-                $logoffErrors += "logoff session $sid failed: $($_.Exception.Message)"
-              }
-            }
-
-            if ($logoffCount -gt 0) {
-              $Ansible.Changed = $true
-            }
-            if ($logoffCount -eq 0 -and $logoffErrors.Count -gt 0) {
-              $Ansible.Failed = $true
-            }
-            $Ansible.Result = @{
-              UsersTargeted = @($users)
-              SessionsTargeted = @($sessionIds)
-              SessionsLoggedOff = $logoffCount
-              MethodsUsed = @($logoffMethodsUsed | Select-Object -Unique)
-              Errors = @($logoffErrors)
-            }
-          } catch {
-            $Ansible.Failed = $true
-            $Ansible.Result = @{
-              Error = "$($_.Exception.Message)"
-              ErrorType = "$($_.Exception.GetType().FullName)"
-              ErrorDetails = "$($_.Exception)"
-            }
-          }
-
-- name: Wait for user sessions to end after logoff
-  ansible.windows.win_powershell:
-      parameters:
-          timeout_seconds: "{{ win_workman_logoff_timeout_seconds | default(300) }}"
-      script: |
-          param(
-            [int]$timeout_seconds = 300
-          )
-
-          $Ansible.Changed = $false
-          $Ansible.Failed = $false
-
-          function Ensure-WtsTypes {
-            if ('WinMgmtWtsNative' -as [type]) {
-              return
-            }
-            $typeDefinition = @(
-              'using System;',
-              'using System.Runtime.InteropServices;',
-              'public enum WinMgmtWtsConnectState {',
-              '  WTSActive, WTSConnected, WTSConnectQuery, WTSShadow, WTSDisconnected,',
-              '  WTSIdle, WTSListen, WTSReset, WTSDown, WTSInit',
-              '}',
-              'public enum WinMgmtWtsInfoClass {',
-              '  WTSInitialProgram, WTSApplicationName, WTSWorkingDirectory, WTSOEMId,',
-              '  WTSSessionId, WTSUserName, WTSWinStationName, WTSDomainName',
-              '}',
-              '[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]',
-              'public struct WinMgmtWtsSessionInfo {',
-              '  public int SessionId;',
-              '  [MarshalAs(UnmanagedType.LPTStr)] public string WinStationName;',
-              '  public WinMgmtWtsConnectState State;',
-              '}',
-              'public static class WinMgmtWtsNative {',
-              '  [DllImport("wtsapi32.dll", SetLastError=true)]',
-              '  public static extern bool WTSEnumerateSessions(IntPtr hServer, int reserved, int version, out IntPtr ppSessionInfo, out int count);',
-              '  [DllImport("wtsapi32.dll")]',
-              '  public static extern void WTSFreeMemory(IntPtr pMemory);',
-              '  [DllImport("wtsapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]',
-              '  public static extern bool WTSQuerySessionInformation(IntPtr hServer, int sessionId, WinMgmtWtsInfoClass infoClass, out IntPtr ppBuffer, out int bytesReturned);',
-              '}'
-            ) -join [Environment]::NewLine
-            Add-Type -TypeDefinition $typeDefinition -ErrorAction Stop | Out-Null
-          }
-
-          function Get-WtsText {
-            param(
-              [int]$SessionId,
-              [object]$InfoClass
-            )
-
-            $buffer = [IntPtr]::Zero
-            $bytesReturned = 0
-            try {
-              $ok = [WinMgmtWtsNative]::WTSQuerySessionInformation(
-                [IntPtr]::Zero,
-                $SessionId,
-                $InfoClass,
-                [ref]$buffer,
-                [ref]$bytesReturned
-              )
-              if (-not $ok -or $buffer -eq [IntPtr]::Zero -or $bytesReturned -le 1) {
-                return ''
-              }
-              return [Runtime.InteropServices.Marshal]::PtrToStringUni($buffer)
-            } finally {
-              if ($buffer -ne [IntPtr]::Zero) {
-                [WinMgmtWtsNative]::WTSFreeMemory($buffer)
-              }
-            }
-          }
-
-          function Get-InteractiveSessions {
-            Ensure-WtsTypes
-
-            $sessionInfoPtr = [IntPtr]::Zero
-            $sessionCount = 0
-            $result = @()
-            $structSize = [Runtime.InteropServices.Marshal]::SizeOf([type]'WinMgmtWtsSessionInfo')
-            try {
-              $ok = [WinMgmtWtsNative]::WTSEnumerateSessions([IntPtr]::Zero, 0, 1, [ref]$sessionInfoPtr, [ref]$sessionCount)
-              if (-not $ok) {
-                $lastErr = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-                throw "WTSEnumerateSessions failed with Win32Error=$lastErr"
-              }
-
-              for ($i = 0; $i -lt $sessionCount; $i++) {
-                $itemPtr = [IntPtr]($sessionInfoPtr.ToInt64() + ($i * $structSize))
-                $sessionInfo = [Runtime.InteropServices.Marshal]::PtrToStructure($itemPtr, [type]'WinMgmtWtsSessionInfo')
-                if ([int]$sessionInfo.SessionId -le 0) {
-                  continue
-                }
-                if ($sessionInfo.State -ne [WinMgmtWtsConnectState]::WTSActive) {
-                  continue
-                }
-
-                $userName = Get-WtsText -SessionId ([int]$sessionInfo.SessionId) -InfoClass ([WinMgmtWtsInfoClass]::WTSUserName)
-                if (-not $userName) {
-                  continue
-                }
-                $domainName = Get-WtsText -SessionId ([int]$sessionInfo.SessionId) -InfoClass ([WinMgmtWtsInfoClass]::WTSDomainName)
-                $fullUserName = if ($domainName) { "$domainName\$userName" } else { $userName }
-                if ($fullUserName -match '^NT AUTHORITY\\' -or $fullUserName -match '^NT SERVICE\\') {
-                  continue
-                }
-
-                $result += [pscustomobject]@{
-                  SessionId = [int]$sessionInfo.SessionId
-                  UserName  = [string]$fullUserName
-                  State     = [string]$sessionInfo.State
-                }
-              }
-            } finally {
-              if ($sessionInfoPtr -ne [IntPtr]::Zero) {
-                [WinMgmtWtsNative]::WTSFreeMemory($sessionInfoPtr)
-              }
-            }
-            return @($result | Sort-Object SessionId, UserName -Unique)
-          }
-
-          function Get-TargetSessions {
-            return @(Get-InteractiveSessions)
-          }
-
-          $timeoutSeconds = $timeout_seconds
-          $pollIntervalSeconds = 5
-          $start = Get-Date
-          $lastSessionIds = @()
-          $lastUsers = @()
-          $lastProbeError = ''
-
-          while (((Get-Date) - $start).TotalSeconds -lt $timeoutSeconds) {
-            try {
-              $targets = Get-TargetSessions
-              $lastSessionIds = @($targets | Select-Object -ExpandProperty SessionId -Unique)
-              $lastUsers = @($targets | Select-Object -ExpandProperty UserName -Unique)
-              if (-not $lastSessionIds -or $lastSessionIds.Count -eq 0) {
-                $Ansible.Result = @{
-                  UsersConnected = 0
-                  ElapsedSeconds = [int]((Get-Date) - $start).TotalSeconds
-                  SessionsConnected = 0
-                }
-                return
-              }
-            } catch {
-              $lastProbeError = $_.Exception.Message
-            }
-            Start-Sleep -Seconds $pollIntervalSeconds
-          }
-
-          $Ansible.Failed = $true
+      try {
+        $targets = @(Get-UserSessions)
+        if ($targets.Count -eq 0) {
           $Ansible.Result = @{
-            Error = "Timeout waiting for interactive sessions to disconnect."
-            TimeoutSeconds = $timeoutSeconds
-            LastUsersConnected = @($lastUsers).Count
-            LastSessionsConnected = @($lastSessionIds).Count
-            LastUsers = @($lastUsers)
-            LastSessionIds = @($lastSessionIds)
-            LastProbeError = "$lastProbeError"
+            SessionsTargeted  = @()
+            SessionsLoggedOff = 0
+            Message           = 'No user sessions found.'
           }
+          return
+        }
+
+        $errors = @()
+        $loggedOff = 0
+        foreach ($target in $targets) {
+          if ([WinMgmtWtsLogoff]::WTSLogoffSession([IntPtr]::Zero, $target.SessionId, $false)) {
+            $loggedOff++
+          } else {
+            $errors += "logoff session $($target.SessionId) failed: Win32Error=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+          }
+        }
+        $Ansible.Changed = $loggedOff -gt 0
+
+        # WTSLogoffSession only asks: the sessions end once their processes do
+        $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+        $left = @(Get-UserSessions)
+        while ($left.Count -gt 0 -and (Get-Date) -lt $deadline) {
+          Start-Sleep -Seconds 5
+          $left = @(Get-UserSessions)
+        }
+
+        $Ansible.Failed = $left.Count -gt 0
+        $Ansible.Result = @{
+          SessionsTargeted  = @($targets | ForEach-Object { "$($_.SessionId) $($_.UserName) ($($_.State))" })
+          SessionsLoggedOff = $loggedOff
+          SessionsLeft      = @($left | ForEach-Object { "$($_.SessionId) $($_.UserName) ($($_.State))" })
+          Errors            = @($errors)
+          Message           = if ($left.Count -gt 0) { "Timeout after $TimeoutSeconds s waiting for the user sessions to end." } else { '' }
+        }
+      } catch {
+        $Ansible.Failed = $true
+        $Ansible.Result = @{
+          Error = "$($_.Exception.Message)"
+        }
+      }

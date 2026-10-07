@@ -1,4 +1,6 @@
 ---
+# check: whether a Repairable flag fails the task, as for scan below.
+win_workman_wim_check_fail_on_repairable: true
 # scan: whether a Repairable store fails the task. false reports state and
 # counts only, so the tasks after it still run.
 win_workman_wim_scan_fail_on_repairable: true

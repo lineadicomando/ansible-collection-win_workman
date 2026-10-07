@@ -49,7 +49,11 @@
 
         $counts = ''
         if ($null -ne $detected) {
-          $counts = " Detected corruption: $detected (payload: $payload, in $components components)."
+          $counts = " Detected corruption: $detected"
+          if ($null -ne $payload) {
+            $counts += " (payload: $payload, in $components components)"
+          }
+          $counts += '.'
         }
 
         switch ($healthState) {

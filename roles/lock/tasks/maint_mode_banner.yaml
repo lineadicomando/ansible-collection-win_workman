@@ -85,6 +85,8 @@
     win_workman_banner_text_current_exists: "{{ win_workman_registry_read.result.exists | bool }}"
     win_workman_banner_text_current_value: "{{ win_workman_registry_read.result.value if (win_workman_registry_read.result.exists | bool) else '' }}"
 
+# The Exists flag is what marks the value as saved, so it is written last: a
+# run cut between the two leaves no flag, and the next lock-on saves again.
 - name: Save LegalNoticeCaption recovery metadata
   ansible.windows.win_regedit:
     path: HKLM:\SOFTWARE\Ansible\WinMaint
@@ -93,12 +95,12 @@
     type: "{{ item.type }}"
     state: present
   loop:
-    - name: LegalNoticeCaptionExists
-      data: "{{ 1 if win_workman_banner_caption_current_exists else 0 }}"
-      type: dword
     - name: LegalNoticeCaption
       data: "{{ win_workman_banner_caption_current_value }}"
       type: string
+    - name: LegalNoticeCaptionExists
+      data: "{{ 1 if win_workman_banner_caption_current_exists else 0 }}"
+      type: dword
   when:
     - win_workman_mode_state == 'present'
     - not (win_workman_banner_caption_restore_exists | bool)
@@ -111,12 +113,12 @@
     type: "{{ item.type }}"
     state: present
   loop:
-    - name: LegalNoticeTextExists
-      data: "{{ 1 if win_workman_banner_text_current_exists else 0 }}"
-      type: dword
     - name: LegalNoticeText
       data: "{{ win_workman_banner_text_current_value }}"
       type: string
+    - name: LegalNoticeTextExists
+      data: "{{ 1 if win_workman_banner_text_current_exists else 0 }}"
+      type: dword
   when:
     - win_workman_mode_state == 'present'
     - not (win_workman_banner_text_restore_exists | bool)
@@ -141,6 +143,8 @@
   when:
     - win_workman_mode_state == 'present'
 
+# Restoring and removing both need the saved state: without it the host was
+# never locked, and whatever notice it shows belongs to someone else.
 - name: Restore LegalNoticeCaption
   ansible.windows.win_regedit:
     path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
@@ -150,6 +154,7 @@
     state: present
   when:
     - win_workman_mode_state == 'absent'
+    - win_workman_banner_caption_restore_exists | bool
     - win_workman_banner_caption_had_value != 0
 
 - name: Remove LegalNoticeCaption
@@ -159,6 +164,7 @@
     state: absent
   when:
     - win_workman_mode_state == 'absent'
+    - win_workman_banner_caption_restore_exists | bool
     - win_workman_banner_caption_had_value == 0
 
 - name: Restore LegalNoticeText
@@ -170,6 +176,7 @@
     state: present
   when:
     - win_workman_mode_state == 'absent'
+    - win_workman_banner_text_restore_exists | bool
     - win_workman_banner_text_had_value != 0
 
 - name: Remove LegalNoticeText
@@ -179,6 +186,7 @@
     state: absent
   when:
     - win_workman_mode_state == 'absent'
+    - win_workman_banner_text_restore_exists | bool
     - win_workman_banner_text_had_value == 0
 
 - name: Remove LegalNoticeCaption recovery metadata

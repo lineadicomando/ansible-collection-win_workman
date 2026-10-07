@@ -7,17 +7,21 @@
     win_workman_winreg_path: "HKLM:\\SOFTWARE\\Ansible\\WinMaint"
     win_workman_winreg_name: "SeInteractiveLogonRight"
 
+# registry_read hands back a multistring of one entry as a plain string and an
+# empty one as null
 - name: Set restore flags for SeInteractiveLogonRight
   ansible.builtin.set_fact:
-    win_workman_restore_exists: "{{ win_workman_registry_read.result.exists | bool }}"
-    win_workman_restore_value: >-
+    win_workman_se_logon_restore_exists: "{{ win_workman_registry_read.result.exists | bool }}"
+    win_workman_se_logon_restore_value: >-
       {{
-        (win_workman_registry_read.result.value) if (
+        (
+          [win_workman_registry_read.result.value]
+          if win_workman_registry_read.result.value is string
+          else (win_workman_registry_read.result.value | default([], true))
+        ) if (
           win_workman_registry_read.result.exists | bool
         ) else []
       }}
-  when:
-    - win_workman_registry_read is not none
 
 - name: Get current value (SeInteractiveLogonRight)
   ansible.builtin.include_role:
@@ -28,26 +32,34 @@
 
 - name: Set current value for SeInteractiveLogonRight
   ansible.builtin.set_fact:
-    win_workman_current_value: >-
-      {{
-        (win_workman_se_read.result) if (
-          win_workman_se_read.result is not none
-        ) else []
-      }}
+    win_workman_se_logon_current_value: "{{ win_workman_se_read.result | default([], true) }}"
+
+# An empty list here would be saved, and lock-off would then restore it:
+# nobody could log on at the console any more.
+- name: Validate what is about to be saved and set
+  ansible.builtin.assert:
+    that:
+      - win_workman_mode_interactive_logon_users is not string
+      - win_workman_mode_interactive_logon_users | length > 0
+      - (win_workman_se_logon_restore_exists | bool) or (win_workman_se_logon_current_value | length > 0)
+    fail_msg: >-
+      Refusing to lock: win_workman_mode_interactive_logon_users must be a
+      non-empty list ({{ win_workman_mode_interactive_logon_users }}) and the
+      host must report who holds SeInteractiveLogonRight now
+      ({{ win_workman_se_logon_current_value }}).
   when:
-    - win_workman_se_read is not none
+    - win_workman_mode_state == 'present'
 
 - name: Set recovery value
   ansible.windows.win_regedit:
     path: HKLM:\SOFTWARE\Ansible\WinMaint
     name: SeInteractiveLogonRight
-    data: "{{ win_workman_current_value }}"
+    data: "{{ win_workman_se_logon_current_value }}"
     type: multistring
     state: present
   when:
     - win_workman_mode_state == 'present'
-    - not (win_workman_restore_exists | bool)
-    - win_workman_current_value is not none
+    - not (win_workman_se_logon_restore_exists | bool)
 
 - name: Set SeInteractiveLogonRight
   ansible.windows.win_user_right:
@@ -57,13 +69,45 @@
   when:
     - win_workman_mode_state == 'present'
 
+# An empty saved right cannot be what the host had: restoring it would keep
+# everybody from logging on. lock-on no longer saves one, but a host locked by
+# an older version of the role, or a saved state edited by hand, may hold it.
+- name: Fall back when the saved SeInteractiveLogonRight is empty
+  when:
+    - win_workman_mode_state == 'absent'
+    - win_workman_se_logon_restore_exists | bool
+    - win_workman_se_logon_restore_value | length == 0
+  block:
+    - name: Validate the fallback users
+      ansible.builtin.assert:
+        that:
+          - win_workman_mode_interactive_logon_fallback_users is not string
+          - win_workman_mode_interactive_logon_fallback_users | length > 0
+        fail_msg: >-
+          The saved SeInteractiveLogonRight is empty and so is
+          win_workman_mode_interactive_logon_fallback_users: the host stays
+          locked.
+
+    - name: Warn that the fallback users are used
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: the saved SeInteractiveLogonRight of {{ inventory_hostname }}
+          is empty. Unlocking with win_workman_mode_interactive_logon_fallback_users
+          ({{ win_workman_mode_interactive_logon_fallback_users | join(', ') }}):
+          check that this is who should log on at this host.
+
 - name: Restore SeInteractiveLogonRight
   ansible.windows.win_user_right:
     name: SeInteractiveLogonRight
-    users: "{{ win_workman_restore_value }}"
+    users: >-
+      {{
+        win_workman_se_logon_restore_value
+        if win_workman_se_logon_restore_value | length > 0
+        else win_workman_mode_interactive_logon_fallback_users
+      }}
     action: set
   when:
-    - win_workman_restore_exists | bool
+    - win_workman_se_logon_restore_exists | bool
     - win_workman_mode_state == 'absent'
 
 - name: Remove recovery value
@@ -73,4 +117,4 @@
     state: absent
   when:
     - win_workman_mode_state == 'absent'
-    - win_workman_restore_exists | bool
+    - win_workman_se_logon_restore_exists | bool

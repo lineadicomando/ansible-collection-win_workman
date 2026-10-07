@@ -20,8 +20,10 @@
           $params.Defrag = $true
         }
 
-        # Optimize-Volume reports what it did only on the verbose stream
-        $output = Optimize-Volume @params -Verbose 4>&1 | ForEach-Object { "$_".Trim() }
+        # Optimize-Volume reports what it did only on the verbose stream,
+        # progress included: "<step>:  33% ..." lines by the hundred
+        $output = Optimize-Volume @params -Verbose 4>&1 | ForEach-Object { "$_".Trim() } |
+          Where-Object { $_ -notmatch ':\s+\d+%\s' }
 
         $Ansible.Changed = $true
         $Ansible.Result  = @{
@@ -39,20 +41,16 @@
       }
     parameters:
       DriveLetter: "{{ win_workman_optimize_volume }}"
-      Defrag: "{{ win_workman_optimize_defrag | default(false) }}"
-  loop: "{{ win_workman_optimize_volumes | default([]) }}"
+      Defrag: "{{ win_workman_optimize_defrag | bool }}"
+  loop: "{{ win_workman_optimize_volumes }}"
   loop_control:
     loop_var: win_workman_optimize_volume
     label: "{{ win_workman_optimize_volume }}:"
   register: win_workman_optimize_vol
-  when:
-    - win_workman_optimize_volumes is defined
-    - win_workman_optimize_volumes | length > 0
 
 - name: Show optimize results
   ansible.builtin.debug:
     msg: "{{ item.result.Drive }} | {{ item.result.Output | default([]) | join(' - ') | default('no output', true) }}"
-  loop: "{{ win_workman_optimize_vol.results | default([]) }}"
+  loop: "{{ win_workman_optimize_vol.results }}"
   loop_control:
-    label: "{{ item.result.Drive | default(item.win_workman_optimize_volume | default('')) }}"
-  when: item.result is defined
+    label: "{{ item.result.Drive }}"
