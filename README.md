@@ -142,6 +142,7 @@ All catalog roles support the standard package actions: `on` (install), `off` (u
 |---|---|---|
 | `geogebra` | GeoGebra Calculator Suite | — |
 | `geogebra5` | GeoGebra Classic 5 | — |
+| `goldendict` | GoldenDict-ng | — |
 | `libreoffice` | LibreOffice | `rm_data` |
 | `zoom` | Zoom | — |
 | `googledrive` | Google Drive | — |
