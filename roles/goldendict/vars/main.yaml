@@ -1,0 +1,31 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        GoldenDict-ng
+#      - Homepage:    https://xiaoyifang.github.io/goldendict-ng/
+#      - Download:    https://github.com/xiaoyifang/goldendict-ng/releases
+# ==============================================================================
+---
+win_workman_goldendict_schema:
+  name: GoldenDict-ng
+  role: lineadicomando.win_workman.goldendict
+  default_action: !!str on
+  package:
+    setup_file: GoldenDict-ng-26.8.0-Qt6.8.3-Windows-installer.exe
+    searchName: "goldendict-ng*"
+    version: 26.8.0
+    provider: registry
+    install_args: "/S"
+    uninstall_args: "/S"
+    uninstall_via_helper: true
+    cleanup_paths:
+      - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\goldendict-ng'
+  files:
+    - filename: GoldenDict-ng-26.8.0-Qt6.8.3-Windows-installer.exe
+      url: https://github.com/xiaoyifang/goldendict-ng/releases/download/v26.8.0/GoldenDict-ng-26.8.0-Qt6.8.3-Windows-installer.exe
+      checksum: sha256:354bdce2509a6b73eef60fd5cf49770dbc3824e52b3c25f8dcef8ae48307b865
+  shortcuts:
+    - description: "GoldenDict-ng"
+      src: '%ProgramFiles%\GoldenDict-ng\goldendict.exe'
+      dest: '%Public%\Desktop\GoldenDict-ng.lnk'
+      icon: '%ProgramFiles%\GoldenDict-ng\goldendict.exe,0'
+      directory: '%ProgramFiles%\GoldenDict-ng'

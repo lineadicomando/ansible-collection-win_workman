@@ -107,6 +107,7 @@ The collection has two distinct role families:
 | [roles/catalog/virtiogt.md](roles/catalog/virtiogt.md) | `virtiogt` — KVM/QEMU guest tools |
 | [roles/catalog/geogebra.md](roles/catalog/geogebra.md) | `geogebra` — dynamic mathematics software |
 | [roles/catalog/geogebra5.md](roles/catalog/geogebra5.md) | `geogebra5` — mathematics software classic version |
+| [roles/catalog/goldendict.md](roles/catalog/goldendict.md) | `goldendict` — GoldenDict-ng dictionary lookup program |
 | [roles/catalog/libreoffice.md](roles/catalog/libreoffice.md) | `libreoffice` — office productivity suite |
 | [roles/catalog/zoom.md](roles/catalog/zoom.md) | `zoom` — video conferencing and collaboration |
 | [roles/catalog/rustdesk.md](roles/catalog/rustdesk.md) | `rustdesk` — open-source remote desktop |
@@ -143,7 +144,7 @@ The collection has two distinct role families:
 [`gimp`](roles/catalog/gimp.md) · [`inkscape`](roles/catalog/inkscape.md) · [`blender`](roles/catalog/blender.md) · [`sketchup2026`](roles/catalog/sketchup2026.md) · [`autocadlt2023`](roles/catalog/autocadlt2023.md) · [`autocadlt2026`](roles/catalog/autocadlt2026.md) · [`vlc`](roles/catalog/vlc.md) · [`puredata`](roles/catalog/puredata.md) · [`audacity`](roles/catalog/audacity.md)
 
 ### Catalog — Education & Productivity
-[`geogebra`](roles/catalog/geogebra.md) · [`geogebra5`](roles/catalog/geogebra5.md) · [`libreoffice`](roles/catalog/libreoffice.md) · [`zoom`](roles/catalog/zoom.md)
+[`geogebra`](roles/catalog/geogebra.md) · [`geogebra5`](roles/catalog/geogebra5.md) · [`goldendict`](roles/catalog/goldendict.md) · [`libreoffice`](roles/catalog/libreoffice.md) · [`zoom`](roles/catalog/zoom.md)
 
 ### Catalog — Utilities & Runtimes
 [`adobe_reader_dc`](roles/catalog/adobe_reader_dc.md) · [`foxit_pdf_reader`](roles/catalog/foxit_pdf_reader.md) · [`p7zip`](roles/catalog/p7zip.md) · [`peazip`](roles/catalog/peazip.md) · [`powertoys`](roles/catalog/powertoys.md) · [`windirstat`](roles/catalog/windirstat.md) · [`ntop`](roles/catalog/ntop.md) · [`nircmd`](roles/catalog/nircmd.md) · [`winfsp`](roles/catalog/winfsp.md) · [`putty`](roles/catalog/putty.md) · [`winscp`](roles/catalog/winscp.md) · [`filezilla`](roles/catalog/filezilla.md) · [`vcredist14`](roles/catalog/vcredist14.md) · [`virtiogt`](roles/catalog/virtiogt.md) · [`patchcleaner`](roles/catalog/patchcleaner.md) · [`rustdesk`](roles/catalog/rustdesk.md) · [`driver_reviver`](roles/catalog/driver_reviver.md)
