@@ -71,12 +71,12 @@ health operations.
 | Action | Description |
 |---|---|
 | `check` *(default)* | Run `DISM /CheckHealth` |
-| `on` | Alias for `check` |
 | `scan` | Run `DISM /ScanHealth` |
 | `repair` | Run `DISM /RestoreHealth` |
 
 | Variable | Default | Description |
 |---|---|---|
+| `win_workman_wim_check_fail_on_repairable` | `true` | `check` fails on a `Repairable` store; `false` only reports it, so the tasks after it still run |
 | `win_workman_wim_scan_fail_on_repairable` | `true` | `scan` fails on a `Repairable` store; `false` only reports it, so the tasks after it still run |
 | `win_workman_wim_repair_source` | `""` | Local repair source for `repair`; empty means Windows Update |
 | `win_workman_wim_repair_limit_access` | `true` | With a source, keep DISM from falling back on Windows Update (`/LimitAccess`) |
@@ -166,7 +166,14 @@ Forces the logoff of all interactive user sessions on the target.
 |---|---|
 | `on` | Force logoff all interactive sessions |
 
-No variables. This action disconnects all logged-in users immediately.
+| Variable | Default | Description |
+|---|---|---|
+| `win_workman_logoff_timeout_seconds` | `300` | Seconds to wait for the sessions to end; the task fails if any is left |
+
+Every session that carries a user is logged off, whatever its state: the one at
+the console (Active) and those of users switched away from or dropped from RDP
+(Disconnected). Session 0, where services and the Ansible SSH connection run,
+is left alone.
 
 ---
 
@@ -242,9 +249,15 @@ Sends a Wake-on-LAN (WoL) magic packet to power on a host.
 | `on` | Send WoL packet and wait for SSH connectivity |
 
 Requires:
-- `ansible_mac` — MAC address of the target NIC
+- `ansible_mac` — MAC address of the target NIC; a host without it fails with a
+  message that says so
 - `ansible_broadcast` (optional) — broadcast address for WoL packet
-- `ansible_host` — hostname or IP for SSH connectivity check (timeout: 300s)
+- `ansible_host` — hostname or IP for the connectivity check
 
-Delegated to `localhost` — the controller sends the WoL packet and monitors
-for SSH port 22 availability on the target.
+| Variable | Default | Description |
+|---|---|---|
+| `win_workman_wol_packets` | `3` | Magic packets sent, one second apart |
+| `win_workman_wol_timeout` | `300` | Seconds to wait for the host to answer |
+
+Delegated to `localhost` — the controller sends the WoL packets and waits for
+the target to answer on `ansible_port` (default 22).

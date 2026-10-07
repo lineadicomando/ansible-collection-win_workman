@@ -1,13 +1,24 @@
 ---
+- name: Check the host has a MAC address in the inventory
+  ansible.builtin.assert:
+    that:
+      - ansible_mac is defined
+    fail_msg: "wol needs ansible_mac in the inventory for {{ inventory_hostname }}"
+    quiet: true
+
 - name: Send a magic Wake-on-LAN
   community.general.wakeonlan:
     mac: "{{ ansible_mac }}"
     broadcast: "{{ ansible_broadcast | default(omit) }}"
   delegate_to: localhost
+  loop: "{{ range(win_workman_wol_packets | int) | list }}"
+  loop_control:
+    label: "{{ ansible_mac }}"
+    pause: 1
 
-- name: Wait for target to respond on SSH port
+- name: Wait for target to respond on its connection port
   ansible.builtin.wait_for:
     host: "{{ ansible_host }}"
-    port: 22
-    timeout: 300
+    port: "{{ ansible_port | default(22) }}"
+    timeout: "{{ win_workman_wol_timeout }}"
   delegate_to: localhost

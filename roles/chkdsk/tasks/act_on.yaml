@@ -18,9 +18,11 @@
       $psi.RedirectStandardError  = $true
       $psi.UseShellExecute = $false
       $psi.CreateNoWindow = $true
-      $oem = [System.Text.Encoding]::GetEncoding((Get-Culture).TextInfo.OEMCodePage)
-      $psi.StandardOutputEncoding = $oem
-      $psi.StandardErrorEncoding  = $oem
+      # Without a console, as over SSH, chkdsk writes in the ANSI code page,
+      # not the OEM one
+      $ansi = [System.Text.Encoding]::GetEncoding((Get-Culture).TextInfo.ANSICodePage)
+      $psi.StandardOutputEncoding = $ansi
+      $psi.StandardErrorEncoding  = $ansi
 
       $process = New-Object System.Diagnostics.Process
 
@@ -57,11 +59,13 @@
           }
         }
 
-        $lines = ($stdOut -split "`n") | Where-Object {
-          $_ -and
-          ($_ -notmatch '\d')
+        # Progress is redrawn in place with carriage returns: of each line
+        # only what was left on screen is kept
+        $lines = ($stdOut -split "`n") | ForEach-Object {
+          $shown = @(($_ -split "`r") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+          if ($shown.Count -gt 0) { $shown[-1] }
         }
-        $cleanStdOut = ($lines -join " - ") -replace '-', '' -replace '\s{2,}', ' '
+        $cleanStdOut = ($lines -join ' - ') -replace '\s{2,}', ' '
 
         $Ansible.Result = @{
           ExitCode = $exitCode
@@ -90,7 +94,7 @@
 
 - name: Show chkdsk results
   ansible.builtin.debug:
-    msg: "{{ item.result.Drive }} exit={{ item.result.ExitCode }} | {{ item.result.StdOut | default('no output') }}"
+    msg: "{{ item.result.Drive }} exit={{ item.result.ExitCode }} | {{ item.result.StdOut | default('no output', true) }}"
   loop: "{{ win_workman_chkdsk.results }}"
   loop_control:
     label: "{{ item.result.Drive }}"

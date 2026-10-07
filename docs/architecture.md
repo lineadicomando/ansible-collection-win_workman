@@ -111,7 +111,7 @@ Some roles extend the standard set with their own actions or support a subset:
 | `display_scale` | `set` *(default)*, `reset`, `on` *(alias for `set`)*, `off` *(alias for `reset`)*, `info` |
 | `wu` | `run` *(default)*, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` |
 | `veyon` | `on`, `off`, `config` |
-| `lock` | `on`, `off` |
+| `lock` | `on`, `off`, `reset` |
 | `autologon` | `on`, `off` |
 | `autoshutdown` | `on` *(default)*, `off`, `info` |
 | `secure_ssh` | `on`, `off` |
@@ -125,7 +125,7 @@ Some roles extend the standard set with their own actions or support a subset:
 | `shutdown` | `on`, `wait` |
 | `ping` | `on` |
 | `wol` | `on` |
-| `wim` | `check` *(default)*, `scan`, `repair`, `on` *(alias for `check`)* |
+| `wim` | `check` *(default)*, `scan`, `repair` |
 
 ---
 
@@ -202,11 +202,12 @@ These variables are meaningful across the whole collection.
 | `win_workman_restart` | `true` | Whether schema roles may trigger a reboot |
 | `win_workman_default_lang` | `en_US` | Default locale hint for multi-locale roles |
 
-### Maintenance mode variables (used by `lock`, `pkg_utils`)
+### Maintenance mode variables (defaults of `lock`)
 
 | Variable | Default | Description |
 |---|---|---|
 | `win_workman_mode_title` | `"Maintenance in progress"` | Legal notice title on login screen |
 | `win_workman_mode_text` | *(see defaults)* | Legal notice body text |
-| `win_workman_mode_force_logoff` | `true` | Force active sessions to log off when locking |
+| `win_workman_mode_force_logoff` | `true` | Log the user sessions off when locking |
 | `win_workman_mode_interactive_logon_users` | `[Administrators]` | Groups allowed to log in during maintenance |
+| `win_workman_mode_interactive_logon_fallback_users` | Administrators, Users, Backup Operators (SIDs) | Who may log on when `lock` has nothing to restore |

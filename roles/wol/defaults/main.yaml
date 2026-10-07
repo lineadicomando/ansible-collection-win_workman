@@ -1,0 +1,5 @@
+---
+# Magic packets sent, one second apart: a single UDP broadcast is easily lost.
+win_workman_wol_packets: 3
+# Seconds to wait for the host to answer on its connection port.
+win_workman_wol_timeout: 300

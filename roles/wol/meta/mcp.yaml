@@ -3,4 +3,13 @@ display_name: Wake-on-LAN
 custom_actions:
   - name: "on"
     description: Send a Wake-on-LAN magic packet to the target host's MAC address
+defaults:
+  - var: win_workman_wol_packets
+    type: int
+    default: 3
+    description: Magic packets sent, one second apart
+  - var: win_workman_wol_timeout
+    type: int
+    default: 300
+    description: Seconds to wait for the host to answer on ansible_port (default 22)
 notes: "Requires MAC address in inventory. Use the dedicated 'wol' playbook for broadcast scenarios."

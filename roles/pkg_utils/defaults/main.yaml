@@ -4,12 +4,9 @@ win_workman_storage_path: "{{ lookup('env', 'HOME') }}/win_workman_storage"
 win_workman_portable_path: C:\PortableApps
 win_workman_default_lang: "en_US"
 
-win_workman_mode_title: "Maintenance in progress"
-win_workman_mode_text: |
-  The system is currently undergoing maintenance.
-  Contact IT for assistance.
-win_workman_mode_force_logoff: true
 win_workman_restart_timeout: 600
+# Seconds logoff waits for the user sessions it logged off to end.
+win_workman_logoff_timeout_seconds: 300
 win_workman_restart: true
 
 # Before win_package installs or uninstalls, wait up to this many seconds for

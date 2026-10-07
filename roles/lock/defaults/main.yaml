@@ -6,3 +6,11 @@ win_workman_mode_text: |
 win_workman_mode_force_logoff: true
 win_workman_mode_interactive_logon_users:
   - Administrators
+# Who may log on when there is nothing to restore: lock-off with an empty
+# saved right, and lock-reset. Administrators, Users and Backup Operators, the
+# groups of a default Windows workstation, as SIDs so that the list does not
+# depend on the system language.
+win_workman_mode_interactive_logon_fallback_users:
+  - S-1-5-32-544
+  - S-1-5-32-545
+  - S-1-5-32-551

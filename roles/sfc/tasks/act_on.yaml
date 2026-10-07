@@ -10,7 +10,7 @@
   ansible.windows.win_powershell:
     script: |
       $logFile = Join-Path $env:windir 'Logs\sfc_log_file.log'
-      $cbsLog  = Join-Path $env:windir 'Logs\CBS\CBS.log'
+      $cbsDir  = Join-Path $env:windir 'Logs\CBS'
 
       $Ansible.Changed = $false
       $Ansible.Failed  = $false
@@ -18,16 +18,9 @@
 
       Remove-Item -Path $logFile -ErrorAction SilentlyContinue
 
-      $job = $null
-
       try {
-        $job = Start-Job -ScriptBlock {
-          param($cbsLogPath, $logFilePath)
-          Get-Content -Path $cbsLogPath -Wait -Tail 0 |
-            Out-File -FilePath $logFilePath -Encoding UTF8
-        } -ArgumentList $cbsLog, $logFile
-
-        Start-Sleep -Seconds 1
+        $startTime = Get-Date
+        $started   = $startTime.ToString('yyyy-MM-dd HH:mm:ss')
 
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName               = 'sfc.exe'
@@ -50,38 +43,33 @@
         $exitCode = $process.ExitCode
 
         Start-Sleep -Seconds 2
-        if ($job) {
-          Stop-Job  -Job $job -ErrorAction SilentlyContinue | Out-Null
-          Remove-Job -Job $job -Force -ErrorAction SilentlyContinue | Out-Null
-          $job = $null
+
+        # sfc logs every step to CBS.log as [SR]: the lines of this run are
+        # those stamped from its start on. A long scan can roll CBS.log over
+        # into a CbsPersist file meanwhile, so those written since are read too.
+        $logs = @(Get-ChildItem -Path $cbsDir -Filter 'CbsPersist_*.log' -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $startTime } |
+            Sort-Object LastWriteTime |
+            ForEach-Object { $_.FullName }) +
+          @(Join-Path $cbsDir 'CBS.log') |
+          Where-Object { Test-Path -LiteralPath $_ }
+
+        $sr = @()
+        if ($logs) {
+          $sr = @(Select-String -LiteralPath $logs -SimpleMatch '[SR]' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Line.Substring(0, [math]::Min(19, $_.Line.Length)) -ge $started } |
+            ForEach-Object { $_.Line })
         }
+        $sr | Out-File -FilePath $logFile -Encoding UTF8
 
-        $repaired     = $false
-        $cannotRepair = $false
-        $repairFailed = $false
-        $scanRan      = $false
+        # None of them means sfc never scanned
+        $scanRan      = $sr.Count -gt 0
+        $repaired     = @($sr -match 'Repaired file|Repairing corrupted file').Count
+        $cannotRepair = @($sr -match 'Cannot repair').Count
+        $repairFailed = @($sr -match 'Repair failed').Count
 
-        if (Test-Path -Path $logFile) {
-          # sfc logs every step as [SR]; none of them means it never scanned
-          $scanRan = Select-String -Path $logFile `
-            -Pattern '\[SR\]' `
-            -Quiet -ErrorAction SilentlyContinue
-
-          $repaired = Select-String -Path $logFile `
-            -Pattern '.*Repaired file.*', '.*Repairing corrupted file.*' `
-            -Quiet -ErrorAction SilentlyContinue
-
-          $cannotRepair = Select-String -Path $logFile `
-            -Pattern '.*Cannot repair.*' `
-            -Quiet -ErrorAction SilentlyContinue
-
-          $repairFailed = Select-String -Path $logFile `
-            -Pattern '.*Repair failed.*' `
-            -Quiet -ErrorAction SilentlyContinue
-        }
-
-        $Ansible.Changed = [bool]$repaired
-        $Ansible.Failed  = [bool]($cannotRepair -or $repairFailed -or -not $scanRan)
+        $Ansible.Changed = $repaired -gt 0
+        $Ansible.Failed  = ($cannotRepair -gt 0) -or ($repairFailed -gt 0) -or -not $scanRan
 
         $lines = ($stdOut -replace "`0","") -split "(`r`n|`n)" |
           ForEach-Object { $_.Trim() } |
@@ -89,9 +77,14 @@
 
         $cleanStdOut = ($lines -join ' - ') -replace '\s{2,}', ' '
 
-        $message = ''
         if (-not $scanRan) {
           $message = "sfc did not scan (exit code $exitCode): no [SR] entry was written to CBS.log."
+        } elseif ($Ansible.Failed) {
+          $message = "sfc could not repair everything: $cannotRepair 'Cannot repair', $repairFailed 'Repair failed', $repaired repair entries. See $logFile on the host."
+        } elseif ($repaired -gt 0) {
+          $message = "sfc repaired system files: $repaired repair entries. See $logFile on the host."
+        } else {
+          $message = 'sfc found no integrity violation.'
         }
 
         $Ansible.Result = @{
@@ -100,18 +93,13 @@
           StdOut        = $cleanStdOut
           StdErr        = $stdErr
           LogFile       = $logFile
-          ScanRan       = [bool]$scanRan
-          Repaired      = $repaired
-          CannotRepair  = $cannotRepair
-          RepairFailed  = $repairFailed
+          ScanRan       = $scanRan
+          Repaired      = $repaired -gt 0
+          CannotRepair  = $cannotRepair -gt 0
+          RepairFailed  = $repairFailed -gt 0
         }
       }
       catch {
-        if ($job) {
-          Stop-Job  -Job $job -ErrorAction SilentlyContinue | Out-Null
-          Remove-Job -Job $job -Force -ErrorAction SilentlyContinue | Out-Null
-        }
-
         $Ansible.Failed = $true
         $Ansible.Result = @{
           Error        = "$($_.Exception.Message)"
@@ -121,3 +109,7 @@
         }
       }
   register: win_workman_sfc
+
+- name: Show sfc result
+  ansible.builtin.debug:
+    msg: "{{ win_workman_sfc.result.Message | default('no result') }}"

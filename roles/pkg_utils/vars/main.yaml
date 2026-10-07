@@ -32,11 +32,3 @@ win_workman_usr_verbs:
     description: Run the agent now for the targets that are logged on
   - name: purge
     description: Remove the policy and the staged installer; installed copies are left alone
-
-win_workman_mode_interactive_logon_default_users:
-  - Administrators
-  - Users
-  - Guests
-
-win_workman_mode_interactive_logon_users:
-  - Administrators

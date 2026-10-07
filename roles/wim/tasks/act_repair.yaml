@@ -153,3 +153,7 @@
       Source: "{{ win_workman_wim_repair_source }}"
       LimitAccess: "{{ win_workman_wim_repair_limit_access | bool }}"
   register: win_workman_wim_repair
+
+- name: Show repair result
+  ansible.builtin.debug:
+    msg: "{{ win_workman_wim_repair.result.Message | default('no result') }}"

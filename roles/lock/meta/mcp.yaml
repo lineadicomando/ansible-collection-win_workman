@@ -2,9 +2,11 @@
 display_name: Workstation Lock (maintenance mode)
 custom_actions:
   - name: "on"
-    description: Engage maintenance mode — show lock screen, optionally force logoff all users
+    description: Engage maintenance mode — logon banner, logon restricted to the allowed users, optionally force logoff all users; saves what the host had
   - name: "off"
-    description: Disengage maintenance mode and restore normal logon
+    description: Disengage maintenance mode and give back what 'on' saved; changes nothing on a host that is not locked
+  - name: reset
+    description: Unlock without the saved state — empty legal notice, last username shown, logon right set to the fallback users, saved state dropped. For a host left locked with its saved state lost; whatever it had before the lock is not restored
 defaults:
   - var: win_workman_mode_title
     type: str
@@ -22,4 +24,8 @@ defaults:
     type: list
     default: ["Administrators"]
     description: Groups/users still allowed to log on while lock is active
-notes: "Does not install software; manages a Windows policy-based lock screen overlay."
+  - var: win_workman_mode_interactive_logon_fallback_users
+    type: list
+    default: ["S-1-5-32-544", "S-1-5-32-545", "S-1-5-32-551"]
+    description: Who may log on when there is nothing to restore (off with an empty saved right, and reset). Default Administrators, Users, Backup Operators as SIDs
+notes: "Does not install software. A run that stops between on and off leaves the host locked: put lock-off in the always section of a block, or run it later. Remote Desktop logons are not restricted."

@@ -2,6 +2,11 @@
 - name: Check Windows image health (CheckHealth)
   ansible.windows.win_powershell:
     script: |
+      param(
+        [Parameter(Mandatory = $false)]
+        [bool]$FailOnRepairable = $true
+      )
+
       $Ansible.Changed = $false
       $Ansible.Failed  = $false
       $Ansible.Result  = @{}
@@ -25,7 +30,7 @@
             }
           }
           'Repairable' {
-            $Ansible.Failed = $true
+            $Ansible.Failed = $FailOnRepairable
             $Ansible.Result = @{
               Status    = 'Repairable'
               Message   = 'Image health: Repairable.'
@@ -67,4 +72,10 @@
           Message = "Repair-WindowsImage failed: $($_.Exception.Message)"
         }
       }
+    parameters:
+      FailOnRepairable: "{{ win_workman_wim_check_fail_on_repairable | bool }}"
   register: win_workman_wim_check
+
+- name: Show check result
+  ansible.builtin.debug:
+    msg: "{{ win_workman_wim_check.result.Message | default('no result') }}"
