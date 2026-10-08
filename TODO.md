@@ -33,6 +33,7 @@ Priorities, assigned 2026-09-28:
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
 | P3 | `autoshutdown`: implement the `nouser` mode |
 | P3 | Roles with no documentation at all |
+| P3 | `run_powershell`: `timeout` is ignored with `background=true` |
 
 ---
 
@@ -365,6 +366,39 @@ needs its own variables and a stop time.
 Test on the model of `tests/shutdown_if_nouser.yaml` in the project repo:
 Active, Disconnected and no session, asserting the host stays on in the first
 two and goes offline in the third.
+
+---
+
+## MCP server
+
+The server lives in the project repo (`ansible-win_edulab`, `mcp/`), not in the
+collection.
+
+### `run_powershell`: `timeout` is ignored with `background=true`
+
+**Priority:** P3 — no harm observed, but a hung background run is never killed  
+**Status:** found 2026-10-08 on `PC19` of `ario_info`; cause read in the code, fix not written
+
+A `DISM /StartComponentCleanup` started with `background=true` and
+`timeout=3600` ran for 65 minutes and ended on its own (log
+`20261008-082009-ps-PC19.log`). The tool schema describes `timeout` as "Seconds
+before the run is killed", with no exception for background runs.
+
+The background branch of `run_powershell` (`mcp/server.py:400`) calls
+`start_run(cmd, label, env=ADHOC_ENV, redact=redact)` and drops `timeout`, while
+`start_logged` in `mcp/runlog.py` accepts one and hands it to the supervisor.
+The synchronous branch passes it to `run_raw`.
+
+To decide before passing it through: the default is 300 seconds, which suits a
+synchronous query but would kill most background runs, started in the
+background precisely because they are long. Either apply the timeout to a
+background run only when the caller sets it explicitly, or say in the schema
+that it does not apply there. `run_tasks` and `run_playbook` take no `timeout`
+at all, so their background runs are unbounded by design.
+
+Killing `ansible` on the controller does not stop what is already running on
+the host: check what happens to a `dism.exe` or an installer left behind before
+relying on the timeout to clean up.
 
 ---
 
