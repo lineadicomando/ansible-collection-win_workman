@@ -10,6 +10,11 @@ doing instead of nothing at all until the run ends.
 notifications, so a client that renders them shows the current task while the
 playbook runs rather than only its result at the end.
 
+A run that carries secrets names them in `redact`. Its extra vars then reach
+ansible through a private file instead of the command line, where any user of
+the machine could read them in the process list, and the secrets are masked in
+the log. The log directory and the logs are private to their owner.
+
 Configuration comes from the environment:
   ANSIBLE_MCP_LOG_DIR  (optional) log directory, default <root>/logs
 """
@@ -23,6 +28,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import threading
 from collections.abc import Callable, Coroutine
 from datetime import datetime
@@ -57,6 +63,63 @@ class RunResult(NamedTuple):
     timed_out: bool
 
 
+def redactor(redact: list[str] | None) -> Callable[[str], str]:
+    """Replace known secret values wherever they appear on their way out."""
+    values: set[str] = set()
+    for value in redact or []:
+        if value:
+            # Inside the JSON of an -e argument the value is escaped.
+            values.update((value, json.dumps(value)[1:-1], json.dumps(value, ensure_ascii=False)[1:-1]))
+    ordered = sorted(values, key=len, reverse=True)
+    if not ordered:
+        return lambda text: text
+
+    def hide(text: str) -> str:
+        for value in ordered:
+            text = text.replace(value, "********")
+        return text
+
+    return hide
+
+
+def secret_strings(value: Any) -> list[str]:
+    """Every scalar inside value, as the text it takes in a log.
+
+    For variables that are secret as a whole: whatever they hold, however
+    nested, is to be masked.
+    """
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in secret_strings(item)]
+    if isinstance(value, (list, tuple)):
+        return [text for item in value for text in secret_strings(item)]
+    if isinstance(value, bool) or value is None:
+        return []
+    return [str(value)] if str(value) else []
+
+
+def _shield(cmd: list[str]) -> tuple[list[str], list[str]]:
+    """Move the inline extra vars of cmd into private files.
+
+    Returns the command to execute and the files to remove once it has run.
+    mkstemp creates them readable by their owner only.
+    """
+    shielded: list[str] = []
+    files: list[str] = []
+    for index, token in enumerate(cmd):
+        if index and cmd[index - 1] == "-e" and not token.startswith("@"):
+            fd, name = tempfile.mkstemp(prefix="ansible-mcp-", suffix=".json")
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(token)
+            files.append(name)
+            token = f"@{name}"
+        shielded.append(token)
+    return shielded, files
+
+
+def _private(path: str | Path, flags: int) -> int:
+    return os.open(path, flags, 0o600)
+
+
 def _slug(label: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", label).strip("_")[:60] or "run"
 
@@ -64,6 +127,11 @@ def _slug(label: str) -> str:
 def log_dir(root: Path) -> Path:
     directory = Path(os.environ.get("ANSIBLE_MCP_LOG_DIR") or root / "logs")
     directory.mkdir(parents=True, exist_ok=True)
+    try:
+        # Logs record what was run and what it answered: owner only.
+        directory.chmod(0o700)
+    except OSError:
+        pass
     return directory
 
 
@@ -159,7 +227,7 @@ def new_log_path(root: Path, label: str) -> Path:
         attempt += 1
         path = directory / f"{stamp}-{_slug(label)}.{attempt}.log"
     # Claim the name now: a background run hands it out before writing to it.
-    path.touch()
+    path.touch(mode=0o600)
     return path
 
 
@@ -183,22 +251,36 @@ def run_logged(
     timeout: int | None = None,
     on_line: Callable[[str], None] | None = None,
     path: Path | None = None,
+    env: dict[str, str] | None = None,
+    redact: list[str] | None = None,
 ) -> RunResult:
     """Run cmd, tee its output to a per-run log file, and return the result.
 
     The output is written line by line as it arrives, so the log file is
     readable while the playbook is still running. Each line is also handed to
-    on_line, if given, from this thread.
+    on_line, if given, from this thread. The values in redact are masked in
+    the log and in the returned output.
     """
     if path is None:
         path = new_log_path(root, label)
 
+    hide = redactor(redact)
+    shield_files: list[str] = []
     chunks: list[str] = []
     killed = threading.Event()
     timer: threading.Timer | None = None
 
-    with path.open("w", encoding="utf-8", errors="replace") as log:
-        log.write(f"$ {shlex.join(cmd)}\n\n")
+    with open(path, "w", encoding="utf-8", errors="replace", opener=_private) as log:
+        # The command line goes in the log so a run can be reproduced by hand;
+        # with secrets in it, the log shows it masked and the real one keeps
+        # its extra vars off argv.
+        log.write(f"$ {shlex.join(hide(token) for token in cmd)}\n")
+        if redact and any(
+            index and cmd[index - 1] == "-e" and not token.startswith("@")
+            for index, token in enumerate(cmd)
+        ):
+            log.write("# extra vars passed through a private file, secrets masked\n")
+        log.write("\n")
         log.flush()
         _point_latest_at(path)
 
@@ -207,13 +289,16 @@ def run_logged(
         try:
             # Inside the try: a command that cannot even start must still
             # terminate its own log, or it reads as running forever.
+            run_cmd = cmd
+            if redact:
+                run_cmd, shield_files = _shield(cmd)
             proc = subprocess.Popen(
-                cmd,
+                run_cmd,
                 cwd=str(root),
                 # Ansible leaves flushing to the system (see Display.display),
                 # so over a pipe its output would only reach us in blocks:
                 # unbuffer it.
-                env=dict(os.environ, PYTHONUNBUFFERED="1"),
+                env=dict(os.environ, PYTHONUNBUFFERED="1", **(env or {})),
                 # The MCP server's own stdin is the JSON-RPC stream: never hand
                 # it to a playbook that decides to prompt.
                 stdin=subprocess.DEVNULL,
@@ -233,6 +318,7 @@ def run_logged(
                 timer.start()
 
             for line in proc.stdout:
+                line = hide(line)
                 log.write(line)
                 log.flush()
                 chunks.append(line)
@@ -247,6 +333,11 @@ def run_logged(
                 timer.cancel()
             if proc is not None and proc.stdout is not None:
                 proc.stdout.close()
+            for name in shield_files:
+                try:
+                    os.unlink(name)
+                except OSError:
+                    pass
             # Always leave the marker behind, even on the way out of an
             # exception: an unterminated log reads as a run still going.
             timed_out = killed.is_set()
@@ -310,10 +401,14 @@ async def run_logged_async(
     label: str,
     notify: NotifyFn | None = None,
     timeout: int | None = None,
+    env: dict[str, str] | None = None,
+    redact: list[str] | None = None,
 ) -> RunResult:
     """run_logged in a worker thread, reporting progress through notify."""
     if notify is None:
-        return await asyncio.to_thread(run_logged, cmd, root, label, timeout)
+        return await asyncio.to_thread(
+            run_logged, cmd, root, label, timeout, env=env, redact=redact
+        )
 
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[str | None] = asyncio.Queue()
@@ -325,7 +420,9 @@ async def run_logged_async(
 
     pump = asyncio.create_task(_pump(queue, notify))
     try:
-        return await asyncio.to_thread(run_logged, cmd, root, label, timeout, on_line)
+        return await asyncio.to_thread(
+            run_logged, cmd, root, label, timeout, on_line, env=env, redact=redact
+        )
     finally:
         queue.put_nowait(None)
         await pump
@@ -345,7 +442,14 @@ class RunStatus(NamedTuple):
     total_lines: int
 
 
-def start_logged(cmd: list[str], root: Path, label: str, timeout: int | None = None) -> Path:
+def start_logged(
+    cmd: list[str],
+    root: Path,
+    label: str,
+    timeout: int | None = None,
+    env: dict[str, str] | None = None,
+    redact: list[str] | None = None,
+) -> Path:
     """Start cmd in the background and return its log path straight away.
 
     The caller polls the log through read_log instead of waiting. The run is
@@ -363,6 +467,8 @@ def start_logged(cmd: list[str], root: Path, label: str, timeout: int | None = N
         "label": label,
         "timeout": timeout,
         "path": str(path),
+        "env": env,
+        "redact": redact,
     }
     supervisor = subprocess.Popen(
         [sys.executable, str(Path(__file__).resolve()), "--supervise"],
@@ -506,11 +612,13 @@ def _supervise() -> None:
             spec["label"],
             spec.get("timeout"),
             path=path,
+            env=spec.get("env"),
+            redact=spec.get("redact"),
         )
     except Exception as exc:
         # run_logged already wrote the marker unless it failed before starting.
         if not done_path(path).exists():
-            with path.open("a", encoding="utf-8") as log:
+            with open(path, "a", encoding="utf-8", opener=_private) as log:
                 log.write(f"\n[runner error] {exc!r}\n\n--- exit code -1 ---\n")
             _write_done(path, -1, "")
         raise

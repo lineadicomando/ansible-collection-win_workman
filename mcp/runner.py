@@ -3,7 +3,7 @@ import os
 import re
 from pathlib import Path
 
-from runlog import NotifyFn, RunStatus, await_run, read_log, run_logged_async, start_logged
+from runlog import NotifyFn, RunStatus, await_run, read_log, redactor, run_logged_async, secret_strings, start_logged
 
 
 def _project_root() -> Path:
@@ -40,6 +40,16 @@ def validate_extra_vars(extra_vars) -> str | None:
     except (TypeError, ValueError) as e:
         return f"extra_vars is not JSON-serialisable: {e}"
     return None
+
+
+def merge_sensitive_vars(
+    extra_vars: dict | None, sensitive_vars: dict | None
+) -> tuple[dict | None, list[str]]:
+    """Extra vars with the sensitive ones folded in, and the values to mask."""
+    if not sensitive_vars:
+        return extra_vars, []
+    return {**(extra_vars or {}), **sensitive_vars}, secret_strings(sensitive_vars)
+
 
 # Each fork is a Python process on the controller holding a connection open.
 MAX_FORKS = 100
@@ -78,18 +88,23 @@ async def run_command(
     cmd: list[str],
     label: str = "win_wm",
     notify: NotifyFn | None = None,
+    redact: list[str] | None = None,
 ) -> str:
-    """Run an ansible-playbook command, streaming its output to a log file."""
-    result = await run_logged_async(cmd, _project_root(), label, notify)
+    """Run an ansible-playbook command, streaming its output to a log file.
+
+    With redact, the extra vars go to ansible-playbook through a private file
+    and the values listed are masked in the log and in the returned output.
+    """
+    result = await run_logged_async(cmd, _project_root(), label, notify, redact=redact)
     output = result.output
     if result.returncode != 0:
         output += f"\n[exit code {result.returncode}]"
     return f"{output}\n[log] {result.log_path}"
 
 
-def start_run(cmd: list[str], label: str = "win_wm") -> Path:
+def start_run(cmd: list[str], label: str = "win_wm", redact: list[str] | None = None) -> Path:
     """Start an ansible-playbook command in the background; return its log path."""
-    return start_logged(cmd, _project_root(), label)
+    return start_logged(cmd, _project_root(), label, redact=redact)
 
 
 def run_status(run: str = "latest", since_line: int = 0, max_lines: int = 200) -> RunStatus:
@@ -108,7 +123,9 @@ async def wait_run(
     return await await_run(_project_root(), run, timeout, since_line, max_lines, notify)
 
 
-def format_command(cmd: list[str]) -> str:
+def format_command(cmd: list[str], redact: list[str] | None = None) -> str:
+    hide = redactor(redact)
+    cmd = [hide(token) for token in cmd]
     parts = []
     i = 0
     while i < len(cmd):

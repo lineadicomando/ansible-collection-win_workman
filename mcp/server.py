@@ -8,7 +8,7 @@ from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, Pagina
 
 from roles import get_role_info, list_roles, pkg_actions
 from runlog import NotifyFn, done_path, format_status
-from runner import MAX_FORKS, build_wm_command, format_command, validate_extra_vars, validate_forks, run_command, run_status, start_run, wait_run
+from runner import MAX_FORKS, build_wm_command, format_command, merge_sensitive_vars, validate_extra_vars, validate_forks, run_command, run_status, start_run, wait_run
 
 app = Server("win-workman")
 
@@ -88,6 +88,17 @@ def _get_tools() -> list[Tool]:
                             "[\"Domain Users\"]} or {\"win_workman_shutdown_timeout\": 60}. "
                             "get_role_info lists each role's variables under 'defaults'. "
                             "'t' and ansible_* connection variables are refused."
+                        ),
+                    },
+                    "sensitive_vars": {
+                        "type": "object",
+                        "description": (
+                            "Role variables that are secrets: passwords, licence codes. "
+                            "Same shape and rules as extra_vars and merged with it, but "
+                            "handed to ansible-playbook through a private file instead of "
+                            "the command line, and masked in the run log, in the output "
+                            "and in a preview. E.g. {\"win_workman_autologon_password\": "
+                            "\"...\"}. Never put a secret in extra_vars."
                         ),
                     },
                     "forks": {
@@ -250,23 +261,29 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
         inventory: str = arguments.get("inventory", "school")
         preview: bool = arguments.get("preview", False)
         extra_vars = arguments.get("extra_vars")
+        sensitive_vars = arguments.get("sensitive_vars")
         forks = arguments.get("forks")
-        error = validate_extra_vars(extra_vars) or validate_forks(forks)
+        error = (
+            validate_extra_vars(extra_vars)
+            or validate_extra_vars(sensitive_vars)
+            or validate_forks(forks)
+        )
         if error:
             return CallToolResult(content=[TextContent(type="text", text=f"Error: {error}")])
 
+        extra_vars, redact = merge_sensitive_vars(extra_vars, sensitive_vars)
         cmd = build_wm_command(t, l, inventory, extra_vars, forks)
 
         if preview:
             return CallToolResult(content=[TextContent(
                 type="text",
-                text=f"Command to run:\n\n  {format_command(cmd)}\n\nNo command executed.",
+                text=f"Command to run:\n\n  {format_command(cmd, redact)}\n\nNo command executed.",
             )])
 
         label = f"win_wm-{'_'.join(t)}-{l}"
 
         if arguments.get("background", False):
-            path = start_run(cmd, label)
+            path = start_run(cmd, label, redact)
             return CallToolResult(content=[TextContent(
                 type="text",
                 text=(
@@ -279,7 +296,7 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
                 ),
             )])
 
-        output = await run_command(cmd, label, _progress_notifier(ctx))
+        output = await run_command(cmd, label, _progress_notifier(ctx), redact)
         return CallToolResult(content=[TextContent(type="text", text=output)])
 
     if name == "run_status":

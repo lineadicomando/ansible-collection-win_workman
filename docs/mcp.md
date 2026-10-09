@@ -111,6 +111,7 @@ Runs one or more win_workman tasks on an Ansible host or group by invoking
 | `l` | string | no | `"lab_win"` | Ansible limit: hostname or group name. The default is the group of the Windows workstations; `all` also reaches every other host of the inventory and has to be asked for |
 | `inventory` | string | no | `"school"` | Inventory name under `inventories/` |
 | `extra_vars` | object | no | — | Role variables passed as Ansible extra vars (e.g. `{"win_workman_usr_targets": ["Domain Users"]}`); `t` and `ansible_*` are refused |
+| `sensitive_vars` | object | no | — | Role variables that are secrets (a password, a licence code). Same rules as `extra_vars` and merged with it, but handed to `ansible-playbook` through a private temporary file instead of the command line, and masked in the run log, in the output and in a preview |
 | `preview` | boolean | no | `false` | Return the command string without executing |
 
 The tasks follow the same dash-separated syntax as the collection:
