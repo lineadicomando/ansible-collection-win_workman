@@ -58,7 +58,7 @@ def validate_forks(forks) -> str | None:
 
 def build_wm_command(
     t: list[str],
-    l: str = "all",
+    l: str = "lab_win",
     inventory: str = "school",
     extra_vars: dict | None = None,
     forks: int | None = None,

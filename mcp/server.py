@@ -43,7 +43,7 @@ def _get_tools() -> list[Tool]:
             name="run_tasks",
             description=(
                 "Run one or more win_workman tasks on an Ansible host or group "
-                "via playbooks/win_wm.yaml. "
+                "through the lineadicomando.win_workman.win_workman playbook. "
                 f"Available roles: {', '.join(list_roles())}. "
                 "Task format: <role> or <role>-<action> (e.g. chrome, chrome-off, chkdsk). "
                 f"Common actions for package roles: {common_actions}. "
@@ -69,9 +69,11 @@ def _get_tools() -> list[Tool]:
                         "description": (
                             "Ansible limit: single hostname or group name. "
                             "E.g. 'teacher', 'students', 'lab_win'. "
-                            "Default 'all': every host in the inventory."
+                            "Default 'lab_win', the group of the Windows workstations: "
+                            "an inventory also holds hosts these tasks must not reach, "
+                            "such as a domain controller. 'all' has to be asked for."
                         ),
-                        "default": "all",
+                        "default": "lab_win",
                     },
                     "inventory": {
                         "type": "string",
@@ -244,7 +246,7 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
         t: list[str] = arguments.get("t", [])
         if not t:
             return CallToolResult(content=[TextContent(type="text", text="Error: t (tasks) is required")])
-        l: str = arguments.get("l", "all")
+        l: str = arguments.get("l") or "lab_win"
         inventory: str = arguments.get("inventory", "school")
         preview: bool = arguments.get("preview", False)
         extra_vars = arguments.get("extra_vars")
