@@ -3,6 +3,8 @@ import os
 import re
 from pathlib import Path
 
+import yaml
+
 from runlog import NotifyFn, RunStatus, await_run, read_log, redactor, run_logged_async, secret_strings, start_logged
 
 
@@ -11,6 +13,34 @@ def _project_root() -> Path:
     if not root:
         raise RuntimeError("ANSIBLE_PROJECT_ROOT environment variable is not set")
     return Path(root)
+
+
+MANAGED_GROUP = "win_managed"
+LEGACY_MANAGED_GROUP = "lab_win"
+
+
+def _has_group(node, name: str) -> bool:
+    children = node.get("children") if isinstance(node, dict) else None
+    if not isinstance(children, dict):
+        return False
+    return name in children or any(_has_group(child, name) for child in children.values())
+
+
+def default_limit(inventory: str = "school") -> str:
+    """The group a run targets when no limit is given: the managed Windows PCs.
+
+    That group was called lab_win before the collection reached PCs outside the
+    labs. An inventory that still has only the old name keeps working.
+    """
+    path = _project_root() / "inventories" / inventory / "hosts.yaml"
+    try:
+        data = yaml.safe_load(path.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return MANAGED_GROUP
+    all_group = data.get("all") if isinstance(data, dict) else None
+    if not _has_group(all_group, MANAGED_GROUP) and _has_group(all_group, LEGACY_MANAGED_GROUP):
+        return LEGACY_MANAGED_GROUP
+    return MANAGED_GROUP
 
 
 _EXTRA_VAR_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -68,12 +98,13 @@ def validate_forks(forks) -> str | None:
 
 def build_wm_command(
     t: list[str],
-    l: str = "lab_win",
+    l: str | None = None,
     inventory: str = "school",
     extra_vars: dict | None = None,
     forks: int | None = None,
 ) -> list[str]:
     root = _project_root()
+    l = l or default_limit(inventory)
     cmd = ["ansible-playbook", "lineadicomando.win_workman.win_workman"]
     cmd += ["-i", str(root / "inventories" / inventory / "hosts.yaml")]
     if l and l != "all":

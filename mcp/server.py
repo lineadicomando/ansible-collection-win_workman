@@ -8,7 +8,7 @@ from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, Pagina
 
 from roles import get_role_info, list_roles, pkg_actions
 from runlog import NotifyFn, done_path, format_status
-from runner import MAX_FORKS, build_wm_command, format_command, merge_sensitive_vars, validate_extra_vars, validate_forks, run_command, run_status, start_run, wait_run
+from runner import MAX_FORKS, build_wm_command, default_limit, format_command, merge_sensitive_vars, validate_extra_vars, validate_forks, run_command, run_status, start_run, wait_run
 
 app = Server("win-workman")
 
@@ -68,12 +68,13 @@ def _get_tools() -> list[Tool]:
                         "type": "string",
                         "description": (
                             "Ansible limit: single hostname or group name. "
-                            "E.g. 'teacher', 'students', 'lab_win'. "
-                            "Default 'lab_win', the group of the Windows workstations: "
+                            "E.g. 'teacher', 'students', 'win_managed'. "
+                            "Default 'win_managed', the group of the managed Windows PCs "
+                            "('lab_win' in an inventory that still uses the old name): "
                             "an inventory also holds hosts these tasks must not reach, "
                             "such as a domain controller. 'all' has to be asked for."
                         ),
-                        "default": "lab_win",
+                        "default": "win_managed",
                     },
                     "inventory": {
                         "type": "string",
@@ -257,8 +258,8 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
         t: list[str] = arguments.get("t", [])
         if not t:
             return CallToolResult(content=[TextContent(type="text", text="Error: t (tasks) is required")])
-        l: str = arguments.get("l") or "lab_win"
         inventory: str = arguments.get("inventory", "school")
+        l: str = arguments.get("l") or default_limit(inventory)
         preview: bool = arguments.get("preview", False)
         extra_vars = arguments.get("extra_vars")
         sensitive_vars = arguments.get("sensitive_vars")

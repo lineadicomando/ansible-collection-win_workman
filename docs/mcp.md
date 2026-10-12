@@ -108,7 +108,7 @@ Runs one or more win_workman tasks on an Ansible host or group by invoking
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `t` | list of strings | yes | — | Task list (e.g. `["chrome"]`, `["chrome-off", "vlc-on"]`) |
-| `l` | string | no | `"lab_win"` | Ansible limit: hostname or group name. The default is the group of the Windows workstations; `all` also reaches every other host of the inventory and has to be asked for |
+| `l` | string | no | `"win_managed"` | Ansible limit: hostname or group name. The default is the group of the managed Windows PCs, or `lab_win` in an inventory that still has only the old name; `all` also reaches every other host of the inventory and has to be asked for |
 | `inventory` | string | no | `"school"` | Inventory name under `inventories/` |
 | `extra_vars` | object | no | — | Role variables passed as Ansible extra vars (e.g. `{"win_workman_usr_targets": ["Domain Users"]}`); `t` and `ansible_*` are refused |
 | `sensitive_vars` | object | no | — | Role variables that are secrets (a password, a licence code). Same rules as `extra_vars` and merged with it, but handed to `ansible-playbook` through a private temporary file instead of the command line, and masked in the run log, in the output and in a preview |
@@ -176,7 +176,7 @@ also usable standalone:
 ```bash
 ansible-playbook lineadicomando.win_workman.win_workman \
   -i inventories/school/hosts.yaml \
-  -l lab_win \
+  -l win_managed \
   -e '{"t": "chrome,vscode"}'
 ```
 
