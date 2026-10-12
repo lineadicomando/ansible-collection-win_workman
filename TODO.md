@@ -143,7 +143,7 @@ where a hang is actually observed. Do not flip the default.
 default, `C:\Windows\Temp\ansible`), but the *Install package* task reads it
 back from `ansible_remote_tmp`, an Ansible connection variable. The two coincide
 only because every `win_edulab` inventory sets
-`ansible_remote_tmp: C:\Windows\Temp\ansible` in `group_vars/lab_win/vars.yaml`
+`ansible_remote_tmp: C:\Windows\Temp\ansible` in `group_vars/win_managed/vars.yaml`
 (re-checked 2026-10-01 on all seven inventories).
 
 It is the last reference to `ansible_remote_tmp` in the roles. A consumer who
