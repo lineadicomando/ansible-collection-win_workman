@@ -41,6 +41,7 @@ The token `32bit` must appear anywhere in `argv` (position 2+).
 | `win_workman_chrome_shortcuts` | `false` | Create desktop shortcuts for Chrome |
 | `win_workman_chrome_shortcut_url` | `""` | URL appended to the desktop shortcut arguments |
 | `win_workman_chrome_shortcut_no_first_run` | `true` | Adds `--disable-search-engine-choice-screen --no-default-browser-check --no-first-run` to the shortcut |
+| `win_workman_chrome_block_extensions` | `true` | With `privacy-on`, block installation of all extensions (`ExtensionInstallBlocklist = *`); `false` leaves extension installs allowed and removes an existing blocklist |
 
 The shortcut command line is assembled as:
 

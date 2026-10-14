@@ -9,13 +9,10 @@
     state: present
   when: win_workman_chrome_policy_enabled
 
-- name: Create subkeys for data clearing and extension blocking
+- name: Create the subkey for data clearing
   ansible.windows.win_regedit:
-    path: "{{ item }}"
+    path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
     state: present
-  loop:
-    - "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-    - "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
   when: win_workman_chrome_policy_enabled
 
 - name: Set Chrome policy values
@@ -105,12 +102,24 @@
       name: PersonalizationReportingEnabled
       type: dword
       data: 0
-    # Block installation of all extensions.
-    - path: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
-      name: "1"
-      type: string
-      data: "*"
   when: win_workman_chrome_policy_enabled
+
+# Block installation of all extensions, unless the host opts out with
+# win_workman_chrome_block_extensions: false.
+# https://chromeenterprise.google/policies/#ExtensionInstallBlocklist
+- name: Block installation of all extensions
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
+    name: "1"
+    type: string
+    data: "*"
+  when: win_workman_chrome_policy_enabled and win_workman_chrome_block_extensions | bool
+
+- name: Remove the extension blocklist
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
+    state: absent
+  when: not (win_workman_chrome_policy_enabled and win_workman_chrome_block_extensions | bool)
 
 - name: Remove Chrome policy values (restore)
   ansible.windows.win_regedit:
@@ -148,17 +157,12 @@
       name: MetricsReportingEnabled
     - path: "{{ win_workman_chrome_policy_path }}"
       name: PersonalizationReportingEnabled
-    - path: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
-      name: "1"
   when: not win_workman_chrome_policy_enabled
 
-- name: Remove Chrome policy subkeys (restore)
+- name: Remove the data clearing subkey (restore)
   ansible.windows.win_regedit:
-    path: "{{ item }}"
+    path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
     state: absent
-  loop:
-    - "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-    - "{{ win_workman_chrome_policy_path }}\\ExtensionInstallBlocklist"
   when: not win_workman_chrome_policy_enabled
 
 - name: Remove the Chrome base policy key (restore)
