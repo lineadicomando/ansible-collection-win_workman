@@ -36,4 +36,20 @@ defaults:
       With chrome-privacy-on, block installation of all extensions
       (ExtensionInstallBlocklist = *). Set to false to apply the other privacy
       policies and leave extension installs allowed.
+  - var: win_workman_chrome_extension_allowlist
+    type: list
+    default: []
+    description: >-
+      With chrome-privacy-on and extensions blocked, IDs of the extensions
+      users may still install from the Chrome Web Store
+      (ExtensionInstallAllowlist). E.g. ghbmnnjooekpmoecnnnilnnbdlolhkhi for
+      Google Docs Offline, which the context-menu copy and paste in Docs and
+      Sheets relies on.
+  - var: win_workman_chrome_clear_site_data_on_exit
+    type: bool
+    default: true
+    description: >-
+      With chrome-privacy-on, clear cookies and site data when Chrome closes.
+      Set to false to keep Google sign-ins and offline data between sessions;
+      cache and history are cleared either way.
 notes: "Accepts '32bit' task argument. Closes running Chrome before install/uninstall."

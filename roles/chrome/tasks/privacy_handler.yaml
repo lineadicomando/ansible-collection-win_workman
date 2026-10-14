@@ -9,12 +9,6 @@
     state: present
   when: win_workman_chrome_policy_enabled
 
-- name: Create the subkey for data clearing
-  ansible.windows.win_regedit:
-    path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-    state: present
-  when: win_workman_chrome_policy_enabled
-
 - name: Set Chrome policy values
   ansible.windows.win_regedit:
     path: "{{ item.path }}"
@@ -62,21 +56,6 @@
       name: ImportAtFirstRun
       type: dword
       data: 0
-    # Clear cookies and site data on exit.
-    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-      name: "1"
-      type: string
-      data: cookies_and_other_site_data
-    # Clear cache (images/files) on exit.
-    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-      name: "2"
-      type: string
-      data: cached_images_and_files
-    # Clear browsing history on exit.
-    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-      name: "3"
-      type: string
-      data: browsing_history
     # Disable password saving.
     - path: "{{ win_workman_chrome_policy_path }}"
       name: PasswordManagerEnabled
@@ -121,6 +100,31 @@
     state: absent
   when: not (win_workman_chrome_policy_enabled and win_workman_chrome_block_extensions | bool)
 
+# Extensions that stay installable from the Web Store despite the blocklist.
+# Without the blocklist everything is installable, so the allowlist is dropped.
+# https://chromeenterprise.google/policies/#ExtensionInstallAllowlist
+- name: Set the extension allowlist
+  ansible.builtin.include_tasks: list_policy.yaml
+  vars:
+    win_workman_chrome_list_key: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallAllowlist"
+    win_workman_chrome_list_items: >-
+      {{ win_workman_chrome_extension_allowlist
+         if win_workman_chrome_policy_enabled and win_workman_chrome_block_extensions | bool
+         else [] }}
+
+# Browsing data cleared when Chrome closes. Cookies and site data are kept
+# when the host opts out with win_workman_chrome_clear_site_data_on_exit: false.
+# https://chromeenterprise.google/policies/#ClearBrowsingDataOnExitList
+- name: Set the data cleared on exit
+  ansible.builtin.include_tasks: list_policy.yaml
+  vars:
+    win_workman_chrome_list_key: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
+    win_workman_chrome_list_items: >-
+      {{ ((['cookies_and_other_site_data'] if win_workman_chrome_clear_site_data_on_exit | bool else [])
+          + ['cached_images_and_files', 'browsing_history'])
+         if win_workman_chrome_policy_enabled
+         else [] }}
+
 - name: Remove Chrome policy values (restore)
   ansible.windows.win_regedit:
     path: "{{ item.path }}"
@@ -141,12 +145,6 @@
       name: HideFirstRunExperience
     - path: "{{ win_workman_chrome_policy_path }}"
       name: ImportAtFirstRun
-    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-      name: "1"
-    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-      name: "2"
-    - path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-      name: "3"
     - path: "{{ win_workman_chrome_policy_path }}"
       name: PasswordManagerEnabled
     - path: "{{ win_workman_chrome_policy_path }}"
@@ -157,12 +155,6 @@
       name: MetricsReportingEnabled
     - path: "{{ win_workman_chrome_policy_path }}"
       name: PersonalizationReportingEnabled
-  when: not win_workman_chrome_policy_enabled
-
-- name: Remove the data clearing subkey (restore)
-  ansible.windows.win_regedit:
-    path: "{{ win_workman_chrome_policy_path }}\\ClearBrowsingDataOnExitList"
-    state: absent
   when: not win_workman_chrome_policy_enabled
 
 - name: Remove the Chrome base policy key (restore)
