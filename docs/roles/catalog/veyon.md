@@ -29,6 +29,16 @@ Close whatever holds it (typically a Veyon Master left open) and run `veyon`
 again. Configuration (registry) and keys (`%ProgramData%\Veyon`) are outside the
 directory and survive both the upgrade and `off`.
 
+Keep Veyon at 4.11.4 or later. Microsoft Defender platform 4.18.26090 (October
+2026) starts a protected `DefenderSessionHelper.exe` in every user session.
+Up to 4.11.3 the service starts its feature workers from the first process of
+the session user, and when that process is `DefenderSessionHelper.exe` it fails
+with `WindowsCoreFunctions: OpenProcess() 5` (`0` in 4.8.x): text messages and
+starting programs stop working, while screen lock and monitoring still do.
+Whether a host is hit depends on the order in which the user's processes start,
+so it looks random across a lab. Fixed upstream in 4.11.4 (veyon/veyon#1184,
+#1189, #1195).
+
 ---
 
 ## Master vs agent distinction
