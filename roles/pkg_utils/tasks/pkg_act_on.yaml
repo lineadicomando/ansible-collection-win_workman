@@ -308,39 +308,6 @@
   when:
     - win_workman_needs_action | bool
 
-- name: Stop declared services before install
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: services_stop
-  when:
-    - win_workman_needs_action | bool
-    - not (win_workman_pkg_portable | bool)
-    - win_workman_schema.services is defined
-    - win_workman_schema.services is not none
-
-# pkg_act_off resets win_workman_operation and win_workman_needs_action to
-# describe the uninstall it performs, so the install workflow state is saved
-# here and restored right after.
-- name: Save install workflow state
-  ansible.builtin.set_fact:
-    win_workman_install_operation: "{{ win_workman_operation }}"
-    win_workman_install_needs_action: "{{ win_workman_needs_action }}"
-
-- name: Uninstall before upgrade/downgrade
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: pkg_act_off
-  when:
-    - win_workman_uninstall_before_upgrade | bool
-    - win_workman_is_present | default(false) | bool
-    - win_workman_operation in ['upgrade', 'downgrade']
-    - not (win_workman_pkg_portable | bool)
-
-- name: Restore install workflow state
-  ansible.builtin.set_fact:
-    win_workman_operation: "{{ win_workman_install_operation }}"
-    win_workman_needs_action: "{{ win_workman_install_needs_action }}"
-
 - name: Get install argv
   ansible.builtin.set_fact:
     win_workman_install_provider: >-
@@ -385,6 +352,126 @@
       }}
   when:
     - not (win_workman_pkg_portable | bool)
+
+# Self-updating programs such as Chrome install the vendor's current MSI, with
+# no version pinned, while their own updater may already have moved them past
+# it, at times leaving no uninstall entry behind. Detection then sees nothing
+# installed, and the MSI refuses to go backwards (Chrome: "a newer version is
+# already installed", rc 1603). package.version_file names the program's
+# executable: when its file version is the same as or newer than the MSI's
+# ProductVersion, the install is skipped.
+- name: Compare the installed program with the installer version
+  ansible.windows.win_powershell:
+    parameters:
+      VersionFile: "{{ win_workman_schema.package.version_file }}"
+      SetupPath: "{{ win_workman_remote_tmp }}\\{{ win_workman_install_setup_path }}"
+    script: |
+      param([string]$VersionFile, [string]$SetupPath)
+      $Ansible.Changed = $false
+
+      function Get-MsiProductVersion([string]$Path) {
+        $installer = New-Object -ComObject WindowsInstaller.Installer
+        $db = $installer.GetType().InvokeMember('OpenDatabase', 'InvokeMethod', $null, $installer, @($Path, 0))
+        try {
+          $view = $db.GetType().InvokeMember('OpenView', 'InvokeMethod', $null, $db,
+            @("SELECT ``Value`` FROM ``Property`` WHERE ``Property`` = 'ProductVersion'"))
+          [void]$view.GetType().InvokeMember('Execute', 'InvokeMethod', $null, $view, $null)
+          $record = $view.GetType().InvokeMember('Fetch', 'InvokeMethod', $null, $view, $null)
+          $value = $null
+          if ($record) { $value = $record.GetType().InvokeMember('StringData', 'GetProperty', $null, $record, 1) }
+          [void]$view.GetType().InvokeMember('Close', 'InvokeMethod', $null, $view, $null)
+          return $value
+        } finally {
+          # Release the handle so msiexec finds the package unlocked.
+          [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($db)
+          [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($installer)
+        }
+      }
+
+      $file = [Environment]::ExpandEnvironmentVariables($VersionFile)
+      $installed = $null
+      if (Test-Path -LiteralPath $file -PathType Leaf) {
+        $vi = (Get-Item -LiteralPath $file).VersionInfo
+        $installed = [version]('{0}.{1}.{2}.{3}' -f $vi.FileMajorPart, $vi.FileMinorPart, $vi.FileBuildPart, $vi.FilePrivatePart)
+      }
+
+      $target = $null
+      if ($SetupPath -match '(?i)\.msi$' -and (Test-Path -LiteralPath $SetupPath -PathType Leaf)) {
+        try { $target = [version](Get-MsiProductVersion $SetupPath) } catch { $target = $null }
+      }
+
+      $Ansible.Result = [ordered]@{
+        version_file      = $file
+        installed_version = $(if ($installed) { [string]$installed } else { $null })
+        installer_version = $(if ($target) { [string]$target } else { $null })
+        up_to_date        = [bool]($installed -and $target -and $installed -ge $target)
+      }
+  register: win_workman_version_file_check
+  when:
+    - win_workman_needs_action | bool
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_schema.package.version_file is defined
+    - win_workman_schema.package.version_file is not none
+
+- name: Skip the install when the program is already at the installer version or newer
+  ansible.builtin.set_fact:
+    win_workman_operation: noop
+    win_workman_needs_action: false
+  when:
+    - win_workman_version_file_check.result.up_to_date | default(false) | bool
+
+- name: Report the skipped install
+  ansible.builtin.debug:
+    msg: >-
+      {{ win_workman_schema.name }} {{ win_workman_version_file_check.result.installed_version }}
+      ({{ win_workman_version_file_check.result.version_file }}) is the same as or newer than
+      the installer ({{ win_workman_version_file_check.result.installer_version }}): nothing to do.
+      {{
+        'It has no uninstall entry, so off will not find it.'
+        if not (win_workman_is_present | default(false) | bool) else ''
+      }}
+  when:
+    - win_workman_version_file_check.result.up_to_date | default(false) | bool
+
+- name: Purge the unused installer from Windows temporary directory
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: win_clean_temp
+  when:
+    - win_workman_version_file_check.result.up_to_date | default(false) | bool
+
+- name: Stop declared services before install
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: services_stop
+  when:
+    - win_workman_needs_action | bool
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_schema.services is defined
+    - win_workman_schema.services is not none
+
+# pkg_act_off resets win_workman_operation and win_workman_needs_action to
+# describe the uninstall it performs, so the install workflow state is saved
+# here and restored right after.
+- name: Save install workflow state
+  ansible.builtin.set_fact:
+    win_workman_install_operation: "{{ win_workman_operation }}"
+    win_workman_install_needs_action: "{{ win_workman_needs_action }}"
+
+- name: Uninstall before upgrade/downgrade
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_act_off
+  when:
+    - win_workman_uninstall_before_upgrade | bool
+    - win_workman_is_present | default(false) | bool
+    - win_workman_operation in ['upgrade', 'downgrade']
+    - not (win_workman_pkg_portable | bool)
+
+- name: Restore install workflow state
+  ansible.builtin.set_fact:
+    win_workman_operation: "{{ win_workman_install_operation }}"
+    win_workman_needs_action: "{{ win_workman_install_needs_action }}"
 
 - name: Before install hook
   ansible.builtin.include_role:

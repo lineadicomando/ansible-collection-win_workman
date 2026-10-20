@@ -70,6 +70,9 @@ win_workman_chrome_schema:
   package:
     setup_file: "{{ win_workman_chrome_setup_filename[win_workman_chrome_arch] }}"
     searchName: "Google Chrome"
+    # Google Updater keeps Chrome ahead of the enterprise MSI, sometimes with no
+    # uninstall entry left: compare against chrome.exe instead of failing on 1603.
+    version_file: "{{ win_workman_chrome_program_file[win_workman_chrome_arch] }}\\Google\\Chrome\\Application\\chrome.exe"
     # before_install_ps_script: "{{ win_workman_chrome_before_act_ps_script }}"
     before_uninstall_ps_script: "{{ win_workman_chrome_before_act_ps_script }}"
     cleanup_paths:

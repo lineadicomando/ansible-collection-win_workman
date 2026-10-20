@@ -59,5 +59,11 @@ The shortcut command line is assembled as:
   force-killed via a PowerShell pre-action script embedded in the schema.
 - `rm_data` removes `%LOCALAPPDATA%\Google\Chrome` for every local user profile
   and cleans up profile-specific shortcuts from all desktops.
+- Google Updater can move Chrome past the enterprise MSI, which Google
+  may still be serving the previous release, and can leave Chrome without
+  an uninstall entry. The schema sets `version_file` to `chrome.exe`, so `on`
+  does nothing when that file is already at the MSI's version or newer, instead
+  of failing with rc 1603 ("a newer version is already installed"). See
+  [pkg_utils](../core/pkg_utils.md#programs-that-update-themselves-version_file).
 - No checksum is defined for the installer: Chrome Enterprise is fetched
   directly from Google's CDN at the URL encoded in `vars/main.yaml`.
