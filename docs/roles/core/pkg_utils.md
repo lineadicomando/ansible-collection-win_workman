@@ -27,6 +27,7 @@ win_workman_<schema>_schema:
     uninstall_args:
       - /VERYSILENT
     uninstall_before_upgrade: false # uninstall old version before installing new
+    version_file: "%ProgramFiles%\\App\\app.exe"  # optional, see below
 
   files:                            # list of downloadable assets
     - filename: installer.exe
@@ -43,6 +44,26 @@ win_workman_<schema>_schema:
 
 For the difference between `registry` and `portable` providers see
 [architecture.md](../architecture.md#package-providers).
+
+### Programs that update themselves (`version_file`)
+
+Browsers such as Chrome install the vendor's current MSI with no `version`
+pinned, while their own updater keeps moving them forward. When the updater
+gets ahead of the MSI the vendor publishes, and especially when it leaves no
+uninstall entry behind, detection finds nothing installed and the MSI refuses
+to downgrade: Chrome's fails with rc 1603, "a newer version is already
+installed".
+
+`version_file` names the program's executable (environment variables are
+expanded). After the installer is copied to the host, `on` compares the file
+version of that executable with the MSI's `ProductVersion`: when the program is
+the same or newer, the install is skipped, the installer removed from the
+temporary directory, and the task reports `ok`. The check only applies to
+`.msi` installers; with any other installer, or when the executable is missing,
+the install goes ahead as before.
+
+A program found only through `version_file` still has no uninstall entry, so
+`off` cannot remove it; the skip message says so.
 
 ---
 
