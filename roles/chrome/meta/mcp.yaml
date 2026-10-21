@@ -7,8 +7,9 @@ custom_actions:
       lockdown policies under HKLM\SOFTWARE\Policies\Google\Chrome. 'on'
       disables sign-in, sync, guest mode, profile creation, password manager,
       autofill, telemetry and extension installs (the last one
-      unless win_workman_chrome_block_extensions is false), and clears cookies, cache and
-      history on browser exit. 'off' removes those policies. Does not delete
+      unless win_workman_chrome_block_extensions is false), force-installs the
+      extensions in win_workman_chrome_extension_forcelist, and clears cookies,
+      cache and history on browser exit. 'off' removes those policies. Does not delete
       existing profile data.
   - name: rm
     description: >-
@@ -44,7 +45,17 @@ defaults:
       users may still install from the Chrome Web Store
       (ExtensionInstallAllowlist). E.g. ghbmnnjooekpmoecnnnilnnbdlolhkhi for
       Google Docs Offline, which the context-menu copy and paste in Docs and
-      Sheets relies on.
+      Sheets relies on. Users still have to install them; see
+      win_workman_chrome_extension_forcelist to install them for everyone.
+  - var: win_workman_chrome_extension_forcelist
+    type: list
+    default: []
+    description: >-
+      With chrome-privacy-on, extensions Chrome installs by itself for every
+      user, who cannot remove them (ExtensionInstallForcelist). They are
+      installed whether or not the other extensions are blocked. An entry is
+      an extension ID, taken from the Chrome Web Store, or "<id>;<update URL>".
+      E.g. ghbmnnjooekpmoecnnnilnnbdlolhkhi for Google Docs Offline.
   - var: win_workman_chrome_clear_site_data_on_exit
     type: bool
     default: true

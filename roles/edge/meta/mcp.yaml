@@ -7,7 +7,14 @@ custom_actions:
       uninstalled because Windows components depend on it; removing it leaves
       the system unstable (verified on a lab machine).
   - name: privacy
-    description: Clear user data (history, cache, cookies) for all Edge profiles
+    description: >-
+      Requires an 'on' or 'off' argument (edge-privacy-on). Applies or removes
+      lockdown policies under HKLM\SOFTWARE\Policies\Microsoft\Edge. 'on'
+      disables sign-in, sync, password manager, autofill, history saving,
+      telemetry and extension installs (except win_workman_edge_extension_allowlist),
+      force-installs the extensions in win_workman_edge_extension_forcelist,
+      and clears browsing data on exit. 'off' removes those policies. Does not
+      delete existing profile data.
   - name: rm
     description: Remove the Edge profile directory for a specific user
 defaults:
@@ -23,6 +30,25 @@ defaults:
     type: bool
     default: true
     description: Pass --no-first-run flags to shortcut
+  - var: win_workman_edge_extension_allowlist
+    type: list
+    default: []
+    description: >-
+      With edge-privacy-on, IDs of the extensions users may still install
+      despite the blocklist (ExtensionInstallAllowlist). IDs are looked up in
+      the Edge Add-ons store; one from the Chrome Web Store also needs the
+      user to turn on "Allow extensions from other stores".
+  - var: win_workman_edge_extension_forcelist
+    type: list
+    default: []
+    description: >-
+      With edge-privacy-on, extensions Edge installs by itself for every user,
+      who cannot remove them (ExtensionInstallForcelist), despite the
+      blocklist. An entry is "<id>;<update URL>"; a bare ID is looked up in
+      the Edge Add-ons store. For a Chrome Web Store extension add
+      ";https://clients2.google.com/service/update2/crx", e.g.
+      ghbmnnjooekpmoecnnnilnnbdlolhkhi;https://clients2.google.com/service/update2/crx
+      for Google Docs Offline.
 notes: >-
   Accepts '32bit' task argument. Closes running Edge before install.
   This role installs and upgrades Edge but never removes it: see the 'off'

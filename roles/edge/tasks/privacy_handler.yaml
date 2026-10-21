@@ -91,6 +91,33 @@
       data: "*"
   when: win_workman_edge_policy_enabled
 
+# Extensions that stay installable despite the blocklist. Edge looks IDs up in
+# the Edge Add-ons store; one from the Chrome Web Store also needs the user to
+# turn on "Allow extensions from other stores" in edge://extensions.
+# https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#extensioninstallallowlist
+- name: Set the extension allowlist
+  ansible.builtin.include_tasks: list_policy.yaml
+  vars:
+    win_workman_edge_list_key: "{{ win_workman_edge_policy_path }}\\ExtensionInstallAllowlist"
+    win_workman_edge_list_items: >-
+      {{ win_workman_edge_extension_allowlist
+         if win_workman_edge_policy_enabled
+         else [] }}
+
+# Extensions Edge installs by itself for every user, who cannot remove them,
+# despite the blocklist. An entry is "<id>;<update URL>"; a bare ID is looked
+# up in the Edge Add-ons store, so a Chrome Web Store extension needs
+# ";https://clients2.google.com/service/update2/crx" after its ID.
+# https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#extensioninstallforcelist
+- name: Set the force-installed extensions
+  ansible.builtin.include_tasks: list_policy.yaml
+  vars:
+    win_workman_edge_list_key: "{{ win_workman_edge_policy_path }}\\ExtensionInstallForcelist"
+    win_workman_edge_list_items: >-
+      {{ win_workman_edge_extension_forcelist
+         if win_workman_edge_policy_enabled
+         else [] }}
+
 - name: Remove Edge policy values (restore)
   ansible.windows.win_regedit:
     path: "{{ item.path }}"

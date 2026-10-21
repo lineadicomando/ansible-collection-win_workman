@@ -1,0 +1,37 @@
+---
+# Write an Edge list policy as values "1".."n" under its own subkey and drop
+# any value past n, so a shorter list leaves no stale entries behind.
+# An empty list removes the subkey.
+# Inputs: win_workman_edge_list_key (full registry path),
+#         win_workman_edge_list_items (list of strings).
+
+- name: Read the current values of the list policy
+  ansible.windows.win_reg_stat:
+    path: "{{ win_workman_edge_list_key }}"
+  register: win_workman_edge_list_stat
+
+- name: Write the list policy values
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_edge_list_key }}"
+    name: "{{ win_workman_edge_list_index + 1 }}"
+    type: string
+    data: "{{ item }}"
+  loop: "{{ win_workman_edge_list_items }}"
+  loop_control:
+    index_var: win_workman_edge_list_index
+
+- name: Remove list policy values past the end of the list
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_edge_list_key }}"
+    name: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ (win_workman_edge_list_stat.properties | default({})).keys()
+       | difference(range(1, win_workman_edge_list_items | length + 1) | map('string')) }}
+  when: win_workman_edge_list_items | length > 0
+
+- name: Remove the empty list policy
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_edge_list_key }}"
+    state: absent
+  when: win_workman_edge_list_items | length == 0

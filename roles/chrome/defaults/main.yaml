@@ -5,3 +5,4 @@ win_workman_chrome_shortcuts: false
 win_workman_chrome_block_extensions: true
 win_workman_chrome_extension_allowlist: []
 win_workman_chrome_clear_site_data_on_exit: true
+win_workman_chrome_extension_forcelist: []
