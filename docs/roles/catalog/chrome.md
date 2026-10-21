@@ -43,6 +43,7 @@ The token `32bit` must appear anywhere in `argv` (position 2+).
 | `win_workman_chrome_shortcut_no_first_run` | `true` | Adds `--disable-search-engine-choice-screen --no-default-browser-check --no-first-run` to the shortcut |
 | `win_workman_chrome_block_extensions` | `true` | With `privacy-on`, block installation of all extensions (`ExtensionInstallBlocklist = *`); `false` leaves extension installs allowed and removes an existing blocklist |
 | `win_workman_chrome_extension_allowlist` | `[]` | With `privacy-on` and extensions blocked, IDs of the extensions users may still install from the Web Store (`ExtensionInstallAllowlist`) |
+| `win_workman_chrome_extension_forcelist` | `[]` | With `privacy-on`, extensions installed for every user, who cannot remove them (`ExtensionInstallForcelist`), blocked or not; an entry is a Web Store ID or `<id>;<update URL>` |
 | `win_workman_chrome_clear_site_data_on_exit` | `true` | With `privacy-on`, clear cookies and site data when Chrome closes; `false` keeps them, cache and history are cleared either way |
 
 The shortcut command line is assembled as:

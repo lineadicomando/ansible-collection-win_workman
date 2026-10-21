@@ -112,6 +112,19 @@
          if win_workman_chrome_policy_enabled and win_workman_chrome_block_extensions | bool
          else [] }}
 
+# Extensions Chrome installs by itself for every user, who cannot remove them.
+# They are installed even when every other extension is blocked. An entry is
+# an extension ID (from the Chrome Web Store) or "<id>;<update URL>".
+# https://chromeenterprise.google/policies/#ExtensionInstallForcelist
+- name: Set the force-installed extensions
+  ansible.builtin.include_tasks: list_policy.yaml
+  vars:
+    win_workman_chrome_list_key: "{{ win_workman_chrome_policy_path }}\\ExtensionInstallForcelist"
+    win_workman_chrome_list_items: >-
+      {{ win_workman_chrome_extension_forcelist
+         if win_workman_chrome_policy_enabled
+         else [] }}
+
 # Browsing data cleared when Chrome closes. Cookies and site data are kept
 # when the host opts out with win_workman_chrome_clear_site_data_on_exit: false.
 # https://chromeenterprise.google/policies/#ClearBrowsingDataOnExitList
