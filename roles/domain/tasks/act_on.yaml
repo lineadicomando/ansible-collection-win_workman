@@ -1,0 +1,4 @@
+---
+# "on" joins, as everywhere in the collection "on" enables
+- name: Join the domain
+  ansible.builtin.include_tasks: act_join.yaml

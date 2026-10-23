@@ -124,6 +124,7 @@ The collection has two distinct role families:
 | [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
 | [roles/management/autologon.md](roles/management/autologon.md) | `autologon` — automatic logon configuration |
 | [roles/management/autoshutdown.md](roles/management/autoshutdown.md) | `autoshutdown` — scheduled task that shuts the host down at fixed times |
+| [roles/management/domain.md](roles/management/domain.md) | `domain` — Active Directory domain join, leave and status |
 | [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `secure_ssh`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
 
 ---
@@ -159,7 +160,7 @@ The collection has two distinct role families:
 [`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown) · [`autoshutdown`](roles/management/autoshutdown.md)
 
 ### Management — Network & Security
-[`secure_ssh`](roles/management/system-tools.md#secure_ssh) · [`wol`](roles/management/system-tools.md#wol) · [`ping`](roles/management/system-tools.md#ping)
+[`domain`](roles/management/domain.md) · [`secure_ssh`](roles/management/system-tools.md#secure_ssh) · [`wol`](roles/management/system-tools.md#wol) · [`ping`](roles/management/system-tools.md#ping)
 
 ### Management — UX & Appearance
 [`wallpaper`](roles/management/wallpaper.md) · [`display_scale`](roles/management/display_scale.md) · [`widgets`](roles/management/system-tools.md#widgets)
