@@ -3,7 +3,7 @@ galaxy_info:
   author: Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
   license: GPL-3.0-or-later
   role_name: wallpaper
-  description: "wallpaper management"
+  description: "Desktop wallpaper across every local profile: set, reset, lock, unlock"
   min_ansible_version: "2.20"
   platforms:
     - name: Windows

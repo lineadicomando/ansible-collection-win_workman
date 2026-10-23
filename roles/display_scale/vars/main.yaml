@@ -5,6 +5,12 @@
 #      - HKCU\Control Panel\Desktop\PerMonitorSettings  override per singolo monitor
 # ==============================================================================
 ---
+# Registry entries below are written relative to this prefix: pkg_utils/profiles
+# returns HiveRoot as HKLM:\ANSIBLE\ for an offline hive or HKU:\<SID>\ for a
+# loaded one, so the prefix is stripped and HiveRoot prepended. A YAML single-
+# quoted var, because Jinja string literals keep backslashes verbatim.
+win_workman_display_scale_hive_prefix: 'HKLM:\ANSIBLE\'
+
 win_workman_display_scale_schema:
   name: Display Scaling
   role: lineadicomando.win_workman.display_scale

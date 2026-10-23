@@ -198,7 +198,7 @@ dispatcher interface.
 | `chkdsk` | `on` | Check Disk |
 | `oobe` | `on`, `off` | Suppress Out-of-Box Experience prompts |
 | `widgets` | `on`, `off` | Windows 11 Widgets panel (news and interests) |
-| `wallpaper` | `on`, `off`, `set`, `reset`, `lock`, `unlock` | Wallpaper across all user profiles |
+| `wallpaper` | `on` *(default)*, `off`, `set`, `reset`, `lock`, `unlock`, `clear_history` | Wallpaper across all user profiles |
 
 ### Session & Access
 

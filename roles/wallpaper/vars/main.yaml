@@ -1,4 +1,10 @@
 ---
+# Registry entries below are written relative to this prefix: pkg_utils/profiles
+# returns HiveRoot as HKLM:\ANSIBLE\ for an offline hive or HKU:\<SID>\ for a
+# loaded one, so the prefix is stripped and HiveRoot prepended. A YAML single-
+# quoted var, because Jinja string literals keep backslashes verbatim.
+win_workman_wallpaper_hive_prefix: 'HKLM:\ANSIBLE\'
+
 win_workman_wallpaper_schema:
   name: Set Wallpaper
   role: lineadicomando.win_workman.wallpaper
@@ -21,11 +27,22 @@ win_workman_wallpaper_registry_entries_set:
     name: BackgroundType
     data: 0
     type: dword
+# NoChangingWallPaper hides the Background page, but a theme change still swaps
+# the wallpaper. The Desktop Wallpaper policy (Policies\System) forces the file
+# at every logon whatever the user does, so lock writes both; unlock drops both.
 win_workman_wallpaper_registry_entries_lock:
   - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop
     name: NoChangingWallPaper
     data: 1
     type: dword
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\System
+    name: Wallpaper
+    data: "{{ win_workman_wallpaper_path }}"
+    type: string
+  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\System
+    name: WallpaperStyle
+    data: "{{ win_workman_wallpaper_set_style }}"
+    type: string
 
 win_workman_wallpaper_registry_entries_reset:
   - path: HKLM:\ANSIBLE\Control Panel\Desktop
