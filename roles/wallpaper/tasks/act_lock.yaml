@@ -14,29 +14,7 @@
     tasks_from: wallpaper_profiles
   when: not (win_workman_wallpaper_profiles_ready | default(false) | bool)
 
-- name: Check that the wallpaper file is deployed
-  ansible.windows.win_stat:
-    path: "{{ win_workman_wallpaper_path }}"
-  register: win_workman_wallpaper_file
-
-# The Desktop Wallpaper policy points every logon at this file: locking on a
-# missing file gives a black desktop the user is not allowed to fix.
-- name: Refuse to lock on a wallpaper that is not deployed
-  ansible.builtin.assert:
-    that: win_workman_wallpaper_file.stat.exists
-    fail_msg: >-
-      {{ win_workman_wallpaper_path }} is missing on the host: run wallpaper-set
-      (or wallpaper-on) before wallpaper-lock.
-    quiet: true
-
-- name: Prevent wallpaper changes in offline profiles and the Default profile
-  ansible.windows.win_regedit:
-    hive: "{{ (item.0.HiveMounted | default(false) | bool) | ternary(omit, item.0.HivePath) }}"
-    path: "{{ item.0.HiveRoot ~ (item.1.path | replace(win_workman_wallpaper_hive_prefix, '')) }}"
-    name: "{{ item.1.name }}"
-    data: "{{ item.1.data }}"
-    type: "{{ item.1.type }}"
-    state: present
-  loop: "{{ win_workman_wallpaper_profiles_target | product(win_workman_wallpaper_registry_entries_lock) | list }}"
-  loop_control:
-    label: "{{ item.0.LocalPath }} -> {{ item.0.HiveRoot ~ (item.1.path | replace(win_workman_wallpaper_hive_prefix, '')) }}"
+- name: Lock every profile on its current wallpaper
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wallpaper
+    tasks_from: lock_profiles

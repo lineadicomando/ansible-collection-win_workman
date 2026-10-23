@@ -33,3 +33,15 @@
   loop: "{{ win_workman_wallpaper_profiles_target | product(win_workman_wallpaper_cache_paths) | list }}"
   loop_control:
     label: "{{ item.0.LocalPath }}\\{{ item.1 }}"
+
+# A profile that is already locked would keep the policy on its old picture,
+# which reset may just have deleted from the cache: move the lock onto the new
+# wallpaper. on and off skip it, their second half sets the lock anyway.
+- name: Move an existing lock onto the new wallpaper
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wallpaper
+    tasks_from: lock_profiles
+  vars:
+    win_workman_wallpaper_lock_only_locked: true
+    win_workman_wallpaper_lock_follow_desktop: true
+  when: win_workman_wallpaper_relock | default(true) | bool

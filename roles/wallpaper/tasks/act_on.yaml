@@ -15,6 +15,7 @@
     tasks_from: act_set
   vars:
     win_workman_wallpaper_profiles_ready: true
+    win_workman_wallpaper_relock: false
 
 - name: Lock wallpaper settings
   ansible.builtin.include_role:
@@ -22,3 +23,4 @@
     tasks_from: act_lock
   vars:
     win_workman_wallpaper_profiles_ready: true
+    win_workman_wallpaper_lock_follow_desktop: true

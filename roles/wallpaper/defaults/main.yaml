@@ -2,6 +2,7 @@
 win_workman_wallpaper_source: "{{ role_path }}/files/default_wallpaper.png"
 win_workman_wallpaper_dir: C:\ProgramData\Wallpaper
 win_workman_wallpaper_path: '{{ win_workman_wallpaper_dir }}\wallpaper.png'
+win_workman_wallpaper_lock_dir: '{{ win_workman_wallpaper_dir }}\locked'
 win_workman_wallpaper_profiles_include_default: true
 win_workman_wallpaper_set_style: "10"
 win_workman_wallpaper_set_tile: "0"
