@@ -1,9 +1,12 @@
 ---
+# on/off log off and collect the profiles once, then include the single actions
+# with win_workman_wallpaper_profiles_ready: an include var, scoped to the include,
+# unlike the fact, which would outlive the action and go stale after a restart.
 - name: Logoff interactive sessions
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
     tasks_from: logoff
-  when: win_workman_wallpaper_profiles_target is not defined
+  when: not (win_workman_wallpaper_profiles_ready | default(false) | bool)
 
 - name: Create the wallpaper directory
   ansible.windows.win_file:
@@ -19,17 +22,26 @@
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.wallpaper
     tasks_from: wallpaper_profiles
-  when:
-    - win_workman_wallpaper_profiles_target is not defined
+  when: not (win_workman_wallpaper_profiles_ready | default(false) | bool)
 
 - name: Apply the wallpaper to offline profiles and the Default profile
   ansible.windows.win_regedit:
     hive: "{{ (item.0.HiveMounted | default(false) | bool) | ternary(omit, item.0.HivePath) }}"
-    path: "{{ item.0.HiveRoot ~ (item.1.path | replace('HKLM:\\ANSIBLE', '')) }}"
+    path: "{{ item.0.HiveRoot ~ (item.1.path | replace(win_workman_wallpaper_hive_prefix, '')) }}"
     name: "{{ item.1.name }}"
     data: "{{ item.1.data }}"
     type: "{{ item.1.type }}"
     state: present
   loop: "{{ win_workman_wallpaper_profiles_target | product(win_workman_wallpaper_registry_entries_set) | list }}"
   loop_control:
-    label: "{{ item.0.LocalPath }} -> {{ item.0.HiveRoot ~ (item.1.path | replace('HKLM:\\ANSIBLE', '')) }}"
+    label: "{{ item.0.LocalPath }} -> {{ item.0.HiveRoot ~ (item.1.path | replace(win_workman_wallpaper_hive_prefix, '')) }}"
+
+# Settings keeps a transcoded copy of the last picture the user picked: drop it
+# so the Background page previews the deployed file, as reset already does.
+- name: Clear the wallpaper cache for all profiles
+  ansible.windows.win_file:
+    path: "{{ item.0.LocalPath }}\\{{ item.1 }}"
+    state: absent
+  loop: "{{ win_workman_wallpaper_profiles_target | product(win_workman_wallpaper_cache_paths) | list }}"
+  loop_control:
+    label: "{{ item.0.LocalPath }}\\{{ item.1 }}"

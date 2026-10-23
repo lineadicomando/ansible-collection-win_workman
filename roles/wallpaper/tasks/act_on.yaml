@@ -13,8 +13,12 @@
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.wallpaper
     tasks_from: act_set
+  vars:
+    win_workman_wallpaper_profiles_ready: true
 
 - name: Lock wallpaper settings
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.wallpaper
     tasks_from: act_lock
+  vars:
+    win_workman_wallpaper_profiles_ready: true

@@ -3,19 +3,16 @@
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
     tasks_from: logoff
-  when: win_workman_display_scale_profiles_target is not defined
 
 - name: Ensure display scale target profiles are collected
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.display_scale
     tasks_from: display_scale_profiles
-  when:
-    - win_workman_display_scale_profiles_target is not defined
 
 - name: Drop per-monitor scale overrides
   ansible.windows.win_regedit:
     hive: "{{ (item.HiveMounted | default(false) | bool) | ternary(omit, item.HivePath) }}"
-    path: "{{ item.HiveRoot ~ (win_workman_display_scale_per_monitor_path | replace('HKLM:\\ANSIBLE', '')) }}"
+    path: "{{ item.HiveRoot ~ (win_workman_display_scale_per_monitor_path | replace(win_workman_display_scale_hive_prefix, '')) }}"
     state: absent
     delete_key: true
   loop: "{{ win_workman_display_scale_profiles_target }}"
@@ -25,7 +22,7 @@
 - name: Restore the display-recommended scale in offline profiles and the Default profile
   ansible.windows.win_regedit:
     hive: "{{ (item.0.HiveMounted | default(false) | bool) | ternary(omit, item.0.HivePath) }}"
-    path: "{{ item.0.HiveRoot ~ (item.1.path | replace('HKLM:\\ANSIBLE', '')) }}"
+    path: "{{ item.0.HiveRoot ~ (item.1.path | replace(win_workman_display_scale_hive_prefix, '')) }}"
     name: "{{ item.1.name }}"
     state: absent
   loop: "{{ win_workman_display_scale_profiles_target | product(win_workman_display_scale_registry_entries_reset) | list }}"
