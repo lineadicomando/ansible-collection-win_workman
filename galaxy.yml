@@ -1,7 +1,7 @@
 ---
 namespace: lineadicomando
 name: win_workman
-version: 0.1.0
+version: 0.3.0
 readme: README.md
 authors:
   - Alessandro Gagliano <alessandro.gagliano@lineadicomando.it>
