@@ -1,0 +1,4 @@
+---
+# "off" leaves the domain
+- name: Leave the domain
+  ansible.builtin.include_tasks: act_leave.yaml

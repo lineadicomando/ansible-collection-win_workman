@@ -1,0 +1,28 @@
+---
+- name: Validate domain-join prerequisites
+  ansible.builtin.assert:
+    that:
+      - win_workman_domain_name | default('', true) | trim | length > 0
+      - win_workman_domain_admin_user | default('', true) | trim | length > 0
+      - win_workman_domain_admin_password | default('', true) | length > 0
+    fail_msg: >-
+      domain-join requires win_workman_domain_name,
+      win_workman_domain_admin_user and win_workman_domain_admin_password
+      (from a vault-encrypted variable, e.g.
+      ansible-vault encrypt_string --name win_workman_domain_admin_password '<password>').
+    quiet: true
+
+- name: Use the domain controllers as DNS servers
+  ansible.windows.win_dns_client:
+    adapter_names: "*"
+    dns_servers: "{{ win_workman_domain_dns_servers }}"
+  when: win_workman_domain_dns_servers | default([], true) | length > 0
+
+- name: Join domain {{ win_workman_domain_name }}
+  microsoft.ad.membership:
+    dns_domain_name: "{{ win_workman_domain_name }}"
+    domain_admin_user: "{{ win_workman_domain_admin_user }}@{{ win_workman_domain_name }}"
+    domain_admin_password: "{{ win_workman_domain_admin_password }}"
+    state: domain
+    reboot: "{{ win_workman_domain_reboot | bool }}"
+  no_log: true

@@ -216,6 +216,7 @@ dispatcher interface.
 
 | Role | Actions | Description |
 |---|---|---|
+| `domain` | `status` *(default)*, `join`, `leave`, `on`, `off` | Active Directory domain membership |
 | `secure_ssh` | `on`, `off` | Harden OpenSSH server |
 | `veyon` | `on`, `off`, `config` | Veyon classroom agent (install + key/network config) |
 | `ping` | `on` | Connectivity test |

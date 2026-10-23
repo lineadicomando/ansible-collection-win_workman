@@ -114,6 +114,7 @@ Some roles extend the standard set with their own actions or support a subset:
 | `lock` | `on`, `off`, `reset` |
 | `autologon` | `on`, `off` |
 | `autoshutdown` | `on` *(default)*, `off`, `info` |
+| `domain` | `status` *(default)*, `join`, `leave`, `on` *(alias for `join`)*, `off` *(alias for `leave`)* |
 | `secure_ssh` | `on`, `off` |
 | `ms_account` | `on`, `off` |
 | `oobe` | `on`, `off` |

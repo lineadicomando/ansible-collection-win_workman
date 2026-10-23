@@ -1,0 +1,5 @@
+---
+win_workman_domain_schema:
+  name: Domain Membership
+  role: lineadicomando.win_workman.domain
+  default_action: status

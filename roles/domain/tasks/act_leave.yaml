@@ -1,0 +1,25 @@
+---
+- name: Validate domain-leave prerequisites
+  ansible.builtin.assert:
+    that:
+      - win_workman_domain_name | default('', true) | trim | length > 0
+      - win_workman_domain_admin_user | default('', true) | trim | length > 0
+      - win_workman_domain_admin_password | default('', true) | length > 0
+      - win_workman_domain_workgroup | default('', true) | trim | length > 0
+    fail_msg: >-
+      domain-leave requires win_workman_domain_name,
+      win_workman_domain_admin_user, win_workman_domain_admin_password and
+      win_workman_domain_workgroup.
+    quiet: true
+
+# With the domain account, Windows disables the computer account in the
+# directory (it does not delete it); a later join reuses it.
+- name: Leave the domain for workgroup {{ win_workman_domain_workgroup }}
+  microsoft.ad.membership:
+    dns_domain_name: "{{ win_workman_domain_name }}"
+    domain_admin_user: "{{ win_workman_domain_admin_user }}@{{ win_workman_domain_name }}"
+    domain_admin_password: "{{ win_workman_domain_admin_password }}"
+    state: workgroup
+    workgroup_name: "{{ win_workman_domain_workgroup }}"
+    reboot: "{{ win_workman_domain_reboot | bool }}"
+  no_log: true

@@ -1,0 +1,19 @@
+---
+# DNS name of the Active Directory domain, e.g. example.com (join, leave)
+win_workman_domain_name: ""
+# Domain account that joins the computer or disables its account on leave,
+# and its password. The
+# password has no default: supply it from a vault-encrypted variable rather
+# than reusing the WinRM/SSH credential (ansible_password), a different secret.
+win_workman_domain_admin_user: Administrator
+win_workman_domain_admin_password: ""
+# DNS servers set on every adapter before joining: the join finds the domain
+# through its SRV records, which only the domain controllers serve. Empty: the
+# adapters are left as they are.
+win_workman_domain_dns_servers: []
+# Workgroup the computer moves to on leave
+win_workman_domain_workgroup: WORKGROUP
+# Let join and leave reboot the host when the change requires it
+win_workman_domain_reboot: true
+# status: publish the result as the win_workman_domain_status fact
+win_workman_domain_set_fact: true

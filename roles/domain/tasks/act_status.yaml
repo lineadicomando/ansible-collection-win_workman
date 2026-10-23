@@ -1,0 +1,32 @@
+---
+- name: Query domain or workgroup membership
+  ansible.windows.win_powershell:
+    script: |
+      $cs = Get-CimInstance -ClassName Win32_ComputerSystem
+      [ordered]@{
+          hostname       = $cs.Name
+          part_of_domain = [bool]$cs.PartOfDomain
+          domain         = if ($cs.PartOfDomain) { $cs.Domain } else { $null }
+          workgroup      = if (-not $cs.PartOfDomain) { $cs.Workgroup } else { $null }
+      }
+  register: win_workman_domain_query
+  changed_when: false
+
+- name: Make sure the query returned a result
+  ansible.builtin.assert:
+    that: win_workman_domain_query.output | default([], true) | length > 0
+    fail_msg: "Win32_ComputerSystem returned no data on {{ inventory_hostname }}."
+    quiet: true
+
+- name: Publish the membership as the win_workman_domain_status fact
+  ansible.builtin.set_fact:
+    win_workman_domain_status: "{{ win_workman_domain_query.output[0] }}"
+  when: win_workman_domain_set_fact | bool
+
+- name: Report the membership
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }} is
+      {{ ('joined to domain ' ~ win_workman_domain_query.output[0].domain)
+         if win_workman_domain_query.output[0].part_of_domain
+         else ('in workgroup ' ~ win_workman_domain_query.output[0].workgroup) }}
