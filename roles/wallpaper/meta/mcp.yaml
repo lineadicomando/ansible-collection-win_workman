@@ -3,8 +3,8 @@ display_name: Wallpaper Management
 custom_actions:
   - name: "on"
     description: >-
-      Copy the wallpaper, apply it to every local profile and lock it
-      (set + lock). Forces a logoff of the interactive sessions first.
+      Copy the wallpaper, apply it to every local profile and lock it on that
+      file (set + lock). Forces a logoff of the interactive sessions first.
   - name: "off"
     description: >-
       Restore the Windows default wallpaper in every profile and remove the
@@ -14,16 +14,22 @@ custom_actions:
     description: >-
       Copy the wallpaper to the host and write it into every local profile,
       including the Default profile, without locking it. Clears the per-profile
-      wallpaper cache. Forces a logoff first.
+      wallpaper cache. A profile that is already locked is locked again on the
+      new file. Forces a logoff first.
   - name: reset
     description: >-
       Restore the Windows default wallpaper in every profile and clear the
-      per-profile wallpaper cache. Forces a logoff first.
+      per-profile wallpaper cache. A profile that is already locked is locked
+      again on the default wallpaper. Forces a logoff first.
   - name: lock
     description: >-
-      Prevent users from changing the wallpaper: hides the Background settings
-      and enforces the deployed file through the Desktop Wallpaper policy.
-      Fails if the file is not deployed (run set first). Forces a logoff first.
+      Prevent users from changing the wallpaper, whatever it is now: each
+      profile is locked on its current picture through the Desktop Wallpaper
+      policy, and the Background settings are hidden. A picture inside the
+      user's profile is copied to win_workman_wallpaper_lock_dir first; solid
+      colour, slideshow, Spotlight or a missing file fall back to
+      win_workman_wallpaper_default_path. A profile already locked keeps its
+      locked picture. Needs no prior set. Forces a logoff first.
   - name: unlock
     description: Remove the wallpaper lock from every profile. Forces a logoff first.
   - name: clear_history
@@ -43,6 +49,10 @@ defaults:
     type: str
     default: "{{ win_workman_wallpaper_dir }}\\wallpaper.png"
     description: Full destination path on the remote host, written to the registry
+  - var: win_workman_wallpaper_lock_dir
+    type: str
+    default: "{{ win_workman_wallpaper_dir }}\\locked"
+    description: Where lock copies a picture that lives inside a user profile, out of the user's reach
   - var: win_workman_wallpaper_set_style
     type: str
     default: "10"

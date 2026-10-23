@@ -27,23 +27,6 @@ win_workman_wallpaper_registry_entries_set:
     name: BackgroundType
     data: 0
     type: dword
-# NoChangingWallPaper hides the Background page, but a theme change still swaps
-# the wallpaper. The Desktop Wallpaper policy (Policies\System) forces the file
-# at every logon whatever the user does, so lock writes both; unlock drops both.
-win_workman_wallpaper_registry_entries_lock:
-  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop
-    name: NoChangingWallPaper
-    data: 1
-    type: dword
-  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\System
-    name: Wallpaper
-    data: "{{ win_workman_wallpaper_path }}"
-    type: string
-  - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\System
-    name: WallpaperStyle
-    data: "{{ win_workman_wallpaper_set_style }}"
-    type: string
-
 win_workman_wallpaper_registry_entries_reset:
   - path: HKLM:\ANSIBLE\Control Panel\Desktop
     name: Wallpaper
@@ -61,6 +44,7 @@ win_workman_wallpaper_registry_entries_reset:
     name: BackgroundType
     data: 0
     type: dword
+# The lock itself is written by tasks/lock_profiles.yaml; unlock drops it.
 win_workman_wallpaper_registry_entries_unlock:
   - path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Policies\System
     name: Wallpaper

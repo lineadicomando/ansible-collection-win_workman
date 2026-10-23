@@ -15,6 +15,7 @@
     tasks_from: act_reset
   vars:
     win_workman_wallpaper_profiles_ready: true
+    win_workman_wallpaper_relock: false
 
 - name: Unlock wallpaper settings
   ansible.builtin.include_role:

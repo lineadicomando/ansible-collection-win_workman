@@ -1,0 +1,237 @@
+---
+# Locks every target profile on the wallpaper it has right now. The Desktop
+# Wallpaper policy (Policies\System) needs a file to point at, so it is read
+# from the profile's own Control Panel\Desktop value instead of taken from
+# win_workman_wallpaper_path:
+#   - a picture inside the profiles directory is copied to
+#     win_workman_wallpaper_lock_dir, where users cannot edit or delete it;
+#   - a picture elsewhere (C:\Windows\Web, the role's own file) is used in place;
+#   - a missing original falls back to the transcoded copy Windows displays;
+#   - solid colour, slideshow, Spotlight or no file at all fall back to
+#     win_workman_wallpaper_default_path, reported per profile.
+# The policy style is a different enum from Control Panel's, see Get-PolicyStyle.
+# A profile already locked keeps its policy picture: a program run by the user
+# can still change Control Panel\Desktop for the session (SystemParametersInfo
+# is not blocked), and a second lock must not adopt that. FollowDesktop makes
+# the profile's Desktop value win instead: on, set and reset use it, since they
+# have just written the wallpaper they want locked.
+# With OnlyLocked, only profiles that already carry the lock are touched: set
+# and reset use it to move an existing lock onto the wallpaper they just wrote.
+- name: Lock the current wallpaper in offline profiles and the Default profile
+  ansible.windows.win_powershell:
+    script: |
+      param(
+        [object[]]$Profiles = @(),
+        [bool]$OnlyLocked = $false,
+        [bool]$FollowDesktop = $false,
+        [string]$LockDir,
+        [string]$DefaultPath,
+        [string]$DefaultStyle = '10',
+        [string]$DefaultTile = '0'
+      )
+
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      $desktopKey = 'Control Panel\Desktop'
+      $wallpapersKey = 'Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers'
+      $systemKey = 'Software\Microsoft\Windows\CurrentVersion\Policies\System'
+      $activeDesktopKey = 'Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop'
+      $transcodedRel = 'AppData\Roaming\Microsoft\Windows\Themes\TranscodedWallpaper'
+      $noExpand = [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
+      $mountName = 'WinWorkmanWallpaper'
+
+      $profilesDir = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList').ProfilesDirectory
+      $profilesDir = [Environment]::ExpandEnvironmentVariables($profilesDir).TrimEnd('\') + '\'
+
+      # Control Panel: 0 center (1 with TileWallpaper=1), 2 stretch, 6 fit,
+      # 10 fill, 22 span. Desktop Wallpaper policy (Desktop.admx): 0 center,
+      # 1 tile, 2 stretch, 3 fit, 4 fill, 5 span.
+      function Get-PolicyStyle([string]$Style, [string]$Tile) {
+        if ($Tile -eq '1') { return '1' }
+        switch ($Style) {
+          '0'  { return '0' }
+          '2'  { return '2' }
+          '6'  { return '3' }
+          '22' { return '5' }
+          default { return '4' }
+        }
+      }
+
+      function Expand-ProfilePath([string]$Path, [string]$LocalPath) {
+        # %USERPROFILE% would expand to the account running this script.
+        $p = [regex]::Replace($Path, '%USERPROFILE%', $LocalPath.Replace('$', '$$'), 'IgnoreCase')
+        return [Environment]::ExpandEnvironmentVariables($p)
+      }
+
+      function Get-ImageExtension([string]$Path) {
+        $ext = [IO.Path]::GetExtension($Path)
+        if ($ext) { return $ext.ToLowerInvariant() }
+        $b = New-Object byte[] 2
+        $fs = [IO.File]::OpenRead($Path)
+        try { [void]$fs.Read($b, 0, 2) } finally { $fs.Close() }
+        if ($b[0] -eq 0x89 -and $b[1] -eq 0x50) { return '.png' }
+        if ($b[0] -eq 0x42 -and $b[1] -eq 0x4D) { return '.bmp' }
+        return '.jpg'
+      }
+
+      function Read-Value($Root, [string]$Key, [string]$Name) {
+        $k = $Root.OpenSubKey($Key)
+        if (-not $k) { return $null }
+        try { return $k.GetValue($Name, $null, $noExpand) } finally { $k.Close() }
+      }
+
+      function Write-Value($Root, [string]$Key, [string]$Name, $Data, [Microsoft.Win32.RegistryValueKind]$Kind) {
+        $k = $Root.CreateSubKey($Key)
+        try {
+          $old = $k.GetValue($Name, $null, $noExpand)
+          $same = ($null -ne $old) -and ($k.GetValueKind($Name) -eq $Kind) -and ("$old" -eq "$Data")
+          if (-not $same) { $k.SetValue($Name, $Data, $Kind) }
+          return (-not $same)
+        } finally { $k.Close() }
+      }
+
+      $results = @()
+      foreach ($p in $Profiles) {
+        $localPath = [string]$p.LocalPath
+        $mounted = $false
+        $root = $null
+        $r = [ordered]@{ Profile = $localPath }
+        try {
+          if ([bool]$p.HiveMounted -and $p.SID) {
+            $root = [Microsoft.Win32.Registry]::Users.OpenSubKey([string]$p.SID, $true)
+          } else {
+            $out = & reg.exe load "HKLM\$mountName" ([string]$p.HivePath) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "reg load $($p.HivePath) failed: $out" }
+            $mounted = $true
+            $root = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($mountName, $true)
+          }
+          if (-not $root) { throw "hive of $localPath could not be opened" }
+
+          $policyWallpaper = [string](Read-Value $root $systemKey 'Wallpaper')
+          $policyStyleOld = [string](Read-Value $root $systemKey 'WallpaperStyle')
+          $isLocked = ($null -ne (Read-Value $root $systemKey 'Wallpaper')) -or
+                      ("$(Read-Value $root $activeDesktopKey 'NoChangingWallPaper')" -eq '1')
+          if ($OnlyLocked -and -not $isLocked) {
+            $r.Result = 'not locked, left alone'
+            $results += [pscustomobject]$r
+            continue
+          }
+
+          $wallpaper = [string](Read-Value $root $desktopKey 'Wallpaper')
+          $style = [string](Read-Value $root $desktopKey 'WallpaperStyle')
+          $tile = [string](Read-Value $root $desktopKey 'TileWallpaper')
+          $backgroundType = Read-Value $root $wallpapersKey 'BackgroundType'
+          if ($null -eq $backgroundType) { $backgroundType = 0 }
+
+          $source = $null
+          $fallback = $null
+          $keepStyle = $null
+          $policyFile = if ($policyWallpaper.Trim()) { Expand-ProfilePath $policyWallpaper $localPath } else { '' }
+          if (-not $FollowDesktop -and $policyFile -and (Test-Path -LiteralPath $policyFile -PathType Leaf)) {
+            $source = $policyFile
+            if ($policyStyleOld -match '^[0-5]$') { $keepStyle = $policyStyleOld }
+            $r.Note = 'already locked, kept the locked picture'
+          } elseif ([int]$backgroundType -ne 0) {
+            $fallback = "background type $backgroundType is not a picture"
+          } elseif (-not $wallpaper.Trim()) {
+            $fallback = 'no wallpaper set'
+          } else {
+            $candidate = Expand-ProfilePath $wallpaper $localPath
+            $transcoded = Join-Path $localPath $transcodedRel
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+              $source = $candidate
+            } elseif (Test-Path -LiteralPath $transcoded -PathType Leaf) {
+              $source = $transcoded
+              $r.Note = "original missing ($candidate), locked the transcoded copy"
+            } else {
+              $fallback = "wallpaper file missing: $candidate"
+            }
+          }
+          if ($fallback) {
+            $source = Expand-ProfilePath $DefaultPath $localPath
+            $style = $DefaultStyle
+            $tile = $DefaultTile
+            $r.Fallback = $fallback
+            if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+              throw "fallback wallpaper $source is missing too"
+            }
+          }
+
+          # A picture under the profiles directory belongs to a user, who could
+          # delete or overwrite it: lock a copy the user cannot touch.
+          $target = $source
+          if ($source.StartsWith($profilesDir, [StringComparison]::OrdinalIgnoreCase)) {
+            if (-not (Test-Path -LiteralPath $LockDir)) {
+              New-Item -ItemType Directory -Path $LockDir -Force | Out-Null
+            }
+            $target = Join-Path $LockDir ((Split-Path -Leaf $localPath) + (Get-ImageExtension $source))
+            $copy = -not (Test-Path -LiteralPath $target) -or
+                    ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $target).Hash)
+            if ($copy) {
+              Copy-Item -LiteralPath $source -Destination $target -Force
+              $Ansible.Changed = $true
+            }
+            $r.Copied = [bool]$copy
+          }
+
+          $policyStyle = if ($keepStyle) { $keepStyle } else { Get-PolicyStyle $style $tile }
+          $c1 = Write-Value $root $systemKey 'Wallpaper' $target ([Microsoft.Win32.RegistryValueKind]::String)
+          $c2 = Write-Value $root $systemKey 'WallpaperStyle' $policyStyle ([Microsoft.Win32.RegistryValueKind]::String)
+          $c3 = Write-Value $root $activeDesktopKey 'NoChangingWallPaper' 1 ([Microsoft.Win32.RegistryValueKind]::DWord)
+          if ($c1 -or $c2 -or $c3) { $Ansible.Changed = $true }
+
+          $r.Source = $source
+          $r.Locked = $target
+          $r.PolicyStyle = $policyStyle
+          $r.Result = if ($c1 -or $c2 -or $c3) { 'locked' } else { 'already locked' }
+          $results += [pscustomobject]$r
+        }
+        catch {
+          $r.Result = 'error'
+          $r.Error = $_.Exception.Message
+          $results += [pscustomobject]$r
+        }
+        finally {
+          if ($root) { $root.Close() }
+          if ($mounted) {
+            [gc]::Collect()
+            [gc]::WaitForPendingFinalizers()
+            for ($i = 0; $i -lt 5; $i++) {
+              & reg.exe unload "HKLM\$mountName" 2>&1 | Out-Null
+              if ($LASTEXITCODE -eq 0) { break }
+              Start-Sleep -Milliseconds 500
+            }
+          }
+        }
+      }
+
+      # Failures are reported per profile and turned into a task failure by
+      # the assert below, so the report of the other profiles still shows.
+      $Ansible.Result = $results
+    parameters:
+      Profiles: "{{ win_workman_wallpaper_profiles_target }}"
+      OnlyLocked: "{{ win_workman_wallpaper_lock_only_locked | default(false) | bool }}"
+      FollowDesktop: "{{ win_workman_wallpaper_lock_follow_desktop | default(false) | bool }}"
+      LockDir: "{{ win_workman_wallpaper_lock_dir }}"
+      DefaultPath: "{{ win_workman_wallpaper_default_path }}"
+      DefaultStyle: "{{ win_workman_wallpaper_default_style }}"
+      DefaultTile: "{{ win_workman_wallpaper_default_tile }}"
+  register: win_workman_wallpaper_lock_response
+
+- name: Report the wallpaper each profile is locked on
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop: "{{ win_workman_wallpaper_lock_response.result | default([]) }}"
+  loop_control:
+    label: "{{ item.Profile }}"
+
+- name: Fail on the profiles that could not be locked
+  ansible.builtin.assert:
+    that: win_workman_wallpaper_lock_errors | length == 0
+    fail_msg: "Wallpaper lock failed for: {{ win_workman_wallpaper_lock_errors | join(', ') }}"
+    quiet: true
+  vars:
+    win_workman_wallpaper_lock_errors: >-
+      {{ win_workman_wallpaper_lock_response.result | default([])
+         | selectattr('Result', 'equalto', 'error') | map(attribute='Profile') | list }}
