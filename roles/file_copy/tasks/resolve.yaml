@@ -1,0 +1,207 @@
+---
+# Turn every item into the host paths it refers to, one entry per profile:
+#   win_workman_file_copy_targets: [{Index, Profile, Path, Source, Depth}]
+# Source says where a profile folder came from: loaded hive, offline hive,
+# default (value missing or hive unreadable), profile, or absolute. Depth is
+# the number of folders the item path adds below the profile folder (0 for an
+# absolute path): the ones remove may delete once they are empty.
+# Index points into win_workman_file_copy_list. Path is the item field named by
+# win_workman_file_copy_path_field (dest for push, src for pull), absolute when
+# the item has no profile, relative to the profile folder otherwise.
+- name: Read the user profiles
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: profiles
+  vars:
+    win_workman_profiles_include: []
+    win_workman_profiles_exclude: []
+    win_workman_profiles_single: false
+    win_workman_profiles_include_default: true
+  when: >-
+    win_workman_file_copy_list
+    | selectattr('profile', 'defined') | map(attribute='profile')
+    | select | list | length > 0
+
+- name: Resolve the paths on the host
+  ansible.windows.win_powershell:
+    parameters:
+      Items: "{{ win_workman_file_copy_list }}"
+      Field: "{{ win_workman_file_copy_path_field }}"
+      Profiles: >-
+        {{
+          (win_workman_profiles | default([]))
+          if (win_workman_file_copy_list | selectattr('profile', 'defined')
+              | map(attribute='profile') | select | list | length > 0)
+          else []
+        }}
+      Exclude: "{{ win_workman_file_copy_profiles_exclude }}"
+      Folders: "{{ win_workman_file_copy_folders }}"
+    script: |
+      param(
+        [object[]]$Items = @(),
+        [string]$Field = 'dest',
+        [object[]]$Profiles = @(),
+        [object[]]$Exclude = @(),
+        [hashtable]$Folders = @{}
+      )
+
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $Profiles = @($Profiles | Where-Object { $null -ne $_ })
+      $Exclude = @($Exclude | Where-Object { $_ -and $_.ToString().Trim() })
+
+      function Test-Pattern {
+        param($Prof, [string]$Pattern)
+        if ($Pattern -like '*\*') {
+          $parts = $Pattern.Split('\', 2)
+          $domainOk = $parts[0] -eq '*' -or ($Prof.Domain -and $Prof.Domain -ilike $parts[0])
+          return [bool]($domainOk -and $Prof.Name -ilike $parts[1])
+        }
+        return [bool]($Prof.Name -ilike $Pattern)
+      }
+
+      $tempHive = 'WIN_WORKMAN_FILE_COPY'
+      $folderCache = @{}
+      $folderSource = @{}
+
+      # reg.exe writes to stderr when a hive is in use, which Windows PowerShell
+      # turns into a terminating error under 'Stop': run it under 'Continue'
+      # and judge by the exit code alone.
+      function Invoke-Reg {
+        $ErrorActionPreference = 'Continue'
+        $null = & reg.exe @args 2>&1
+        return $LASTEXITCODE -eq 0
+      }
+
+      function Get-ProfileFolder {
+        param($Prof, [string]$FolderKey)
+
+        $spec = $Folders[$FolderKey]
+        if (-not $spec.value) { $folderSource["$($Prof.LocalPath)|$FolderKey"] = 'profile'; return $Prof.LocalPath }
+
+        $cacheKey = "$($Prof.LocalPath)|$FolderKey"
+        if ($folderCache.ContainsKey($cacheKey)) { return $folderCache[$cacheKey] }
+
+        $keyRoot = $null
+        $loadedHere = $false
+        $source = 'default'
+        if ($Prof.SID -and (Test-Path -LiteralPath "Registry::HKEY_USERS\$($Prof.SID)")) {
+          $keyRoot = "Registry::HKEY_USERS\$($Prof.SID)"
+          $source = 'loaded hive'
+        }
+        elseif ($Prof.HiveExists) {
+          if (Invoke-Reg load "HKU\$tempHive" (Join-Path $Prof.LocalPath 'NTUSER.DAT')) {
+            $keyRoot = "Registry::HKEY_USERS\$tempHive"
+            $loadedHere = $true
+            $source = 'offline hive'
+          }
+        }
+
+        $raw = $null
+        if ($keyRoot) {
+          try {
+            $key = Get-Item -LiteralPath "$keyRoot\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -ErrorAction Stop
+            $raw = $key.GetValue($spec.value, $null, 'DoNotExpandEnvironmentNames')
+            $key.Close()
+          }
+          catch {
+            $raw = $null
+          }
+          if ($loadedHere) {
+            [gc]::Collect()
+            [gc]::WaitForPendingFinalizers()
+            $null = Invoke-Reg unload "HKU\$tempHive"
+          }
+        }
+
+        $path = $null
+        if ($raw) {
+          # %USERPROFILE% must be the target user's, not the account running this
+          $path = $raw -ireplace '%USERPROFILE%', $Prof.LocalPath.Replace('$', '$$')
+          if ($path -match '%[^%]+%') { $path = [Environment]::ExpandEnvironmentVariables($path) }
+          if ($path -match '%[^%]+%') { $path = $null }
+        }
+        if (-not $path) {
+          $path = Join-Path $Prof.LocalPath $spec.leaf
+          $source = 'default'
+        }
+
+        $folderCache[$cacheKey] = $path
+        $folderSource[$cacheKey] = $source
+        return $path
+      }
+
+      $userProfiles = @($Profiles | Where-Object { $_.SID })
+      $defaultProfile = $Profiles | Where-Object { -not $_.SID -and $_.Name -eq 'Default' } | Select-Object -First 1
+      $targets = @()
+
+      for ($i = 0; $i -lt $Items.Count; $i++) {
+        $item = $Items[$i]
+        $label = "item $i ($($item['src']))"
+        $path = ''
+        if ($null -ne $item[$Field]) { $path = $item[$Field].ToString().Trim() }
+
+        $patterns = @()
+        if ($item['profile']) {
+          $patterns = @($item['profile'] | ForEach-Object { $_.ToString().Trim() } | Where-Object { $_ })
+        }
+
+        if ($patterns.Count -eq 0) {
+          if ($path -notmatch '^([A-Za-z]:\\|\\\\[^\\]+\\)') {
+            throw "file_copy: $label has no profile, so $Field must be an absolute Windows path, got '$path'"
+          }
+          $targets += [pscustomobject]@{ Index = $i; Profile = $null; Path = $path.TrimEnd('\'); Source = 'absolute'; Depth = 0 }
+          continue
+        }
+
+        if ($path -match '^([A-Za-z]:|[\\/])') {
+          throw "file_copy: $label names a profile, so $Field must be relative to its folder, got '$path'"
+        }
+        if (@($path -split '[\\/]+') -contains '..') {
+          throw "file_copy: $label - '..' is not allowed in $Field"
+        }
+
+        $folderKey = 'desktop'
+        if ($item['folder']) { $folderKey = $item['folder'].ToString().ToLower() }
+        if (-not $Folders.ContainsKey($folderKey)) {
+          throw "file_copy: $label - unknown folder '$folderKey', use one of: $(($Folders.Keys | Sort-Object) -join ', ')"
+        }
+
+        $selected = @()
+        foreach ($pattern in $patterns) {
+          if ($pattern -eq 'all') { $pattern = '*' }
+          $wildcard = $pattern -match '[\*\?]'
+          $hits = @($userProfiles | Where-Object { Test-Pattern -Prof $_ -Pattern $pattern })
+          if ($wildcard) {
+            $hits = @($hits | Where-Object { $p = $_; -not ($Exclude | Where-Object { Test-Pattern -Prof $p -Pattern $_ }) })
+          }
+          elseif ($hits.Count -eq 0) {
+            throw "file_copy: $label - no profile matches '$pattern' on this host (profiles: $(($userProfiles | ForEach-Object { $_.Name }) -join ', '))"
+          }
+          $selected += $hits
+        }
+        if ($item['include_default'] -and $defaultProfile) { $selected += $defaultProfile }
+
+        $seen = @{}
+        foreach ($userProfile in $selected) {
+          if ($seen.ContainsKey($userProfile.LocalPath)) { continue }
+          $seen[$userProfile.LocalPath] = $true
+          $base = Get-ProfileFolder -Prof $userProfile -FolderKey $folderKey
+          $full = $base
+          if ($path) { $full = Join-Path $base $path.Replace('/', '\') }
+          $targets += [pscustomobject]@{
+            Index   = $i
+            Profile = $userProfile.Name
+            Path    = $full.TrimEnd('\')
+            Source  = $folderSource["$($userProfile.LocalPath)|$folderKey"]
+            Depth   = @($path -split '[\\/]+' | Where-Object { $_ }).Count
+          }
+        }
+      }
+
+      $Ansible.Result = @{ targets = @($targets) }
+  register: win_workman_file_copy_resolved
+
+- name: Keep the resolved paths
+  ansible.builtin.set_fact:
+    win_workman_file_copy_targets: "{{ win_workman_file_copy_resolved.result.targets }}"

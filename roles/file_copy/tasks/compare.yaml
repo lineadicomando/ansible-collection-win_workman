@@ -1,0 +1,52 @@
+---
+# Compare the files of each target with the controller manifest.
+# In:  win_workman_file_copy_compare_targets, [{Index, Profile, Path}]
+# Out: win_workman_file_copy_compared, the same list with State (match,
+#      differ, missing), Files, Missing, Different.
+- name: Compare the host files with the controller
+  ansible.windows.win_powershell:
+    parameters:
+      Targets: "{{ win_workman_file_copy_compare_targets }}"
+      Manifests: "{{ win_workman_file_copy_manifests }}"
+    script: |
+      param(
+        [object[]]$Targets = @(),
+        [object[]]$Manifests = @()
+      )
+
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $rows = @()
+
+      foreach ($target in $Targets) {
+        $entries = @($Manifests[[int]$target.Index].entries)
+        $missing = 0
+        $different = 0
+        foreach ($entry in $entries) {
+          $file = Join-Path $target.Path $entry.rel
+          if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { $missing++; continue }
+          if ((Get-Item -LiteralPath $file -Force).Length -ne [long]$entry.size) { $different++; continue }
+          if ((Get-FileHash -LiteralPath $file -Algorithm SHA1).Hash -ne $entry.sha1.ToUpper()) { $different++ }
+        }
+
+        $state = 'match'
+        if ($entries.Count -gt 0 -and $missing -eq $entries.Count) { $state = 'missing' }
+        elseif ($missing + $different -gt 0) { $state = 'differ' }
+
+        $rows += [pscustomobject]@{
+          Index     = [int]$target.Index
+          Profile   = $target.Profile
+          Path      = $target.Path
+          State     = $state
+          Files     = $entries.Count
+          Missing   = $missing
+          Different = $different
+        }
+      }
+
+      $Ansible.Result = @{ targets = @($rows) }
+  register: win_workman_file_copy_compare_result
+
+- name: Keep the comparison
+  ansible.builtin.set_fact:
+    win_workman_file_copy_compared: "{{ win_workman_file_copy_compare_result.result.targets }}"

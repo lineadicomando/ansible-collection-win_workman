@@ -1,0 +1,5 @@
+---
+- name: Dispatch action {{ win_workman_action or win_workman_file_copy_schema.default_action }}
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.file_copy
+    tasks_from: "act_{{ win_workman_action or win_workman_file_copy_schema.default_action }}"

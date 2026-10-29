@@ -1,0 +1,56 @@
+---
+# One directory, zipped on the host and fetched as <name>.zip
+- name: Zip {{ win_workman_file_copy_pull_target.Path }}
+  ansible.windows.win_powershell:
+    parameters:
+      Source: "{{ win_workman_file_copy_pull_target.Path }}"
+      ZipPath: "{{ win_workman_remote_tmp }}\\file_copy_pull_{{ win_workman_file_copy_pull_index }}.zip"
+    script: |
+      param([string]$Source, [string]$ZipPath)
+
+      $ErrorActionPreference = 'Stop'
+      Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+      $null = New-Item -ItemType Directory -Path (Split-Path -Parent $ZipPath) -Force
+      if (Test-Path -LiteralPath $ZipPath) { Remove-Item -LiteralPath $ZipPath -Force }
+
+      # Entry by entry rather than ZipFile.CreateFromDirectory: on .NET
+      # Framework that writes backslash separators, which unzip on the
+      # controller turns into file names instead of folders.
+      $base = (Get-Item -LiteralPath $Source).FullName.TrimEnd('\')
+      $prefix = Split-Path -Leaf $base
+      $zip = [IO.Compression.ZipFile]::Open($ZipPath, [IO.Compression.ZipArchiveMode]::Create)
+      try {
+        foreach ($item in Get-ChildItem -LiteralPath $base -Recurse -Force) {
+          $name = $prefix + '/' + $item.FullName.Substring($base.Length + 1).Replace('\', '/')
+          if ($item.PSIsContainer) {
+            $null = $zip.CreateEntry($name + '/')
+          }
+          else {
+            $null = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+              $zip, $item.FullName, $name, [IO.Compression.CompressionLevel]::Optimal)
+          }
+        }
+      }
+      finally {
+        $zip.Dispose()
+      }
+      $Ansible.Changed = $false
+
+- name: Fetch the zip
+  block:
+    - name: Fetch the zip of {{ win_workman_file_copy_pull_target.Name }}
+      ansible.builtin.fetch:
+        src: "{{ win_workman_remote_tmp }}\\file_copy_pull_{{ win_workman_file_copy_pull_index }}.zip"
+        dest: >-
+          {{ [win_workman_file_copy_pull_root,
+              win_workman_file_copy_list[win_workman_file_copy_pull_target.Index].dest | default('', true),
+              inventory_hostname, win_workman_file_copy_pull_target.Profile | default('', true),
+              win_workman_file_copy_pull_target.Name ~ '.zip']
+             | select | join('/') | regex_replace('/+', '/') }}
+        flat: true
+  always:
+    - name: Remove the zip from the host
+      ansible.windows.win_file:
+        path: "{{ win_workman_remote_tmp }}\\file_copy_pull_{{ win_workman_file_copy_pull_index }}.zip"
+        state: absent
+      changed_when: false

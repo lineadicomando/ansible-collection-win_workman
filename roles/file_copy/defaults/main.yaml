@@ -1,0 +1,20 @@
+---
+# What to copy: a list of items (a single dict is accepted too). Push, status
+# and remove read src on the controller and dest on the host; pull the other
+# way round. Fields are documented in docs/roles/management/file_copy.md:
+#   src, dest, profile, folder, include_default, archive
+win_workman_file_copy_items: []
+
+# Controller directory every push src is relative to. A dedicated folder, not
+# the whole storage: the storage also holds secrets (Veyon private keys) that
+# a push must never be able to reach.
+win_workman_file_copy_root: "{{ win_workman_storage_path }}/file_copy"
+
+# Controller directory pull writes to: <pull_root>/<dest>/<host>/[<profile>/]
+win_workman_file_copy_pull_root: "{{ win_workman_storage_path }}/file_copy_pull"
+
+# Profiles left out when profile is a wildcard ("all", "stud*"). A profile
+# named explicitly is never excluded. Same pattern syntax as profile.
+win_workman_file_copy_profiles_exclude: []
+
+win_workman_action: ""

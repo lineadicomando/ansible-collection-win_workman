@@ -1,0 +1,17 @@
+---
+win_workman_file_copy_schema:
+  name: File Copy
+  role: lineadicomando.win_workman.file_copy
+  default_action: push
+
+# Folders a profile-relative path can start from, as the value names under
+# HKCU\...\Explorer\User Shell Folders and the folder used when the value is
+# missing or cannot be expanded (OneDrive redirection without the variable).
+win_workman_file_copy_folders:
+  desktop: { value: Desktop, leaf: Desktop }
+  documents: { value: Personal, leaf: Documents }
+  downloads: { value: "{374DE290-123F-4565-9164-39C4925E467B}", leaf: Downloads }
+  pictures: { value: My Pictures, leaf: Pictures }
+  music: { value: My Music, leaf: Music }
+  videos: { value: My Video, leaf: Videos }
+  profile: { value: "", leaf: "" }
