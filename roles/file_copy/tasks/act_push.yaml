@@ -1,0 +1,52 @@
+---
+- name: Read the items
+  ansible.builtin.include_tasks: items.yaml
+
+- name: Describe the controller sources
+  ansible.builtin.include_tasks: manifest.yaml
+
+- name: Resolve the destinations
+  ansible.builtin.include_tasks: resolve.yaml
+  vars:
+    win_workman_file_copy_path_field: dest
+
+- name: Split the items between direct copy and zip transfer
+  ansible.builtin.set_fact:
+    win_workman_file_copy_archive_indices: >-
+      {{ win_workman_file_copy_manifests | selectattr('archive') | map(attribute='index') | list }}
+    # reset, so a second push in the same play does not count the first one's
+    win_workman_file_copy_archive_need: []
+
+# win_copy compares checksums itself, so an unchanged file is not sent again
+- name: Ensure the destination folders exist
+  ansible.windows.win_file:
+    path: "{{ item.Path }}"
+    state: directory
+  loop: >-
+    {{ win_workman_file_copy_targets
+       | rejectattr('Index', 'in', win_workman_file_copy_archive_indices) | list }}
+  loop_control:
+    label: "{{ item.Path }}"
+
+- name: Copy the items
+  ansible.windows.win_copy:
+    src: "{{ win_workman_file_copy_manifests[item.Index].src_path }}"
+    dest: "{{ item.Path }}\\"
+  loop: >-
+    {{ win_workman_file_copy_targets
+       | rejectattr('Index', 'in', win_workman_file_copy_archive_indices) | list }}
+  loop_control:
+    label: "{{ win_workman_file_copy_manifests[item.Index].name }} -> {{ item.Path }}"
+  register: win_workman_file_copy_copied
+
+- name: Transfer the archive items
+  ansible.builtin.include_tasks: push_archive.yaml
+  when: win_workman_file_copy_archive_indices | length > 0
+
+- name: Report what was pushed
+  ansible.builtin.debug:
+    msg: >-
+      {{ win_workman_file_copy_targets | length }} destination(s),
+      {{ (win_workman_file_copy_copied.results | default([]) | selectattr('changed') | list | length)
+      + (win_workman_file_copy_archive_need | default([]) | length) }} updated,
+      the others already up to date

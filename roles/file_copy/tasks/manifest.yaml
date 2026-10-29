@@ -1,0 +1,13 @@
+---
+# Push, status and remove: read the items on the controller once for the whole
+# play. The lookup also enforces that every src stays inside the source root.
+# The items are therefore expected to be the same for every host of the run,
+# as they are when passed as extra vars.
+- name: Describe the controller sources
+  ansible.builtin.set_fact:
+    win_workman_file_copy_manifests: >-
+      {{
+        query('lineadicomando.win_workman.file_copy_manifest',
+              *win_workman_file_copy_list, root=win_workman_file_copy_root)
+      }}
+  run_once: true

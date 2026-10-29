@@ -1,0 +1,4 @@
+---
+# "off" undoes what push did
+- name: Remove the pushed items
+  ansible.builtin.include_tasks: act_remove.yaml

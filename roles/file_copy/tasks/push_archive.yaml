@@ -1,0 +1,124 @@
+---
+# Directories with archive: true travel as one zip each, instead of one
+# win_copy round trip per file. Only the destinations whose files differ from
+# the controller get the zip; extraction overwrites, it never deletes.
+- name: Compare the archive destinations
+  ansible.builtin.include_tasks: compare.yaml
+  vars:
+    win_workman_file_copy_compare_targets: >-
+      {{ win_workman_file_copy_targets
+         | selectattr('Index', 'in', win_workman_file_copy_archive_indices) | list }}
+
+- name: Select the destinations to update
+  ansible.builtin.set_fact:
+    win_workman_file_copy_archive_need: >-
+      {{ win_workman_file_copy_compared | rejectattr('State', 'eq', 'match') | list }}
+
+# The zips are built once for the play, so the condition looks at every host
+- name: Build and transfer the zips
+  when: >-
+    ansible_play_hosts
+    | map('extract', hostvars, 'win_workman_file_copy_archive_need')
+    | select('defined') | flatten | length > 0
+  block:
+    - name: Create a controller work directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: win_workman_file_copy.
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+      register: win_workman_file_copy_zipdir
+
+    - name: Zip the directories on the controller
+      community.general.archive:
+        path: "{{ win_workman_file_copy_manifests[item].src_path | regex_replace('/$', '') }}"
+        dest: "{{ win_workman_file_copy_zipdir.path }}/item_{{ item }}.zip"
+        format: zip
+        mode: "0600"
+      loop: "{{ win_workman_file_copy_archive_indices }}"
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+
+    - name: Ensure the remote temporary directory exists
+      ansible.windows.win_file:
+        path: "{{ win_workman_remote_tmp }}"
+        state: directory
+      when: win_workman_file_copy_archive_need | length > 0
+
+    - name: Copy the zips to the host
+      ansible.windows.win_copy:
+        src: "{{ win_workman_file_copy_zipdir.path }}/item_{{ item }}.zip"
+        dest: "{{ win_workman_remote_tmp }}\\file_copy_{{ item }}.zip"
+      loop: "{{ win_workman_file_copy_archive_need | map(attribute='Index') | unique | list }}"
+
+    - name: Extract the zips
+      ansible.windows.win_powershell:
+        parameters:
+          ZipPath: "{{ win_workman_remote_tmp }}\\file_copy_{{ item.Index }}.zip"
+          Dest: "{{ item.Path }}"
+          StripRoot: "{{ win_workman_file_copy_manifests[item.Index].contents }}"
+        script: |
+          param(
+            [string]$ZipPath,
+            [string]$Dest,
+            [bool]$StripRoot = $false
+          )
+
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+
+          $root = [IO.Path]::GetFullPath($Dest).TrimEnd('\') + '\'
+          $null = New-Item -ItemType Directory -Path $root -Force
+          $zip = [IO.Compression.ZipFile]::OpenRead($ZipPath)
+          $written = 0
+          try {
+            foreach ($entry in $zip.Entries) {
+              $name = $entry.FullName.Replace('/', '\')
+              if ($StripRoot) {
+                $cut = $name.IndexOf('\')
+                if ($cut -lt 0) { continue }
+                $name = $name.Substring($cut + 1)
+              }
+              if (-not $name) { continue }
+
+              $target = [IO.Path]::GetFullPath((Join-Path $root $name))
+              if (-not $target.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "zip entry '$($entry.FullName)' would land outside $root"
+              }
+              if ($name.EndsWith('\')) {
+                $null = New-Item -ItemType Directory -Path $target -Force
+                continue
+              }
+              $null = New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force
+              [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true)
+              $written++
+            }
+          }
+          finally {
+            $zip.Dispose()
+          }
+
+          $Ansible.Changed = $written -gt 0
+          $Ansible.Result = @{ files = $written }
+      loop: "{{ win_workman_file_copy_archive_need }}"
+      loop_control:
+        label: "{{ win_workman_file_copy_manifests[item.Index].name }} -> {{ item.Path }}"
+
+  always:
+    - name: Remove the zips from the host
+      ansible.windows.win_file:
+        path: "{{ win_workman_remote_tmp }}\\file_copy_{{ item }}.zip"
+        state: absent
+      loop: "{{ win_workman_file_copy_archive_need | default([]) | map(attribute='Index') | unique | list }}"
+      changed_when: false
+
+    - name: Remove the controller work directory
+      ansible.builtin.file:
+        path: "{{ win_workman_file_copy_zipdir.path }}"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+      when: win_workman_file_copy_zipdir.path is defined

@@ -1,0 +1,61 @@
+---
+display_name: File Copy
+custom_actions:
+  - name: push
+    description: >-
+      Copy files and folders from the controller to the host (default action).
+      Idempotent: files equal to the controller copy are not sent again.
+  - name: pull
+    description: >-
+      Fetch files and folders from the host into
+      win_workman_file_copy_pull_root/<dest>/<host>/[<profile>/]. A source
+      missing on a host is reported, not an error.
+  - name: status
+    description: >-
+      Compare every destination with the controller copy (size and SHA1) and
+      report match, differ or missing. Changes nothing.
+  - name: remove
+    description: >-
+      Delete from the host what push created. The destination folder itself is
+      never removed. Reads the controller source to know what to delete.
+  - name: "on"
+    description: Alias for push
+  - name: "off"
+    description: Alias for remove
+defaults:
+  - var: win_workman_file_copy_items
+    type: list
+    default: []
+    description: >-
+      The items, each a dict. src: for push a path relative to
+      win_workman_file_copy_root, a trailing / copies the contents of a
+      directory; for pull a host path. dest: for push the host folder that
+      receives src; for pull a controller subfolder of the pull root.
+      profile: a profile name, a list, a wildcard or "all"; when set, the host
+      path is relative to that user's folder. folder: desktop (default),
+      documents, downloads, pictures, music, videos or profile (the profile
+      root); the folder is read from the profile, so OneDrive redirection is
+      followed. include_default: also the Default profile, for users created
+      later. archive: transfer a directory as a single zip.
+  - var: win_workman_file_copy_root
+    type: str
+    default: "{{ win_workman_storage_path }}/file_copy"
+    description: >-
+      Controller folder push sources are relative to. A src that leaves it
+      (absolute path, '..', symbolic link) fails the run.
+  - var: win_workman_file_copy_pull_root
+    type: str
+    default: "{{ win_workman_storage_path }}/file_copy_pull"
+    description: Controller folder pull writes to
+  - var: win_workman_file_copy_profiles_exclude
+    type: list
+    default: []
+    description: >-
+      Profiles skipped when profile is a wildcard or "all", e.g. the
+      maintenance accounts. A profile named explicitly is never excluded.
+notes: >-
+  Pass the items as extra_vars of run_tasks, e.g.
+  {"win_workman_file_copy_items": [{"src": "esercizi/", "profile": "all",
+  "dest": "Esercizi"}]} with t=file_copy-push. The items must be the same for
+  every host of the run. No logoff is needed. Use archive for directories with
+  many small files; extraction overwrites but never deletes, as win_copy does.

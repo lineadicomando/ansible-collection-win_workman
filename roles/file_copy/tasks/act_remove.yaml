@@ -1,0 +1,60 @@
+---
+# Removes exactly what push created: the file, the directory, or for a
+# "dir/" source the top-level entries of that directory. A destination given
+# relative to a profile folder is removed too when left empty, up to but never
+# including the profile folder; an absolute destination is always left alone.
+- name: Read the items
+  ansible.builtin.include_tasks: items.yaml
+
+- name: Describe the controller sources
+  ansible.builtin.include_tasks: manifest.yaml
+
+- name: Resolve the destinations
+  ansible.builtin.include_tasks: resolve.yaml
+  vars:
+    win_workman_file_copy_path_field: dest
+
+- name: Remove the pushed items
+  ansible.windows.win_powershell:
+    parameters:
+      Targets: "{{ win_workman_file_copy_targets }}"
+      Manifests: "{{ win_workman_file_copy_manifests }}"
+    script: |
+      param(
+        [object[]]$Targets = @(),
+        [object[]]$Manifests = @()
+      )
+
+      $ErrorActionPreference = 'Stop'
+      $removed = @()
+      foreach ($target in $Targets) {
+        foreach ($name in @($Manifests[[int]$target.Index].top)) {
+          if (-not $name -or $name -match '[\\/]' -or $name -eq '..') { continue }
+          $path = Join-Path $target.Path $name
+          if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Recurse -Force
+            $removed += $path
+          }
+        }
+
+        # Folders the item path added below a profile folder (Desktop\Esercizi)
+        # go too once empty; the profile folder and absolute paths never do.
+        $folder = $target.Path
+        for ($level = 0; $level -lt [int]$target.Depth; $level++) {
+          if (-not (Test-Path -LiteralPath $folder -PathType Container)) { break }
+          if (@(Get-ChildItem -LiteralPath $folder -Force).Count -gt 0) { break }
+          Remove-Item -LiteralPath $folder -Force
+          $removed += $folder
+          $folder = Split-Path -Parent $folder
+        }
+      }
+
+      $Ansible.Changed = $removed.Count -gt 0
+      $Ansible.Result = @{ removed = @($removed) }
+  register: win_workman_file_copy_removed
+
+- name: Report what was removed
+  ansible.builtin.debug:
+    msg: >-
+      {{ win_workman_file_copy_removed.result.removed | length }} path(s) removed
+      {{ win_workman_file_copy_removed.result.removed }}

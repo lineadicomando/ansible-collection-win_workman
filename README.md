@@ -222,6 +222,12 @@ dispatcher interface.
 | `ping` | `on` | Connectivity test |
 | `wol` | `on` | Send Wake-on-LAN magic packets |
 
+### Files
+
+| Role | Actions | Description |
+|---|---|---|
+| `file_copy` | `push` *(default)*, `pull`, `status`, `remove`, `on`, `off` | Copy files and folders to and from the hosts, into a user's Desktop or Documents too |
+
 ---
 
 ## MCP integration

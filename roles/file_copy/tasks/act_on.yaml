@@ -1,0 +1,4 @@
+---
+# "on" pushes, as everywhere in the collection "on" enables
+- name: Push the items
+  ansible.builtin.include_tasks: act_push.yaml

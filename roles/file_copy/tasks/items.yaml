@@ -1,0 +1,20 @@
+---
+# Shared by every action: a single dict is accepted in place of a list.
+- name: Normalise the item list
+  ansible.builtin.set_fact:
+    win_workman_file_copy_list: >-
+      {{
+        [win_workman_file_copy_items]
+        if win_workman_file_copy_items is mapping
+        else (win_workman_file_copy_items | default([], true))
+      }}
+
+- name: Check that there is something to copy
+  ansible.builtin.assert:
+    that:
+      - win_workman_file_copy_list | length > 0
+      - win_workman_file_copy_list | rejectattr('src', 'defined') | list | length == 0
+    fail_msg: >-
+      file_copy needs win_workman_file_copy_items: a list of items, each with at
+      least src, e.g. [{"src": "esercizi/", "profile": "all", "dest": "Esercizi"}]
+    quiet: true

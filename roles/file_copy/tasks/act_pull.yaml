@@ -1,0 +1,134 @@
+---
+# Fetch files or directories from the hosts into
+#   <win_workman_file_copy_pull_root>/<dest>/<host>/[<profile>/]<name>
+# src is read on the host (absolute, or relative to a profile folder), dest is
+# a controller path relative to the pull root. A source missing on a host is
+# reported, not an error: a student may simply not have saved the file.
+- name: Read the items
+  ansible.builtin.include_tasks: items.yaml
+
+- name: Check the controller destinations
+  ansible.builtin.assert:
+    that:
+      - (item.dest | default('', true) | string) is not match('^[\\/~]')
+      - "'..' not in (item.dest | default('', true) | string | split('/'))"
+    fail_msg: >-
+      file_copy pull: dest '{{ item.dest }}' must be a path relative to
+      {{ win_workman_file_copy_pull_root }}, without '..'
+    quiet: true
+  loop: "{{ win_workman_file_copy_list }}"
+  loop_control:
+    label: "{{ item.src }}"
+
+- name: Resolve the sources
+  ansible.builtin.include_tasks: resolve.yaml
+  vars:
+    win_workman_file_copy_path_field: src
+
+- name: List the files to fetch
+  ansible.windows.win_powershell:
+    # result > targets > target > Files > file: the default depth of 2 would
+    # flatten Files into a string
+    depth: 5
+    parameters:
+      Targets: "{{ win_workman_file_copy_targets }}"
+      Archive: "{{ win_workman_file_copy_list | map(attribute='archive', default=false) | map('bool') | list }}"
+    script: |
+      param(
+        [object[]]$Targets = @(),
+        [object[]]$Archive = @()
+      )
+
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $rows = @()
+
+      foreach ($target in $Targets) {
+        $path = $target.Path
+        $name = Split-Path -Leaf $path
+        $files = @()
+        $kind = 'missing'
+        $count = 0
+
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+          $kind = 'file'
+          $files = @([pscustomobject]@{ Path = $path; Rel = $name })
+          $count = 1
+        }
+        elseif (Test-Path -LiteralPath $path -PathType Container) {
+          $kind = 'dir'
+          $all = @(Get-ChildItem -LiteralPath $path -Recurse -File -Force)
+          $count = $all.Count
+          if (-not [bool]$Archive[[int]$target.Index]) {
+            $files = @($all | ForEach-Object {
+              [pscustomobject]@{
+                Path = $_.FullName
+                Rel  = $name + '/' + $_.FullName.Substring($path.Length).TrimStart('\').Replace('\', '/')
+              }
+            })
+          }
+        }
+
+        $rows += [pscustomobject]@{
+          Index   = [int]$target.Index
+          Profile = $target.Profile
+          Path    = $path
+          Name    = $name
+          Kind    = $kind
+          Count   = $count
+          Archive = ($kind -eq 'dir') -and [bool]$Archive[[int]$target.Index]
+          Files   = $files
+        }
+      }
+
+      $Ansible.Result = @{ targets = @($rows) }
+  register: win_workman_file_copy_listing
+
+- name: Keep the listing
+  ansible.builtin.set_fact:
+    win_workman_file_copy_pull_targets: "{{ win_workman_file_copy_listing.result.targets }}"
+
+# The relative names come from the host, which is less trusted than the
+# controller: refuse any that could climb out of the pull root.
+- name: Check the names reported by the host
+  ansible.builtin.assert:
+    that: win_workman_file_copy_unsafe_names | length == 0
+    fail_msg: "file_copy pull: the host reported unsafe names {{ win_workman_file_copy_unsafe_names }}"
+    quiet: true
+  vars:
+    win_workman_file_copy_unsafe_names: >-
+      {{ ((win_workman_file_copy_pull_targets | map(attribute='Files') | flatten | map(attribute='Rel') | list)
+          + (win_workman_file_copy_pull_targets | map(attribute='Profile') | select | list)
+          + (win_workman_file_copy_pull_targets | map(attribute='Name') | list))
+         | select('search', '(^|/)[.][.](/|$)|^/') | list }}
+
+- name: Fetch the files
+  ansible.builtin.fetch:
+    src: "{{ item.1.Path }}"
+    dest: >-
+      {{ [win_workman_file_copy_pull_root,
+          win_workman_file_copy_list[item.0.Index].dest | default('', true),
+          inventory_hostname, item.0.Profile | default('', true), item.1.Rel]
+         | select | join('/') | regex_replace('/+', '/') }}
+    flat: true
+  loop: "{{ win_workman_file_copy_pull_targets | subelements('Files') }}"
+  loop_control:
+    label: "{{ item.1.Path }}"
+  register: win_workman_file_copy_fetched
+
+- name: Fetch the archive items
+  ansible.builtin.include_tasks: pull_archive.yaml
+  loop: "{{ win_workman_file_copy_pull_targets | selectattr('Archive') | list }}"
+  loop_control:
+    loop_var: win_workman_file_copy_pull_target
+    index_var: win_workman_file_copy_pull_index
+    label: "{{ win_workman_file_copy_pull_target.Path }}"
+
+- name: Report what was pulled
+  ansible.builtin.debug:
+    msg: >-
+      {{ (win_workman_file_copy_fetched.results | default([]) | selectattr('changed') | list | length) }}
+      file(s) fetched or updated into {{ win_workman_file_copy_pull_root }};
+      {{ win_workman_file_copy_pull_targets | selectattr('Archive') | list | length }} folder(s) as zip;
+      missing on this host:
+      {{ win_workman_file_copy_pull_targets | selectattr('Kind', 'eq', 'missing') | map(attribute='Path') | list or 'none' }}

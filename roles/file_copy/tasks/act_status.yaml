@@ -1,0 +1,30 @@
+---
+- name: Read the items
+  ansible.builtin.include_tasks: items.yaml
+
+- name: Describe the controller sources
+  ansible.builtin.include_tasks: manifest.yaml
+
+- name: Resolve the destinations
+  ansible.builtin.include_tasks: resolve.yaml
+  vars:
+    win_workman_file_copy_path_field: dest
+
+- name: Compare every destination
+  ansible.builtin.include_tasks: compare.yaml
+  vars:
+    win_workman_file_copy_compare_targets: "{{ win_workman_file_copy_targets }}"
+
+- name: Show the state of every destination
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.State }}: {{ win_workman_file_copy_manifests[item.Index].name }} in {{ item.Path }}
+      ({{ item.Files }} file(s){{ ', ' ~ item.Missing ~ ' missing' if item.Missing | int > 0 else '' }}{{
+      ', ' ~ item.Different ~ ' different' if item.Different | int > 0 else '' }})
+  loop: "{{ win_workman_file_copy_compared }}"
+  loop_control:
+    label: "{{ item.Profile | default('-', true) }}"
+
+- name: Publish the state as a fact
+  ansible.builtin.set_fact:
+    win_workman_file_copy_status: "{{ win_workman_file_copy_compared }}"
