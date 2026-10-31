@@ -4,7 +4,7 @@ Planned improvements for the `lineadicomando.win_workman` collection.
 
 Reviewed 2026-09-28: every entry below was checked against the current tree, and
 the notes say what has changed since each was written. Re-checked 2026-10-01
-against the tree at `b599405`.
+against the tree at `b599405`, and again on 2026-10-31 against `b47c901`.
 
 Priorities, assigned 2026-09-28:
 
@@ -19,6 +19,7 @@ Priorities, assigned 2026-09-28:
 | P1 | `pkg_act_on` reads from `ansible_remote_tmp` |
 | P1 | `wu`: a feature update that does not apply is reported as installed |
 | P1 | `lock-off` leaves the logon screen without the user list until a restart |
+| P1 | `sfc`: repairs are reported as "no integrity violation" |
 | P1 / P3 | AutoCAD: end-to-end validation on a real host (P1 only before a rollout) |
 | P2 | Verify the upgrade path of the `uninstall_before_upgrade` roles |
 | P2 | `pkg_act_off` does not stop declared services |
@@ -32,8 +33,10 @@ Priorities, assigned 2026-09-28:
 | P3 | `usr`: `usr-purge` with copies still installed |
 | P3 | `usr`: agent log rotation |
 | P3 | `usr`: adopt more per-user packages |
+| P3 | `version_file`: a program found only that way cannot be removed |
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
 | P3 | `autoshutdown`: implement the `nouser` mode |
+| P3 | `wim-repair`: the folder form of the source has never run |
 | P3 | Roles with no documentation at all |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` |
 
@@ -44,7 +47,7 @@ Priorities, assigned 2026-09-28:
 ### Kill declared processes before install
 
 **Priority:** P1 — the root cause of the Veyon outage: stopping services alone did not prevent it  
-**Status:** proposed — still unimplemented, verified 2026-09-28
+**Status:** proposed — still unimplemented, verified 2026-10-31
 
 `pkg_utils` stops the services listed under `services:` before installing, but
 user-facing processes still lock their own files. On the teacher station of the
@@ -60,6 +63,15 @@ since `0f0ae61`. `sketchup2026` (`b599405`) closes SketchUp in its own
 `tasks/ensure_closed.yaml` with a direct `Stop-Process`, bypassing `kill.yaml`;
 it guards the licence actions rather than an install, but is one more
 role-local kill to fold in.
+
+Other roles kill from the schema hooks with an inline `Stop-Process`, the
+nearest thing to the proposed field today: `edge` (`before_install_ps_script`),
+`seb` (`before_install_ps_script` and `before_uninstall_ps_script`), `chrome`,
+`opera` and `vivaldi` (`before_uninstall_ps_script`; chrome's install hook is
+commented out), `foxit_pdf_reader` (inside its uninstall script), and
+`autocadlt2026`, which stops `db-bootstrap` in `tasks/act_on.yaml`. `firefox`
+defines `win_workman_firefox_before_act_ps_script`, which nothing uses. The
+field should replace these too.
 
 Since 2026-09-28 `veyon` lists `%ProgramFiles%\Veyon` under `cleanup_paths`, so
 a file still locked after the uninstall now fails the run at *Cleanup paths*
@@ -80,10 +92,11 @@ calling `win_package` directly, so `uninstall_via_helper`, the
 (`65b0e03`), `cleanup_registry_key`, `cleanup_paths` and the leftovers pass all
 apply to upgrades.
 
-The earlier version of this entry asked to verify the thirteen roles that
-declare `cleanup_paths` or `cleanup_registry_key`. That was wrong:
-`uninstall_before_upgrade` defaults to `false` and none of those thirteen sets
-it, so their upgrade never calls `pkg_act_off`. Their uninstall path has
+The earlier version of this entry asked to verify the roles that declare
+`cleanup_paths` or `cleanup_registry_key` (fifteen on 2026-10-31, `goldendict`
+included). That was wrong: `uninstall_before_upgrade` defaults to `false` and,
+apart from `veyon`, none of them sets it, so their upgrade never calls
+`pkg_act_off`. Their uninstall path has
 meanwhile been exercised with `off` in `c0f7c5c` and `2e3dddf` (python313,
 embarcadero_devcpp, winrar, foxit_pdf_reader, p7zip).
 
@@ -91,6 +104,10 @@ The roles whose upgrade really goes through `pkg_act_off` are postman, winscp,
 inkscape, putty, mysql_server and veyon. Run an upgrade of each on a test VM
 (install the previous release, then `<role>-on`) and check that the state save
 and restore around the uninstall leaves the install step running.
+
+`veyon` has run this path once in production: the upgrade 4.11.3 → 4.11.4
+(`a750220`, 2026-10-17) on the teacher station of `lab_a` went through
+cleanly. The other five have never run it.
 
 ### `pkg_act_off` does not stop declared services
 
@@ -109,7 +126,7 @@ upgrade path then gets it for free and the call in `pkg_act_on` can go.
 ### Wait mode for the helper uninstall in `pkg_act_off`
 
 **Priority:** P3 — do it when a hang is actually observed; the current default is the right one  
-**Status:** proposed — role list updated 2026-09-28
+**Status:** proposed — role list updated 2026-10-31
 
 `Start-Process -Wait` does not simply `WaitForExit()` on the process it
 launched: it waits for the whole job object, every descendant included. That is
@@ -123,11 +140,11 @@ the launched process alone, with an optional `win_workman_exec_timeout`. The
 helper uninstall inside `pkg_act_off` still hardcodes `-Wait`
 (`pkg_act_off.yaml:296` and `:298`).
 
-Twelve roles declare `uninstall_via_helper: true`: dbeaver, driver_reviver,
-embarcadero_devcpp, filezilla, firefox, orwell_devcpp, puredata, redpanda_cpp,
-veyon, vivaldi, vlc, winrar. A thirteenth caller sits outside the schema:
-`audacity/tasks/remove_superseded.yaml` sets it to run the old release's Inno
-uninstaller. For most of them the job-object wait is
+Thirteen roles declare `uninstall_via_helper: true`: dbeaver, driver_reviver,
+embarcadero_devcpp, filezilla, firefox, goldendict, orwell_devcpp, puredata,
+redpanda_cpp, veyon, vivaldi, vlc, winrar. A fourteenth caller sits outside
+the schema: `audacity/tasks/remove_superseded.yaml` sets it to run the old
+release's Inno uninstaller. For most of them the job-object wait is
 load-bearing: NSIS uninstallers copy themselves to `%TEMP%` and the launched
 process exits immediately — `5a0e983` is exactly that failure on the Dev-C++
 roles. A process-only wait would report a barely started uninstall as finished.
@@ -138,7 +155,7 @@ where a hang is actually observed. Do not flip the default.
 ### `pkg_act_on` reads from `ansible_remote_tmp`
 
 **Priority:** P1 — one-line correctness fix, breaks any consumer that does not set the variable  
-**Status:** proposed — one line, `tasks/pkg_act_on.yaml:418`
+**Status:** proposed — one line, `tasks/pkg_act_on.yaml:505` (re-checked 2026-10-31)
 
 `win_copy` puts the installer in `win_workman_remote_tmp` (the collection's own
 default, `C:\Windows\Temp\ansible`), but the *Install package* task reads it
@@ -147,7 +164,11 @@ only because every `win_edulab` inventory sets
 `ansible_remote_tmp: C:\Windows\Temp\ansible` in `group_vars/win_managed/vars.yaml`
 (re-checked 2026-10-01 on all seven inventories).
 
-It is the last reference to `ansible_remote_tmp` in the roles. A consumer who
+It is the last read of `ansible_remote_tmp` in the roles; the check that
+`6c73014` added a few tasks earlier (*version_file*) already uses
+`win_workman_remote_tmp`. `roles/wu/tasks/run_optional.yaml` sets
+`ansible_remote_tmp` as a task var on purpose (become SYSTEM needs a folder it
+can read), which is not the same coupling. A consumer who
 does not set the variable gets either the wrong path or an undefined-variable
 error. The same coupling was removed from `autocadlt2026` in `fac39f0`.
 
@@ -164,6 +185,23 @@ exported file (`Test-Path` plus the fingerprint) rather than on `$LASTEXITCODE`.
 On `teacher` (2026-09-28) `config` imported the key on a fresh 4.11.2 and found it
 unchanged after the upgrade to 4.11.3, so the export exits cleanly there. Fix it
 only if a 4.10.x lab needs `config` before being upgraded.
+
+### `version_file`: a program found only that way cannot be removed
+
+**Priority:** P3 — chrome and edge only; the skip message already tells the operator  
+**Status:** known limitation of `6c73014` (2026-10-20), no fix designed
+
+`package.version_file` lets `pkg_act_on` skip an MSI when the executable on disk
+is already at the MSI version or newer: Google Updater can move Chrome past the
+enterprise MSI and leave it with no uninstall entry. Detection still reads the
+uninstall entries only, so such a program is "not installed" for `off`, which
+cannot remove it; the skip message says so. Chrome sets `version_file` to
+`chrome.exe`; Edge opted in with `b3c1a30`.
+
+To decide when it matters: either have `off` fall back on the vendor's own
+uninstaller next to `version_file` (Chrome's `setup.exe --uninstall
+--system-level`), or report the program as present-but-unmanaged in `info` so
+the gap is visible before anyone relies on `off`.
 
 ---
 
@@ -324,7 +362,7 @@ roles include them from there.
 
 **Priority:** P1 if AutoCAD LT 2026 is to be rolled out to a lab, P3 otherwise  
 **Status:** blocking before lab-wide use — no run found in the project logs as
-of 2026-09-28
+of 2026-10-31
 
 - `autocadlt2026-on` has never been run end to end since `fac39f0` rewrote its
   presence detection. The install path — 2.7 GB per host, the `db-bootstrap`
@@ -383,7 +421,9 @@ job, the logon screen just had not read it again.
 #### What was read on the hosts
 
 `run_powershell` on host01, host05 and host06 at 09:58 (log
-a run log in the project repo):
+a run log in the project repo, since deleted
+by the log rotation of the MCP server, which keeps the newest 50 runs: the
+table below is the only record left):
 
 | Host | `DontDisplayLastUserName` | `HKLM:\SOFTWARE\Ansible\WinMaint` | `LogonUI.exe` started | Last boot |
 | --- | --- | --- | --- | --- |
@@ -408,7 +448,8 @@ the prompt, host01 the user list.
   restart.
 - The same happens when a host restarts while locked: on 2026-10-17 `teacher`
   restarted inside `wu-run-optional-drivers` (run
-  a run log),
+  a run log,
+  rotated away),
   so its LogonUI too came up with the lock on.
 - `lock-reset` (`act_reset.yaml`) removes the value in the same way and has the
   same gap.
@@ -418,7 +459,7 @@ the prompt, host01 the user list.
   attempt, so restoring it has no such delay.
 
 Workaround used on 2026-10-17: `restart` on every host after `lock-off`
-(runs `20261017-100102-…` and `20261017-100350-…` in the project's `logs/`).
+(runs `20261017-100102-…` and `20261017-100350-…`, rotated away).
 
 #### What to change
 
@@ -464,6 +505,142 @@ a Disconnected session and asserts the registry after each step. Add, after the
 
 The VM must have more than one local user for the list to mean anything: check
 which users the baseline has before relying on it, and create one if needed.
+
+### `sfc`: repairs are reported as "no integrity violation"
+
+**Priority:** P1 — a correctness bug: the role hides exactly what it is run to find  
+**Status:** found 2026-10-31 on `lab_e` `lhost30`; cause read in the role and in CBS.log, fix not written
+
+On 2026-10-31 `sfc` on `lhost30` (25H2 26200.9457, run
+a run log in the project repo, with
+`win_workman_restart: false`) printed `sfc found no integrity violation.`,
+`changed: false`. In the same minutes sfc had written **2538** repair lines to
+CBS.log and had left the repairs staged for a restart: `wim-scan` right after
+failed with `ERROR_FAIL_REBOOT_REQUIRED` (0x80070bc9, "a pending repair
+transaction already exists"), and `RebootPending` plus `WinSxS\pending.xml`
+were set. Context: the host had just come back from a boot loop with thousands
+of system files replaced by hand (incident report
+the site notes in the project repo).
+
+#### What the role reads and what sfc wrote
+
+`roles/sfc/tasks/act_on.yaml` collects the `[SR]` lines stamped from the start
+of the run (CBS.log plus the `CbsPersist_*.log` written since: that part works,
+CBS.log rolled over twice during this run) and counts:
+
+| Counter | Pattern in the role | Lines on `lhost30` |
+| --- | --- | --- |
+| `$repaired` | `Repaired file\|Repairing corrupted file` | **0** |
+| `$cannotRepair` | `Cannot repair` | 0 |
+| `$repairFailed` | `Repair failed` | 0 |
+
+The `[SR]` lines actually written by this build (3173 in total, numbers
+replaced by `N`; read from `CbsPersist_20261031095119.log` with
+`run_powershell`, log a run log):
+
+| Count | Text after `[SR]` |
+| --- | --- |
+| 2538 | `Repairing file \??\C:\WINDOWS\bcastdvr\\KnownGameList.bin from store` |
+| 211 | `Beginning Verify and Repair transaction` |
+| 209 | `Verifying N components` |
+| 209 | `Verify complete` |
+| 2 | `Repairing N components` |
+| 2 | `Repair complete` |
+| 1 | `Committing transaction` |
+| 1 | `Cannot commit interactively, there are boot critical components being repaired` |
+
+So:
+
+1. the repair pattern is from older builds: on 26100/26200 the line is
+   `Repairing file <path> from store`, and nothing matches;
+2. nothing looks at `Cannot commit interactively …`: the repairs are only
+   staged, and they are lost for any servicing operation until a restart
+   (DISM refuses to start, as `wim-scan` did). The role neither says so nor
+   restarts. Its `win_workman_restart` only restarts **before** the scan.
+
+The console output (`$stdOut`) is localised and the role drops every line
+holding a digit, so it cannot help; the exit code was 0.
+
+#### What to change
+
+- Count repairs with every known form: `Repairing file .* from store`,
+  `Repaired file`, `Repairing corrupted file`. Count the files, not the lines:
+  one file can be repaired in more than one transaction, so take the unique
+  paths.
+- Count failures the same way, checking the 26100 wording of the failure lines
+  first (it is not in this log; see "How to reproduce" for how to produce one).
+  Keep `ScanRan` as it is.
+- Detect a staged commit: the `Cannot commit interactively` line, and to be
+  safe also `RebootPending` / `WinSxS\pending.xml` set **after** the scan when
+  they were not set before it. Then:
+  - `changed: true`, message `sfc repaired N files; the repair completes at the next restart (boot critical components)`;
+  - a new result field (`RestartRequired: true`) and a fact for the tasks after it;
+  - restart through `pkg_utils` `tasks/restart.yaml` when a variable allows it.
+    Reusing `win_workman_restart` (default `true`) keeps one switch for "this
+    role may restart the host"; mention in the docs that it now acts before and
+    after the scan.
+- Put the counts in the message (`N files repaired, M not repairable`) and list
+  the first ~20 paths in the result, so the run log says what changed without
+  opening `sfc_log_file.log` on the host.
+- Update `docs/roles/management/system-tools.md` (section `sfc`) and the role's
+  `meta/mcp.yaml` notes.
+
+#### How to reproduce in a test VM
+
+On the `teacher` or `student01` VM of the project repo (25H2, see skill
+`win-edulab-test-vms`; revert to `baseline` afterwards — reverting needs the
+user's confirmation, see `CLAUDE.local.md`). Test with
+`run_powershell` / `run_tasks` against inventory `school`.
+
+1. **Plain repair** (the miscount). WinSxS and System32 share the file through a
+   hard link, so overwriting the file in place corrupts the store copy too
+   and sfc reports "cannot repair". Delete it instead, which leaves the store copy
+   intact:
+
+   ```powershell
+   $f = "$env:windir\System32\tzres.dll"      # any non boot-critical protected file
+   takeown /f $f; icacls $f /grant '*S-1-5-32-544:F'
+   Remove-Item $f -Force
+   ```
+
+   Run `sfc`: expected `Repairing file \??\C:\WINDOWS\System32\\tzres.dll from store`
+   in CBS.log. Today the role reports "no integrity violation".
+2. **Staged commit** (the restart). Do the same on a boot-critical file
+   loaded at boot, e.g. `System32\cdd.dll` or `System32\drivers\beep.sys`: try
+   rename + copy of a different file first, since a file that is loaded cannot
+   be deleted. Expected `Cannot commit interactively, there are boot critical
+   components being repaired`, then `RebootPending` and `pending.xml`, and
+   `wim-scan` failing with 0x80070bc9 until a restart. Snapshot the VM before
+   this step: a mistake here can leave it unbootable.
+3. **Not repairable**, to read the 26100 failure wording: overwrite a protected
+   file **in place** (`[IO.File]::WriteAllBytes` on the hard link), so the store
+   copy is corrupted too. Run `sfc`, then read the new `[SR]` lines. Expected
+   something like `Cannot repair member file …`; note the exact text in the role
+   comment.
+
+Case 2 also covers the branch `7ca6df7` added and never ran: with the repair
+staged, a second `sfc` before the restart should refuse to scan, leave no `[SR]`
+line and fail the task with the "did not scan" message.
+
+Each case: run `sfc` before the fix (wrong message), after the fix (right counts,
+`changed`, `RestartRequired`), and with `win_workman_restart: false` (no
+restart, message still says one is needed). Then `wim-scan` to confirm the
+store is usable again. A test playbook in the project's `tests/` (like
+`tests/lock.yaml`) can chain the three cases from `baseline`.
+
+#### Evidence
+
+Copied on 2026-10-31 to the site notes in the
+project repo, since `logs/` keeps only the newest 50 runs:
+
+- Run of the role: a run log
+- `[SR]` counts after the run, reboot flags and the CBS tail with 0x80070bc9 /
+  "a pending repair transaction already exists": a run log
+  (2538 repaired, 0 cannot)
+- `wim-scan` refused: a run log (it only says
+  "Module failed: Unknown error."; the reason is in the CBS tail above)
+- Restart: a run log
+- `[SR]` line shapes: a run log
 
 ### `wu`: a feature update that does not apply is reported as installed
 
@@ -642,20 +819,40 @@ In the project repo (`ansible-win_edulab`, not tracked by git: `local/` and
   a run log (the run of this entry),
   a run log (scan after it).
 - a run log, `…-111653-ps-host16.log`,
-  `…-111739-ps-host16.log` — the readings of boots, WUA events, Setup errors,
-  `CompatData`, DISM state and packages quoted above.
+  `…-111739-ps-host16.log` held the readings of boots, WUA events, Setup errors,
+  `CompatData`, DISM state and packages quoted above. They were deleted by the
+  log rotation of the MCP server (newest 50 runs kept) and no copy exists: the
+  WUA event counts and the `CompatData` hard block survive only in this entry.
+  The Setup logs in the folder above still back the `MigChoice` and
+  `0xC1900204` lines.
 - the site notes, section "Aggiornamento del 10 ottobre 2026" —
   the history of the host and of the day.
 
 The `CompatData_*.xml` file itself was not fetched; its hard block is quoted
-above from the reading in `…-111653-ps-host16.log`.
+above from the reading in `…-111653-ps-host16.log`, now lost.
+
+### `wim-repair`: the folder form of the source has never run
+
+**Priority:** P3 — every repair so far used a `wim:` source, which is tested  
+**Status:** known gap of `a9b0a16` (2026-10-06)
+
+`win_workman_wim_repair_source` takes `wim:<path>:<index>`, `esd:<path>:<index>`
+or a local folder holding the components (a mounted Windows directory or its
+`WinSxS`). The commit tested invalid and missing sources and full and partial
+repairs from `wim:`; the folder form and `esd:` were never run, and every lab
+repair since (lab_c, lab_d, lab_b) used
+`wim:C:\WimSrc\repair.wim:1`. Run a repair from a folder on a test VM (for
+instance the `Windows` directory of a mounted install image) before
+documenting it as an alternative.
 
 ---
 
 ## MCP server
 
-The server lives in the project repo (`ansible-win_edulab`, `mcp/`), not in the
-collection.
+This section is about the server in the project repo (`ansible-win_edulab`,
+`mcp/`), which provides `run_powershell` and `run_playbook`. The collection has
+its own server in `mcp/` (`run_tasks`, `get_role_info`), with a byte-identical
+copy of `runlog.py`.
 
 ### `run_powershell`: `timeout` is ignored with `background=true`
 
@@ -667,10 +864,12 @@ A `DISM /StartComponentCleanup` started with `background=true` and
 a run log). The tool schema describes `timeout` as "Seconds
 before the run is killed", with no exception for background runs.
 
-The background branch of `run_powershell` (`mcp/server.py:400`) calls
-`start_run(cmd, label, env=ADHOC_ENV, redact=redact)` and drops `timeout`, while
-`start_logged` in `mcp/runlog.py` accepts one and hands it to the supervisor.
-The synchronous branch passes it to `run_raw`.
+The background branch of `run_powershell` (`mcp/server.py:410`) calls
+`start_run(cmd, label, env=ADHOC_ENV, redact=redact)` and drops `timeout`. The
+fix touches two files: `start_run` in `mcp/ansible_runner.py` takes no
+`timeout` either, while `start_logged` in `mcp/runlog.py` accepts one and hands
+it to the supervisor. The synchronous branch passes it to `run_raw`.
+Re-checked 2026-10-31: unchanged.
 
 To decide before passing it through: the default is 300 seconds, which suits a
 synchronous query but would kill most background runs, started in the
@@ -692,9 +891,14 @@ relying on the timeout to clean up.
 **Priority:** P2 — a wrong page reads as documentation; start from the roles in use in the labs  
 **Status:** proposed
 
-43 of the 57 files in `docs/roles/catalog/` still open with
-`> **Work in progress** — preliminary draft.` The banner says nothing about
-whether the content is right, and both cases exist:
+44 of the 58 files in `docs/roles/catalog/` still open with
+`> **Work in progress** — preliminary draft.` (2026-10-31; `goldendict.md`,
+added in `fc962a1`, carries it too). Six pages outside the catalog carry the
+same banner and belong to the audit: `management/display_scale.md`,
+`management/optimize.md`, `management/autologon.md`,
+`management/system-tools.md`, `core/dispatcher.md` and `core/pkg_utils.md`.
+The banner says nothing about whether the content is right, and both cases
+exist:
 
 - `sketchup2026.md` is accurate and current, `license` and `unlicense` included
    — the banner is simply stale.
@@ -712,8 +916,14 @@ ones that earn it.
 **Status:** proposed
 
 Four roles have no page in `docs/roles/`: `googledrive`, `tinycad`, `winmerge`,
-`winrar` (re-checked 2026-09-28; `winmerge` is only named in passing in
-`docs/roles/core/pkg_utils.md`). `chkdsk`, `logoff`, `ms_account`, `oobe`,
-`ping`, `secure_ssh`, `sfc`, `shutdown`, `widgets`, `wim` and `wol` are covered
-collectively by `docs/roles/management/system-tools.md`, which is correct and
-needs nothing.
+`winrar` (re-checked 2026-10-31 on 86 roles; `winmerge` is only named in passing
+in `docs/roles/core/pkg_utils.md`). The roles added since 2026-10-01
+(`autoshutdown`, `goldendict`, `domain`, `file_copy`) all have a page. `chkdsk`,
+`logoff`, `ms_account`, `oobe`, `ping`, `secure_ssh`, `sfc`, `shutdown`,
+`widgets`, `wim` and `wol` are covered collectively by
+`docs/roles/management/system-tools.md`; that page still carries the draft
+banner, so it is checked under *Audit the catalog drafts*.
+
+Unrelated slip found on the way: `docs/index.md` links `restart` to
+`system-tools.md#restart`, while the role has its own page,
+`docs/roles/management/restart.md`.
