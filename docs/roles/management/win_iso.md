@@ -19,7 +19,12 @@ What the output ISO adds to the Microsoft one:
   automatic BitLocker encryption, the local administrator;
 - **OpenSSH Server**, with PowerShell as its shell, port 22 open on every
   profile and the controller's key in `administrators_authorized_keys`, set up
-  by a script that runs as SYSTEM in the specialize pass.
+  by a script that runs as SYSTEM in the specialize pass;
+- **no leftover OOBE account**: OOBE works as `defaultuser0`, a local
+  administrator without password that Windows deletes only at the first
+  interactive logon, which a PC managed over SSH may never see. The setup
+  script registers a SYSTEM task that, at boot and every 5 minutes, waits for
+  OOBE to end, removes the account and its profile, then removes itself.
 
 ---
 
@@ -154,3 +159,6 @@ async task, so the SSH session does not have to stay busy for the whole job.
 - On the installed PC the setup script logs to
   `C:\Windows\Temp\win_workman-setup.log` and leaves `win_workman-setup.done`
   or `.failed` next to it. A failure does not stop Setup: it shows as no SSH.
+- SSH answers while OOBE is still running (about 7 minutes after Setup starts
+  in a VM): wait for the logon screen before restarting the PC or running long
+  tasks, or OOBE is interrupted.

@@ -61,6 +61,39 @@ try {
     # Wake-on-LAN and disk maintenance work less reliably.
     powercfg.exe /hibernate off
 
+    # OOBE works as defaultuser0, a local administrator without password, and
+    # Windows deletes it only at the first interactive logon, which a PC managed
+    # over SSH may never see. A task removes it, with its profile, once OOBE is
+    # over, then removes itself. Not fatal: SSH matters more.
+    try {
+        $dir = "$env:ProgramData\win_workman"
+        New-Item -Path $dir -ItemType Directory -Force | Out-Null
+        Set-Content -Path "$dir\remove-defaultuser0.ps1" -Encoding UTF8 -Value @'
+$setup = Get-ItemProperty HKLM:\SYSTEM\Setup
+if ($setup.OOBEInProgress -ne 0 -or $setup.SystemSetupInProgress -ne 0) { exit 0 }
+if (Get-LocalUser -Name defaultuser0 -ErrorAction SilentlyContinue) {
+    Remove-LocalUser -Name defaultuser0
+}
+# Right after OOBE its registry hive may still be loaded: the profile cannot be
+# deleted yet, so try again at the next run.
+try {
+    Get-CimInstance Win32_UserProfile | Where-Object { $_.LocalPath -like '*\defaultuser0*' } |
+        Remove-CimInstance -ErrorAction Stop
+} catch { exit 0 }
+Unregister-ScheduledTask -TaskName 'win_workman remove defaultuser0' -Confirm:$false
+Remove-Item -Path $PSScriptRoot -Recurse -Force
+'@
+        $trigger = New-ScheduledTaskTrigger -AtStartup
+        $repeat = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+        $trigger.Repetition = $repeat.Repetition
+        Register-ScheduledTask -TaskName 'win_workman remove defaultuser0' -Force -Trigger $trigger `
+            -Principal (New-ScheduledTaskPrincipal -UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest) `
+            -Action (New-ScheduledTaskAction -Execute powershell.exe `
+                -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$dir\remove-defaultuser0.ps1`"") | Out-Null
+    } catch {
+        Write-Output "WARNING: task to remove defaultuser0 not registered: $($_.Exception.Message)"
+    }
+
     New-Item -Path "$log.done" -ItemType File -Force | Out-Null
     $ok = $true
 } catch {
