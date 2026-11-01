@@ -1,0 +1,156 @@
+---
+# Extract the source ISO, keep the chosen editions, read the language. Runs on the
+# controller; registers win_workman_win_iso_tmp, _images, _image_name, _language.
+- name: Prepare the tree on the controller
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Create the output directory
+      ansible.builtin.file:
+        path: "{{ win_workman_win_iso_output_path | dirname }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create a private build directory next to the output
+      ansible.builtin.tempfile:
+        path: "{{ win_workman_win_iso_output_path | dirname }}"
+        state: directory
+        prefix: .win_iso_build.
+      register: win_workman_win_iso_tmp
+
+    - name: Read the volume label of the source
+      ansible.builtin.command:
+        argv: [blkid, -o, value, -s, LABEL, "{{ win_workman_win_iso_source_path }}"]
+      register: win_workman_win_iso_label
+      changed_when: false
+      failed_when: false
+
+    - name: Extract the source ISO (a few minutes)
+      ansible.builtin.command:
+        argv: [7z, x, -y, -bd, -bso0, "-o{{ win_workman_win_iso_tree }}", "{{ win_workman_win_iso_source_path }}"]
+        creates: "{{ win_workman_win_iso_tree }}/sources"
+
+    - name: Make the extracted tree writable
+      ansible.builtin.command:
+        argv: [chmod, -R, u+w, "{{ win_workman_win_iso_tree }}"]
+      changed_when: true
+
+    - name: Find the Windows image and the boot files
+      ansible.builtin.stat:
+        path: "{{ win_workman_win_iso_tree }}/{{ item }}"
+        get_checksum: false
+      loop:
+        - sources/install.wim
+        - sources/install.esd
+        - sources/lang.ini
+        - boot/etfsboot.com
+        - efi/microsoft/boot/efisys.bin
+      register: win_workman_win_iso_files
+
+    - name: Note what the tree holds
+      ansible.builtin.set_fact:
+        win_workman_win_iso_present: >-
+          {{ dict(win_workman_win_iso_files.results | map(attribute='item')
+             | zip(win_workman_win_iso_files.results | map(attribute='stat.exists'))) }}
+
+    - name: Check that the source is a Windows installation ISO
+      ansible.builtin.assert:
+        that:
+          - win_workman_win_iso_present['sources/install.wim'] or win_workman_win_iso_present['sources/install.esd']
+          - win_workman_win_iso_present['boot/etfsboot.com']
+          - win_workman_win_iso_present['efi/microsoft/boot/efisys.bin']
+        fail_msg: "{{ win_workman_win_iso_source_path }} has no sources/install.wim (or .esd) and boot files."
+        quiet: true
+
+    - name: Note the image file
+      ansible.builtin.set_fact:
+        win_workman_win_iso_image_file: >-
+          {{ win_workman_win_iso_tree }}/sources/{{ 'install.wim' if win_workman_win_iso_present['sources/install.wim'] else 'install.esd' }}
+
+    - name: Read the editions of the image
+      ansible.builtin.command:
+        argv: >-
+          {{ ['python3', '-I', role_path ~ '/files/wim_images.py', win_workman_win_iso_image_file]
+             + (win_workman_win_iso_editions | map('string') | list) }}
+      register: win_workman_win_iso_source_images
+      changed_when: false
+
+    - name: Choose the editions
+      ansible.builtin.set_fact:
+        win_workman_win_iso_source_editions: "{{ win_workman_win_iso_source_images.stdout | from_json }}"
+
+    - name: Stop if no edition matches
+      ansible.builtin.assert:
+        that: win_workman_win_iso_source_editions.keep | length > 0
+        fail_msg: >-
+          None of {{ win_workman_win_iso_editions }} is in the ISO, which has:
+          {{ win_workman_win_iso_source_editions.lines }}
+        quiet: true
+
+    # DISM mounts only WIM files and Setup prefers them: an ESD becomes a WIM here,
+    # recompressed (slow). From a WIM, export copies the compressed data as it is.
+    - name: Keep only the chosen editions
+      ansible.builtin.command:
+        argv: >-
+          {{ ['wimlib-imagex', 'export', win_workman_win_iso_image_file, item,
+              win_workman_win_iso_tmp.path ~ '/install.wim']
+             + (['--compress=LZX'] if win_workman_win_iso_image_file is search('\.esd$') else []) }}
+      loop: "{{ win_workman_win_iso_source_editions.keep }}"
+      changed_when: true
+      when: >-
+        win_workman_win_iso_image_file is search('\.esd$')
+        or win_workman_win_iso_source_editions.keep | length < win_workman_win_iso_source_editions.images | length
+
+    - name: Put the new image in the tree
+      ansible.builtin.shell:
+        cmd: >-
+          rm -f {{ win_workman_win_iso_image_file | quote }} &&
+          mv {{ (win_workman_win_iso_tmp.path ~ '/install.wim') | quote }} {{ win_workman_win_iso_wim | quote }}
+        removes: "{{ win_workman_win_iso_tmp.path }}/install.wim"
+
+    - name: Read the editions of the new image
+      ansible.builtin.command:
+        argv: [python3, -I, "{{ role_path }}/files/wim_images.py", "{{ win_workman_win_iso_wim }}"]
+      register: win_workman_win_iso_new_images
+      changed_when: false
+
+    - name: Note the editions of the ISO
+      ansible.builtin.set_fact:
+        win_workman_win_iso_images: "{{ win_workman_win_iso_new_images.stdout | from_json }}"
+
+    # The answer file names the edition: indexes change once editions are dropped.
+    - name: Resolve the edition installed without asking
+      ansible.builtin.set_fact:
+        win_workman_win_iso_image_name: >-
+          {{ ((win_workman_win_iso_images.images | selectattr('index', 'eq', win_workman_win_iso_image | int) | list)
+              + (win_workman_win_iso_images.images | selectattr('name', 'eq', win_workman_win_iso_image | string) | list)
+              + (win_workman_win_iso_images.images | selectattr('edition_id', 'eq', win_workman_win_iso_image | string) | list))
+             | map(attribute='name') | first | default('') }}
+
+    - name: Check the edition installed without asking
+      ansible.builtin.assert:
+        that: win_workman_win_iso_image_name | length > 0
+        fail_msg: >-
+          win_workman_win_iso_image={{ win_workman_win_iso_image }} is not an edition of the output:
+          {{ win_workman_win_iso_images.lines }}
+        quiet: true
+      when: win_workman_win_iso_image | string | length > 0
+
+    - name: Read the language of the ISO
+      ansible.builtin.slurp:
+        src: "{{ win_workman_win_iso_tree }}/sources/lang.ini"
+      register: win_workman_win_iso_lang_ini
+      when: win_workman_win_iso_setup_language | length == 0
+
+    # lang.ini writes it in lower case (it-it); the answer files use it-IT.
+    - name: Set the language of Setup
+      ansible.builtin.set_fact:
+        win_workman_win_iso_language: >-
+          {{ win_workman_win_iso_setup_language
+             if win_workman_win_iso_setup_language | length > 0
+             else (win_workman_win_iso_lang_tag.split('-') | first | lower) ~ '-'
+                  ~ (win_workman_win_iso_lang_tag.split('-')[1:] | join('-') | upper) }}
+      vars:
+        win_workman_win_iso_lang_tag: >-
+          {{ win_workman_win_iso_lang_ini.content | default('') | b64decode
+             | regex_search('(?m)^\s*([A-Za-z]{2,3}-[A-Za-z]{2,})\s*=', '\1') | default(['en-US'], true) | first }}

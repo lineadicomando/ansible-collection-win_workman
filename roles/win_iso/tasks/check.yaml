@@ -1,0 +1,58 @@
+---
+# One host per run: it gives the credentials written into the ISO and, with
+# ssh=dism, runs DISM. With msi or none nothing connects to it, so it may be off.
+- name: Check the request
+  ansible.builtin.assert:
+    that:
+      - ansible_play_hosts_all | length == 1
+      - win_workman_win_iso_ssh_mode in ['msi', 'dism', 'none']
+      - win_workman_win_iso_source | length > 0
+      - win_workman_win_iso_source_path is file
+      - (win_workman_win_iso_output_path | realpath) != (win_workman_win_iso_source_path | realpath)
+      - win_workman_win_iso_user | length > 0
+      - win_workman_win_iso_password | length > 0
+      - win_workman_win_iso_editions is sequence and win_workman_win_iso_editions is not string
+    fail_msg: >-
+      win_iso build needs: a single host in the run ({{ ansible_play_hosts_all | length }} given);
+      ssh one of msi, dism, none ({{ win_workman_win_iso_ssh_mode }});
+      win_workman_win_iso_source naming an ISO in {{ win_workman_win_iso_root }} or an absolute path
+      ({{ win_workman_win_iso_source_path }});
+      an output other than the source; ansible_user and ansible_password for the host (vault);
+      win_workman_win_iso_editions as a list.
+    quiet: true
+  run_once: true
+
+- name: Check the request for DISM
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname != 'localhost'
+      - win_workman_win_iso_fod_source | length > 0
+      - win_workman_win_iso_fod_path is file
+    fail_msg: >-
+      ssh=dism runs DISM on the target host: target a Windows host, not localhost, and set
+      win_workman_win_iso_fod_source to the Languages and Optional Features ISO
+      ({{ win_workman_win_iso_fod_path if win_workman_win_iso_fod_source | length > 0 else 'not set' }}).
+    quiet: true
+  run_once: true
+  when: win_workman_win_iso_ssh_mode == 'dism'
+
+- name: Check the tools on the controller
+  ansible.builtin.command:
+    argv: [sh, -c, 'command -v "$1"', sh, "{{ item }}"]
+  loop: [7z, genisoimage, wimlib-imagex, blkid]
+  changed_when: false
+  failed_when: false
+  register: win_workman_win_iso_tools
+  delegate_to: localhost
+  run_once: true
+
+- name: Stop if a tool is missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.item }} is missing on the controller. Fedora: sudo dnf install 7zip genisoimage wimlib-utils;
+      Debian: sudo apt install 7zip genisoimage wimtools
+  loop: "{{ win_workman_win_iso_tools.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+  run_once: true

@@ -1,0 +1,72 @@
+---
+display_name: Windows installation ISO
+custom_actions:
+  - name: build
+    description: >-
+      Build an unattended installation ISO from a Microsoft ISO in
+      win_workman_win_iso_root (default action): only the chosen editions, the
+      local administrator of the target host, OpenSSH Server ready from the first
+      boot. An argument picks how OpenSSH gets there: win_iso-build-msi (default),
+      win_iso-build-dism, win_iso-build-none.
+  - name: info
+    description: >-
+      Without a source, list the ISOs in win_workman_win_iso_root; with one, list
+      its editions and those build would keep. Changes nothing.
+  - name: "on"
+    description: Alias for build
+defaults:
+  - var: win_workman_win_iso_source
+    type: str
+    default: ""
+    description: The Microsoft ISO, relative to win_workman_win_iso_root or absolute. Required by build.
+  - var: win_workman_win_iso_root
+    type: str
+    default: "{{ win_workman_storage_path }}/win_iso"
+    description: Controller folder of the ISOs, source and output
+  - var: win_workman_win_iso_output
+    type: str
+    default: ""
+    description: Output ISO, relative to the root or absolute. Empty means <source>-unattended.iso.
+  - var: win_workman_win_iso_ssh
+    type: str
+    default: msi
+    description: >-
+      msi: the Win32-OpenSSH MSI installed during Setup, not updated by Windows
+      Update. dism: the Windows capability added to the image by DISM on the
+      target host, updated by Windows Update. none: no SSH. A task argument wins.
+  - var: win_workman_win_iso_fod_source
+    type: str
+    default: ""
+    description: >-
+      ssh=dism: the Languages and Optional Features ISO of the servicing branch of
+      the image (26100 for 24H2/25H2/26H2), relative to the root or absolute.
+  - var: win_workman_win_iso_editions
+    type: list
+    default: [Core, Professional, Education, ProfessionalEducation]
+    description: Editions kept, by edition ID, name or index of the source. Empty keeps all.
+  - var: win_workman_win_iso_image
+    type: str
+    default: ""
+    description: >-
+      Edition installed without asking (index in the output, name or edition ID).
+      Empty: Setup asks, or uses the edition of the key in the firmware.
+  - var: win_workman_win_iso_wipe_disk
+    type: bool
+    default: false
+    description: Erase disk 0 without asking. A PC booting from a forgotten stick then reinstalls itself.
+  - var: win_workman_win_iso_product_key
+    type: str
+    default: ""
+    description: Product key for PCs without one in the firmware
+  - var: win_workman_win_iso_dism_dir
+    type: str
+    default: C:\win_iso
+    description: ssh=dism, working folder on the target host, removed at the end
+notes: >-
+  Runs on the controller; target exactly one host, which gives the credentials
+  written into the ISO (ansible_user, ansible_password, so the ISO is per lab).
+  With msi or none nothing connects to the host, which may be off. With dism the
+  host must be a reachable Windows PC with about 40 GB free: install.wim goes
+  there and back over SSH and DISM mounts each edition (several minutes each).
+  Long: start it with background=true. Needs 7z, genisoimage and wimlib-imagex on
+  the controller. The ISO holds the password in clear and is written mode 0600.

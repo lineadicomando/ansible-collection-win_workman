@@ -1,0 +1,59 @@
+---
+# Without a source: the ISOs in the root. With one: its editions, read from the
+# ISO without extracting it, and those that build would keep. Changes nothing and
+# runs on the controller only.
+- name: Inspect the ISOs on the controller
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: List the ISOs in {{ win_workman_win_iso_root }}
+      ansible.builtin.find:
+        paths: "{{ win_workman_win_iso_root }}"
+        patterns: ["*.iso", "*.ISO"]
+      register: win_workman_win_iso_found
+      when: win_workman_win_iso_source | length == 0
+
+    - name: Show the ISOs
+      ansible.builtin.debug:
+        msg: >-
+          {{ win_workman_win_iso_found.files | map(attribute='path') | map('basename') | sort
+             | default(['none'], true) }}
+      when: win_workman_win_iso_source | length == 0
+
+    - name: Check the source
+      ansible.builtin.assert:
+        that: win_workman_win_iso_source_path is file
+        fail_msg: "{{ win_workman_win_iso_source_path }} does not exist."
+        quiet: true
+      when: win_workman_win_iso_source | length > 0
+
+    - name: Find the Windows image in the ISO
+      ansible.builtin.command:
+        argv: [7z, l, -ba, "{{ win_workman_win_iso_source_path }}", sources/install.wim, sources/install.esd]
+      register: win_workman_win_iso_listing
+      changed_when: false
+      when: win_workman_win_iso_source | length > 0
+
+    - name: Read the editions of the ISO
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail;
+          7z e -so {{ win_workman_win_iso_source_path | quote }} {{ win_workman_win_iso_member | quote }}
+          | python3 -I {{ (role_path ~ '/files/wim_images.py') | quote }} -
+          {{ win_workman_win_iso_editions | map('string') | map('quote') | join(' ') }}
+        executable: /bin/bash
+      vars:
+        win_workman_win_iso_member: >-
+          {{ 'sources/install.wim' if 'install.wim' in win_workman_win_iso_listing.stdout else 'sources/install.esd' }}
+      register: win_workman_win_iso_info
+      changed_when: false
+      when: win_workman_win_iso_source | length > 0
+
+    - name: Show the editions
+      ansible.builtin.debug:
+        msg:
+          source: "{{ win_workman_win_iso_source_path }}"
+          editions: "{{ (win_workman_win_iso_info.stdout | from_json).lines }}"
+          kept_by_build: >-
+            {{ (win_workman_win_iso_info.stdout | from_json).keep }}
+      when: win_workman_win_iso_source | length > 0

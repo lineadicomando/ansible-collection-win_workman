@@ -1,0 +1,78 @@
+# Specialize pass of an installation from an ISO of the win_iso role of
+# lineadicomando.win_workman: runs as SYSTEM before OOBE and before any logon.
+{% if win_workman_win_iso_ssh_mode == 'none' %}
+# Built with ssh=none: no OpenSSH Server, only the settings below.
+{% else %}
+# Makes the PC reachable by Ansible: OpenSSH Server with PowerShell as its shell,
+# port 22 open on every profile, the key of the controller for Administrators.
+{% if win_workman_win_iso_ssh_mode == 'msi' %}
+# OpenSSH comes from the Win32-OpenSSH MSI next to this script (ssh=msi): no
+# network, no Windows Update, and Windows Update does not update it later.
+{% else %}
+# OpenSSH is the Windows capability, already in the image (ssh=dism): this script
+# only configures it, and Windows Update keeps it updated.
+{% endif %}
+# Keys and sshd_config live in C:\ProgramData\ssh in both cases.
+{% endif %}
+# Log: C:\Windows\Temp\win_workman-setup.log; outcome: win_workman-setup.done or .failed.
+$ErrorActionPreference = 'Stop'
+$log = 'C:\Windows\Temp\win_workman-setup'
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+Start-Transcript -Path "$log.log" -Append
+try {
+{% if win_workman_win_iso_ssh_mode == 'msi' %}
+    # WaitForExit on the process alone: Start-Process -Wait would also wait for
+    # every process msiexec leaves behind.
+    $msi = Join-Path $here '{{ win_workman_win_iso_openssh_msi }}'
+    $p = Start-Process msiexec.exe -PassThru -ArgumentList @(
+        '/i', "`"$msi`"", 'ADDLOCAL=Server', '/qn', '/norestart', '/l*v', "`"$log-msi.log`"")
+    if (-not $p.WaitForExit(900000)) { throw 'msiexec still running after 15 minutes' }
+    if ($p.ExitCode -notin 0, 3010) { throw "msiexec exit code $($p.ExitCode), see $log-msi.log" }
+
+{% endif %}
+{% if win_workman_win_iso_ssh_mode != 'none' %}
+    if (-not (Get-Service -Name sshd -ErrorAction SilentlyContinue)) {
+        throw 'the sshd service does not exist'
+    }
+    Set-Service -Name sshd -StartupType Automatic
+    New-Item -Path HKLM:\SOFTWARE\OpenSSH -Force | Out-Null
+    New-ItemProperty -Path HKLM:\SOFTWARE\OpenSSH -Name DefaultShell -PropertyType String -Force `
+        -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" | Out-Null
+    if (-not (Get-NetFirewallRule -Name OpenSSH-Server-In-TCP -ErrorAction SilentlyContinue)) {
+        New-NetFirewallRule -Name OpenSSH-Server-In-TCP -DisplayName 'OpenSSH SSH Server (sshd)' `
+            -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow | Out-Null
+    }
+    Set-NetFirewallRule -Name OpenSSH-Server-In-TCP -Enabled True -Profile Any
+
+    # Key of the Ansible controller, for the members of Administrators. sshd ignores
+    # the file unless only Administrators and SYSTEM can access it (SIDs: the group
+    # names are localised).
+    $keys = Join-Path $here 'administrators_authorized_keys'
+    if (Test-Path $keys) {
+        $dest = "$env:ProgramData\ssh\administrators_authorized_keys"
+        New-Item -Path (Split-Path $dest) -ItemType Directory -Force | Out-Null
+        Copy-Item -Path $keys -Destination $dest -Force
+        icacls.exe $dest /inheritance:r /grant '*S-1-5-32-544:F' '*S-1-5-18:F' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "icacls exit code $LASTEXITCODE" }
+    }
+
+{% endif %}
+    # Hibernation keeps fast startup on: a "shut down" PC is then hibernated, and
+    # Wake-on-LAN and disk maintenance work less reliably.
+    powercfg.exe /hibernate off
+
+    New-Item -Path "$log.done" -ItemType File -Force | Out-Null
+    $ok = $true
+} catch {
+    Write-Output "FAILED: $($_.Exception.Message)"
+    New-Item -Path "$log.failed" -ItemType File -Force | Out-Null
+    $ok = $false
+} finally {
+    Stop-Transcript
+}
+if ($ok) {
+    # Drop the copy of the MSI and of the key; kept after a failure, to run again.
+    Remove-Item -Path $here -Recurse -Force -ErrorAction SilentlyContinue
+}
+# Setup goes on whatever happens: a failure shows as no SSH and the log above.
+exit 0

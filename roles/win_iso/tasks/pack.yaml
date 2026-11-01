@@ -1,0 +1,87 @@
+---
+# Answer file, setup script, OpenSSH payload, then the ISO. Runs on the controller.
+- name: Customise and pack the ISO on the controller
+  delegate_to: localhost
+  run_once: true
+  vars:
+    win_workman_win_iso_scripts: "{{ win_workman_win_iso_tree }}/sources/$OEM$/$$/Setup/Scripts/win_workman"
+  block:
+    - name: Write the answer file
+      ansible.builtin.template:
+        src: autounattend.xml.j2
+        dest: "{{ win_workman_win_iso_tree }}/autounattend.xml"
+        mode: "0600"
+      no_log: true
+
+    - name: Create the directory of the setup script
+      ansible.builtin.file:
+        path: "{{ win_workman_win_iso_scripts }}"
+        state: directory
+        mode: "0700"
+
+    - name: Write the setup script
+      ansible.builtin.template:
+        src: setup.ps1.j2
+        dest: "{{ win_workman_win_iso_scripts }}/setup.ps1"
+        mode: "0600"
+
+    - name: Copy the Win32-OpenSSH MSI
+      ansible.builtin.copy:
+        src: "{{ win_workman_storage_path }}/{{ win_workman_win_iso_openssh_msi }}"
+        dest: "{{ win_workman_win_iso_scripts }}/{{ win_workman_win_iso_openssh_msi }}"
+        mode: "0600"
+      when: win_workman_win_iso_ssh_mode == 'msi'
+
+    - name: Copy the public key of the controller
+      ansible.builtin.copy:
+        src: "{{ win_workman_win_iso_authorized_key_file | expanduser }}"
+        dest: "{{ win_workman_win_iso_scripts }}/administrators_authorized_keys"
+        mode: "0600"
+      when:
+        - win_workman_win_iso_ssh_mode != 'none'
+        - win_workman_win_iso_authorized_key_file | length > 0
+        - win_workman_win_iso_authorized_key_file | expanduser is file
+
+    # UDF, which Windows Setup reads, carries install.wim even above 4 GiB; the
+    # ISO 9660 view gets a truncated size for it (-allow-limited-size), as in the
+    # Microsoft ISOs. El Torito: etfsboot.com for BIOS, efisys.bin for UEFI.
+    - name: Pack the ISO
+      ansible.builtin.command:
+        argv:
+          - genisoimage
+          - -quiet
+          - -iso-level
+          - "3"
+          - -udf
+          - -allow-limited-size
+          - -J
+          - -joliet-long
+          - -D
+          - -N
+          - -relaxed-filenames
+          - -V
+          - "{{ (win_workman_win_iso_label.stdout | default('') | trim or 'WIN_WORKMAN')[:32] }}"
+          - -b
+          - boot/etfsboot.com
+          - -no-emul-boot
+          - -boot-load-size
+          - "8"
+          - -eltorito-alt-boot
+          - -e
+          - efi/microsoft/boot/efisys.bin
+          - -no-emul-boot
+          - -o
+          - "{{ win_workman_win_iso_tmp.path }}/out.iso"
+          - "{{ win_workman_win_iso_tree }}"
+        creates: "{{ win_workman_win_iso_tmp.path }}/out.iso"
+
+    # The ISO holds the password in clear (autounattend.xml): owner only.
+    - name: Make the ISO readable by its owner only
+      ansible.builtin.file:
+        path: "{{ win_workman_win_iso_tmp.path }}/out.iso"
+        mode: "0600"
+
+    - name: Move the ISO in place
+      ansible.builtin.command:
+        argv: [mv, -f, "{{ win_workman_win_iso_tmp.path }}/out.iso", "{{ win_workman_win_iso_output_path }}"]
+        removes: "{{ win_workman_win_iso_tmp.path }}/out.iso"

@@ -1,0 +1,4 @@
+---
+# "on" builds, as everywhere in the collection "on" enables
+- name: Build the ISO
+  ansible.builtin.include_tasks: act_build.yaml

@@ -1,0 +1,63 @@
+---
+# Build an installation ISO from a Microsoft ISO kept on the controller: the same
+# files, only the chosen editions, an answer file that installs unattended and
+# creates the local administrator of the target host, and OpenSSH Server with
+# PowerShell as its shell and port 22 open from the first boot, either from the
+# Win32-OpenSSH MSI (ssh=msi) or as the Windows capability added by DISM on the
+# target host (ssh=dism).
+- name: Check the request
+  ansible.builtin.import_tasks: check.yaml
+
+- name: Download the Win32-OpenSSH MSI into the storage
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: download
+  vars:
+    win_workman_schema: "{{ win_workman_win_iso_schema }}"
+  when: win_workman_win_iso_ssh_mode == 'msi'
+
+# The tree holds the password in clear: a private directory next to the output,
+# removed at the end whatever happens.
+- name: Build the ISO
+  vars:
+    win_workman_win_iso_tree: "{{ win_workman_win_iso_tmp.path }}/iso"
+    win_workman_win_iso_wim: "{{ win_workman_win_iso_tmp.path }}/iso/sources/install.wim"
+  block:
+    - name: Prepare the tree
+      ansible.builtin.import_tasks: tree.yaml
+
+    - name: Add OpenSSH Server to the image with DISM
+      ansible.builtin.import_tasks: dism.yaml
+      when: win_workman_win_iso_ssh_mode == 'dism'
+
+    - name: Customise and pack
+      ansible.builtin.import_tasks: pack.yaml
+  always:
+    - name: Remove the build directory
+      ansible.builtin.file:
+        path: "{{ win_workman_win_iso_tmp.path }}"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+      when: win_workman_win_iso_tmp.path is defined
+
+- name: Read the output
+  ansible.builtin.stat:
+    path: "{{ win_workman_win_iso_output_path }}"
+    get_checksum: false
+  register: win_workman_win_iso_result
+  delegate_to: localhost
+  run_once: true
+
+- name: Report
+  ansible.builtin.debug:
+    msg:
+      iso: "{{ win_workman_win_iso_output_path }}"
+      size_gib: "{{ (win_workman_win_iso_result.stat.size / 1024**3) | round(2) }}"
+      account: "{{ win_workman_win_iso_user }}"
+      ssh: "{{ win_workman_win_iso_ssh_mode }}"
+      editions: "{{ win_workman_win_iso_images.lines }}"
+      installs: "{{ win_workman_win_iso_image_name or 'the edition chosen in Setup or by the key in the firmware' }}"
+      disk: "{{ 'disk 0 wiped without asking' if win_workman_win_iso_wipe_disk | bool else 'chosen in Setup' }}"
+      language: "{{ win_workman_win_iso_language }}"
+  run_once: true

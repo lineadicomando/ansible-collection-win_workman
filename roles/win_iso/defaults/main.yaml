@@ -1,0 +1,54 @@
+---
+# Folder of the ISOs on the controller: the Microsoft ISO is put here by hand and
+# the customised ISO is written here.
+win_workman_win_iso_root: "{{ win_workman_storage_path }}/win_iso"
+# The Microsoft ISO, relative to the root or absolute. Required by build.
+win_workman_win_iso_source: ""
+# The output ISO, relative to the root or absolute. Empty: <source>-unattended.iso.
+win_workman_win_iso_output: ""
+
+# How OpenSSH Server gets on the PCs: msi (Win32-OpenSSH MSI installed during
+# Setup, not updated by Windows Update), dism (the Windows capability added to the
+# image by DISM on the target host, updated by Windows Update) or none. An argument
+# of the task wins: win_iso-build-dism.
+win_workman_win_iso_ssh: msi
+# dism: the Languages and Optional Features ISO of the servicing branch of the
+# image (26100 for 24H2, 25H2 and 26H2), relative to the root or absolute.
+win_workman_win_iso_fod_source: ""
+# dism: working folder on the target host, removed at the end.
+win_workman_win_iso_dism_dir: C:\win_iso
+# dism: free space the target host needs beyond the size of install.wim.
+win_workman_win_iso_dism_min_free_gib: 30
+# dism: seconds allowed to each edition (mount, add, commit).
+win_workman_win_iso_dism_timeout: 3600
+
+# Editions kept in the ISO: edition IDs, names or indexes of the source image.
+# Empty keeps them all.
+win_workman_win_iso_editions:
+  - Core
+  - Professional
+  - Education
+  - ProfessionalEducation
+# Edition installed without asking (index in the output, name or edition ID).
+# Empty: Setup asks, or picks the one of the key in the firmware.
+win_workman_win_iso_image: ""
+win_workman_win_iso_product_key: ""
+# true erases disk 0 without asking: a PC that boots from a forgotten stick
+# reinstalls itself.
+win_workman_win_iso_wipe_disk: false
+win_workman_win_iso_bypass_requirements: true
+win_workman_win_iso_prevent_bitlocker: true
+# '*' gives a random name; the inventory can rename the PC later.
+win_workman_win_iso_computer_name: "*"
+# Language of Setup and of the installed UI. Empty: the one of the ISO.
+win_workman_win_iso_setup_language: ""
+win_workman_win_iso_locale: it-IT
+win_workman_win_iso_input_locale: "0410:00000410"
+win_workman_win_iso_timezone: W. Europe Standard Time
+win_workman_win_iso_organization: win_workman
+# The local administrator created by Setup: by default the account Ansible uses
+# for the target host, so the ISO carries the credentials of its lab.
+win_workman_win_iso_user: "{{ ansible_user }}"
+win_workman_win_iso_password: "{{ ansible_password }}"
+# Public key added to administrators_authorized_keys when the file exists.
+win_workman_win_iso_authorized_key_file: "{{ ansible_ssh_pub_key_path | default('') }}"

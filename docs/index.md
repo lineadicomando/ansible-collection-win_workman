@@ -126,6 +126,7 @@ The collection has two distinct role families:
 | [roles/management/autoshutdown.md](roles/management/autoshutdown.md) | `autoshutdown` — scheduled task that shuts the host down at fixed times |
 | [roles/management/domain.md](roles/management/domain.md) | `domain` — Active Directory domain join, leave and status |
 | [roles/management/file_copy.md](roles/management/file_copy.md) | `file_copy` — copy files and folders to and from the hosts, per-user folders included |
+| [roles/management/win_iso.md](roles/management/win_iso.md) | `win_iso` — Windows installation ISO with unattended Setup and OpenSSH Server, built on the controller |
 | [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `secure_ssh`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
 
 ---
@@ -155,7 +156,7 @@ The collection has two distinct role families:
 [`veyon`](roles/catalog/veyon.md) · [`gcpw`](roles/catalog/gcpw.md)
 
 ### Management — System & OS
-[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim)
+[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim) · [`win_iso`](roles/management/win_iso.md)
 
 ### Management — Session & Access
 [`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown) · [`autoshutdown`](roles/management/autoshutdown.md)

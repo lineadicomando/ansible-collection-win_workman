@@ -128,6 +128,7 @@ Some roles extend the standard set with their own actions or support a subset:
 | `ping` | `on` |
 | `wol` | `on` |
 | `wim` | `check` *(default)*, `scan`, `repair` |
+| `win_iso` | `build` *(default)*, `info`, `on` *(alias for `build`)* |
 
 ---
 

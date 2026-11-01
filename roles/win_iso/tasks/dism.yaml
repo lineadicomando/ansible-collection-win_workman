@@ -1,0 +1,186 @@
+---
+# OpenSSH Server as the Windows capability, added offline by DISM on the target
+# host to every edition of install.wim. Windows Update services it afterwards like
+# any other component, unlike the MSI. Only the package goes into the image: the
+# service, the shell, the firewall rule and the key are set by the setup script
+# during Setup, the same for every ssh mode.
+#
+# The package comes from the Languages and Optional Features ISO, which must be of
+# the servicing branch of the image: 26100 for 24H2, 25H2 and 26H2, whose packages
+# are all 10.0.26100.x. Until the first cumulative update sshd stays at the
+# version of that ISO.
+- name: Read the controller side of the DISM job
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Read the size of install.wim
+      ansible.builtin.stat:
+        path: "{{ win_workman_win_iso_wim }}"
+        get_checksum: false
+      register: win_workman_win_iso_wim_stat
+
+    - name: Extract the OpenSSH Server package from the Features ISO
+      ansible.builtin.command:
+        argv:
+          - 7z
+          - e
+          - -y
+          - -bso0
+          - "-o{{ win_workman_win_iso_tmp.path }}/fod"
+          - "{{ win_workman_win_iso_fod_path }}"
+          - "LanguagesAndOptionalFeatures/{{ win_workman_win_iso_fod_cab }}"
+        creates: "{{ win_workman_win_iso_tmp.path }}/fod/{{ win_workman_win_iso_fod_cab }}"
+
+    - name: Check that the package was there
+      ansible.builtin.stat:
+        path: "{{ win_workman_win_iso_tmp.path }}/fod/{{ win_workman_win_iso_fod_cab }}"
+        get_checksum: false
+      register: win_workman_win_iso_cab_stat
+
+    - name: Stop if the Features ISO has no OpenSSH Server
+      ansible.builtin.assert:
+        that: win_workman_win_iso_cab_stat.stat.exists
+        fail_msg: >-
+          {{ win_workman_win_iso_fod_path }} has no LanguagesAndOptionalFeatures/{{ win_workman_win_iso_fod_cab }}:
+          is it the Languages and Optional Features ISO for amd64?
+        quiet: true
+
+- name: Read the free space and the build of the DISM host
+  ansible.windows.win_powershell:
+    parameters:
+      Path: "{{ win_workman_win_iso_dism_dir }}"
+    script: |
+      param([string]$Path)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $drive = Get-PSDrive -Name (Split-Path -Qualifier $Path).TrimEnd(':')
+      $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+      $Ansible.Result = @{
+        free  = [int64]$drive.Free
+        build = [int]$cv.CurrentBuildNumber
+        ubr   = [int]$cv.UBR
+      }
+  register: win_workman_win_iso_dism_host
+  run_once: true
+
+- name: Check the free space on the DISM host
+  ansible.builtin.assert:
+    that: >-
+      win_workman_win_iso_dism_host.result.free
+      >= win_workman_win_iso_wim_stat.stat.size + win_workman_win_iso_dism_min_free_gib | int * 1024**3
+    fail_msg: >-
+      {{ inventory_hostname }} has {{ (win_workman_win_iso_dism_host.result.free / 1024**3) | round(1) }} GiB free
+      on the drive of {{ win_workman_win_iso_dism_dir }}; it needs
+      {{ (win_workman_win_iso_wim_stat.stat.size / 1024**3) | round(1) }} GiB for install.wim
+      plus {{ win_workman_win_iso_dism_min_free_gib }} GiB to mount an edition.
+    quiet: true
+  run_once: true
+
+# DISM services an image best from the same build or a newer one. An older host
+# often works within one servicing branch, so this warns and goes on.
+- name: Warn when the DISM host is older than the image
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: {{ inventory_hostname }} runs build {{ win_workman_win_iso_dism_host.result.build }}.{{ win_workman_win_iso_dism_host.result.ubr }},
+      older than the image ({{ win_workman_win_iso_images.images[0].build }}.{{ win_workman_win_iso_images.images[0].sp_build }}).
+      If DISM fails, update the host first.
+  when: >-
+    [win_workman_win_iso_dism_host.result.build | int, win_workman_win_iso_dism_host.result.ubr | int]
+    < [win_workman_win_iso_images.images[0].build | int, win_workman_win_iso_images.images[0].sp_build | int]
+  run_once: true
+
+- name: Integrate OpenSSH Server on {{ inventory_hostname }}
+  run_once: true
+  block:
+    # A previous run stopped half way may have left an image mounted there.
+    - name: Clear what a previous run left on the host
+      ansible.windows.win_powershell:
+        parameters:
+          Path: "{{ win_workman_win_iso_dism_dir }}"
+        script: &win_workman_win_iso_dism_clear |
+          param([string]$Path)
+          $Ansible.Changed = $false
+          foreach ($image in @(Get-WindowsImage -Mounted -ErrorAction SilentlyContinue)) {
+            if ($image.MountPath -like "$Path\*") {
+              Dismount-WindowsImage -Path $image.MountPath -Discard -ErrorAction SilentlyContinue | Out-Null
+              $Ansible.Changed = $true
+            }
+          }
+          & dism.exe /English /Cleanup-Wim | Out-Null
+          if (Test-Path -LiteralPath $Path) {
+            Remove-Item -LiteralPath $Path -Recurse -Force
+            $Ansible.Changed = $true
+          }
+
+    - name: Create the working folder
+      ansible.windows.win_file:
+        path: "{{ win_workman_win_iso_dism_dir }}\\mount"
+        state: directory
+
+    - name: Copy install.wim to the host
+      ansible.windows.win_copy:
+        src: "{{ win_workman_win_iso_wim }}"
+        dest: "{{ win_workman_win_iso_dism_dir }}\\install.wim"
+
+    - name: Copy the OpenSSH Server package to the host
+      ansible.windows.win_copy:
+        src: "{{ win_workman_win_iso_tmp.path }}/fod/{{ win_workman_win_iso_fod_cab }}"
+        dest: "{{ win_workman_win_iso_dism_dir }}\\{{ win_workman_win_iso_fod_cab }}"
+
+    - name: Add the package to each edition
+      ansible.windows.win_powershell:
+        parameters:
+          Wim: "{{ win_workman_win_iso_dism_dir }}\\install.wim"
+          Index: "{{ item.index }}"
+          Mount: "{{ win_workman_win_iso_dism_dir }}\\mount"
+          Cab: "{{ win_workman_win_iso_dism_dir }}\\{{ win_workman_win_iso_fod_cab }}"
+          Log: "{{ win_workman_win_iso_dism_dir }}\\dism.log"
+        script: |
+          param([string]$Wim, [int]$Index, [string]$Mount, [string]$Cab, [string]$Log)
+          $ErrorActionPreference = 'Stop'
+          function Invoke-Dism([string[]]$Arguments) {
+            $out = & dism.exe /English "/LogPath:$Log" @Arguments 2>&1 | Out-String
+            # 3010: done, a restart is pending (meaningless offline)
+            if ($LASTEXITCODE -notin 0, 3010) {
+              throw "dism $($Arguments -join ' ') exited with $LASTEXITCODE`n$out"
+            }
+            $out
+          }
+          $committed = $false
+          Invoke-Dism @('/Mount-Image', "/ImageFile:$Wim", "/Index:$Index", "/MountDir:$Mount") | Out-Null
+          try {
+            Invoke-Dism @("/Image:$Mount", '/Add-Package', "/PackagePath:$Cab") | Out-Null
+            $packages = Invoke-Dism @("/Image:$Mount", '/Get-Packages', '/Format:Table')
+            $line = $packages -split "`r?`n" | Where-Object { $_ -match '^OpenSSH-Server-Package' } | Select-Object -First 1
+            if (-not $line) { throw 'OpenSSH-Server-Package is not in the image after Add-Package' }
+            Invoke-Dism @('/Unmount-Image', "/MountDir:$Mount", '/Commit') | Out-Null
+            $committed = $true
+          } finally {
+            if (-not $committed) {
+              & dism.exe /English /Unmount-Image "/MountDir:$Mount" /Discard | Out-Null
+            }
+          }
+          $Ansible.Changed = $true
+          $Ansible.Result = @{ index = $Index; package = ($line -replace '\s*\|\s*', ' | ').Trim() }
+      loop: "{{ win_workman_win_iso_images.images }}"
+      loop_control:
+        label: "{{ item.index }}: {{ item.name }}"
+      async: "{{ win_workman_win_iso_dism_timeout | int }}"
+      poll: 30
+      register: win_workman_win_iso_dism_runs
+
+    - name: Show the package added to each edition
+      ansible.builtin.debug:
+        msg: "{{ win_workman_win_iso_dism_runs.results | map(attribute='result') | list }}"
+
+    - name: Bring install.wim back into the tree
+      ansible.builtin.fetch:
+        src: "{{ win_workman_win_iso_dism_dir }}\\install.wim"
+        dest: "{{ win_workman_win_iso_wim }}"
+        flat: true
+  always:
+    - name: Remove the working folder from the host
+      ansible.windows.win_powershell:
+        parameters:
+          Path: "{{ win_workman_win_iso_dism_dir }}"
+        script: *win_workman_win_iso_dism_clear
