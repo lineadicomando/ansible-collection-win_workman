@@ -87,6 +87,27 @@
         name: lineadicomando.win_workman.wu
         tasks_from: run_report
 
+# The updates went in through the Windows Update Agent, so the Settings page
+# still lists them as available until the Update Orchestrator scans again (see
+# act_sync_ui.yaml). A refresh that goes wrong is reported, never fatal here.
+- name: Refresh the Windows Update page of Settings
+  when:
+    - win_workman_wu_sync_ui | bool
+    - win_workman_wu_report.installed | int > 0
+  block:
+    - name: Sync the Settings page
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.wu
+        tasks_from: act_sync_ui
+      vars:
+        win_workman_wu_sync_ui_in_run: true
+  rescue:
+    - name: Report a failed Settings refresh
+      ansible.builtin.debug:
+        msg: >-
+          Settings refresh failed, the updates are installed anyway; run wu-sync_ui
+          to retry: {{ ansible_failed_result.msg | default('unknown error') }}
+
 # win_updates can succeed as a task while single updates fail to install.
 - name: Fail if some updates failed to install
   ansible.builtin.fail:

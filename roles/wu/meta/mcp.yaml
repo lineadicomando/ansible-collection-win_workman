@@ -34,6 +34,14 @@ custom_actions:
       Read-only: list what Windows Update offers, both the updates wu-run can
       install and the optional ones (fact win_workman_wu_scan with build,
       pending, optional)
+  - name: sync_ui
+    description: >-
+      Bring the Windows Update page of Settings in line with what is installed:
+      an interactive Update Orchestrator scan in the logged-on user's session,
+      then a wait for the new scan date. Fixes updates already installed by
+      wu-run that Settings still offers ("Scarica e installa") or shows as
+      failed. Skips hosts with nobody logged on. wu-run does it on its own after
+      installing (win_workman_wu_sync_ui)
   - name: "on"
     description: Resume Windows Update (alias for resume)
   - name: "off"
@@ -83,6 +91,14 @@ defaults:
     type: int
     default: 7200
     description: Seconds wu-run-optional-... may take to download and install in one round
+  - var: win_workman_wu_sync_ui
+    type: bool
+    default: true
+    description: After a wu-run that installed something, refresh the Windows Update page of Settings (as wu-sync_ui); a failed refresh is reported, not fatal
+  - var: win_workman_wu_sync_ui_timeout
+    type: int
+    default: 300
+    description: Seconds wu-sync_ui waits for the Update Orchestrator to record the new scan
   - var: win_workman_wu_unpause
     type: bool
     default: false

@@ -12,6 +12,11 @@ win_workman_wu_reboot_timeout: 1800
 win_workman_wu_max_rounds: 5
 # Seconds wu-run-optional-... may take to download and install in one round.
 win_workman_wu_optional_timeout: 7200
+# After a wu-run that installed something, refresh the Windows Update page of
+# Settings with an interactive scan in the logged-on user's session (wu-sync_ui).
+win_workman_wu_sync_ui: true
+# Seconds wu-sync_ui waits for the Update Orchestrator to record the new scan.
+win_workman_wu_sync_ui_timeout: 300
 
 # wu-run profiles: a bare wu-run uses win_workman_wu_default_profile,
 # wu-run-<name> the named one. Categories are the aliases listed in

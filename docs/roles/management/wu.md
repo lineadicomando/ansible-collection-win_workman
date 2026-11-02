@@ -13,6 +13,7 @@ and inspect or adjust the maximum allowed pause duration.
 |---|---|
 | `run` | Install the updates selected by a profile or a category list (see below), rebooting and searching again until none is left, then report the outcome |
 | `scan` | Read-only: list what Windows Update offers, both the updates `run` installs and the optional ones |
+| `sync_ui` | Bring the Windows Update page of Settings in line with what is installed (see below); `run` does it on its own after installing |
 | `on` | Resume Windows Update (alias for `resume`) |
 | `off` | Pause Windows Update at maximum duration (alias for `pause` at max days) |
 | `pause` | Pause quality and feature updates for `win_workman_wu_pause_days` days |
@@ -135,6 +136,32 @@ Optional (wu-run-optional-<category>): 1
 The same data is left in the `win_workman_wu_scan` fact (`build`, `pending`,
 `optional`). An optional driver can show in both lists.
 
+### `sync_ui`
+
+Settings does not read the Windows Update Agent, which `run` installs through,
+but the store of the Update Orchestrator (`C:\ProgramData\USOPrivate\UpdateStore`),
+refreshed only by an orchestrator scan. After a `run` the Windows Update page
+keeps the result of the last scan Windows ran on its own: an update already
+installed still shows as available (*Scarica e installa*), or as failed
+(*Aggiornamenti non riusciti*, "no updates published for this edition") once the
+orchestrator tries to install it. Seen on 27 PCs after `wu-run-optional-updates`
+installed the monthly preview.
+
+`wu-sync_ui` starts an interactive scan (`UsoClient StartInteractiveScan`) in the
+session of the logged-on user, through a temporary scheduled task, and waits up
+to `win_workman_wu_sync_ui_timeout` seconds for a newer
+`LastSearchSuccessDate`. Only that form works: `UsoClient StartScan` from the
+SSH session, the same as SYSTEM, and the *UpdateOrchestrator\Schedule Scan* task
+all end without error and record no scan. A host with nobody logged on is
+skipped: there is no page to look at, and the next automatic scan refreshes
+it. The result is left in `win_workman_wu_sync_ui` (`user`, `before`, `after`,
+`synced`, `skipped`, `message`); the stand-alone action fails when no new scan
+shows up in time.
+
+`run` does the same at the end when it installed at least one update, unless
+`win_workman_wu_sync_ui` is `false`; there a refresh that goes wrong is only
+reported, and the run is judged on the updates.
+
 ### `run` reboots
 
 `run` first finishes any servicing already pending on the host (updates Windows
@@ -205,6 +232,8 @@ Passing `0` resets the cap to the role default (`win_workman_wu_default_max_paus
 | `win_workman_wu_reboot_timeout` | `1800` | Seconds `run` waits after each restart for the host to be back with servicing idle |
 | `win_workman_wu_max_rounds` | `5` | Install rounds in one `run`, each followed by a restart when needed |
 | `win_workman_wu_optional_timeout` | `7200` | Seconds `wu-run-optional-...` may take to download and install in one round |
+| `win_workman_wu_sync_ui` | `true` | After a `run` that installed something, refresh the Windows Update page of Settings |
+| `win_workman_wu_sync_ui_timeout` | `300` | Seconds `sync_ui` waits for the Update Orchestrator to record the new scan |
 | `win_workman_wu_unpause` | `false` | Resume updates before running `run` (useful when updates are kept paused between runs) |
 
 ---
@@ -240,6 +269,10 @@ win_workman_tasks:
 # Only drivers and Defender definitions
 win_workman_tasks:
   - wu-run-cat-drivers+definitions
+
+# Refresh the Settings page after updates installed by hand or by an older run
+win_workman_tasks:
+  - wu-sync_ui
 
 # Install updates even when updates are kept paused
 win_workman_tasks:

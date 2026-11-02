@@ -1,0 +1,106 @@
+---
+# Brings the Windows Update page of Settings in line with what is installed.
+#
+# Settings does not read the Windows Update Agent, which wu-run installs
+# through, but the store of the Update Orchestrator (USOPrivate\UpdateStore),
+# refreshed only by an orchestrator scan. After a wu-run the page keeps the
+# result of the last scan Windows ran on its own: an update already installed
+# still shows as available ("Scarica e installa") or, once the orchestrator
+# tries it, as failed ("Aggiornamenti non riusciti"). Seen on lab_b on
+# 2026-11-02 after wu-run-optional-updates installed the preview cumulative.
+#
+# Only an interactive scan started in a user session refreshes the store:
+# UsoClient StartScan from the SSH session, the same as SYSTEM through a
+# scheduled task, and the UpdateOrchestrator "Schedule Scan" task all ran
+# without error and left the last scan date unchanged on 22 hosts. So the
+# scan runs as the logged-on user, through a temporary scheduled task with an
+# interactive logon, and the task waits until the orchestrator records a newer
+# successful search (Microsoft.Update.AutoUpdate Results.LastSearchSuccessDate).
+# With nobody logged on there is no page to fix: the host is skipped, and the
+# next automatic scan brings the store up to date before anyone sees it.
+#
+# Leaves win_workman_wu_sync_ui: user, before, after, synced, skipped, message.
+- name: Refresh the Windows Update page of Settings
+  ansible.windows.win_powershell:
+    parameters:
+      TimeoutSeconds: "{{ win_workman_wu_sync_ui_timeout | int }}"
+    script: |
+      param([int]$TimeoutSeconds)
+
+      function Get-LastScan {
+          (New-Object -ComObject Microsoft.Update.AutoUpdate).Results.LastSearchSuccessDate.ToLocalTime()
+      }
+
+      $result = @{ user = ''; before = ''; after = ''; synced = $false; skipped = $false; message = '' }
+      $Ansible.Changed = $false
+
+      $user = (Get-CimInstance Win32_ComputerSystem).UserName
+      if (-not $user) {
+          $owner = Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" |
+              ForEach-Object { Invoke-CimMethod -InputObject $_ -MethodName GetOwner } |
+              Where-Object { $_.User } | Select-Object -First 1
+          if ($owner) { $user = "$($owner.Domain)\$($owner.User)" }
+      }
+
+      $before = Get-LastScan
+      $result.before = $before.ToString('yyyy-MM-dd HH:mm:ss')
+      $result.after = $result.before
+      if (-not $user) {
+          $result.skipped = $true
+          $result.message = 'No user logged on: the next automatic scan will refresh the page'
+          $Ansible.Result = $result
+          return
+      }
+      $result.user = $user
+
+      $name = 'win_workman_wu_sync_ui'
+      $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\UsoClient.exe" -Argument 'StartInteractiveScan'
+      $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
+      try {
+          Register-ScheduledTask -TaskName $name -Action $action -Principal $principal -Force | Out-Null
+          Start-ScheduledTask -TaskName $name
+          $start = Get-Date
+          $after = $before
+          while (((Get-Date) - $start).TotalSeconds -lt $TimeoutSeconds) {
+              Start-Sleep -Seconds 5
+              $after = Get-LastScan
+              if ($after -gt $before) { break }
+          }
+      } finally {
+          Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+      }
+
+      $result.after = $after.ToString('yyyy-MM-dd HH:mm:ss')
+      $result.synced = $after -gt $before
+      if ($result.synced) {
+          $result.message = "Settings refreshed by an interactive scan as $user"
+          $Ansible.Changed = $true
+      } else {
+          $result.message = "No new scan recorded within $TimeoutSeconds s: the page may still show old updates"
+      }
+      $Ansible.Result = $result
+  register: win_workman_wu_sync_ui_raw
+
+- name: Keep the Settings refresh result
+  ansible.builtin.set_fact:
+    win_workman_wu_sync_ui: "{{ win_workman_wu_sync_ui_raw.result }}"
+
+- name: Report the Settings refresh
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        [win_workman_wu_sync_ui.message,
+         'Last scan: ' ~ (win_workman_wu_sync_ui.before
+           if win_workman_wu_sync_ui.before == win_workman_wu_sync_ui.after
+           else win_workman_wu_sync_ui.before ~ ' -> ' ~ win_workman_wu_sync_ui.after)]
+      }}
+
+# Only the stand-alone action fails on a refresh that did not happen; inside
+# wu-run the report says so and the run is judged on the updates alone.
+- name: Fail when the page could not be refreshed
+  ansible.builtin.fail:
+    msg: "{{ win_workman_wu_sync_ui.message }}"
+  when:
+    - not (win_workman_wu_sync_ui_in_run | default(false) | bool)
+    - not (win_workman_wu_sync_ui.synced | bool)
+    - not (win_workman_wu_sync_ui.skipped | bool)
