@@ -43,9 +43,9 @@ win_workman_vivaldi_schema:
   role: lineadicomando.win_workman.vivaldi
   default_action: !!str on
   package:
-    setup_file: "Vivaldi.8.2.4133.52.x64.exe"
+    setup_file: "Vivaldi.8.2.4133.96.x64.exe"
     searchName: "Vivaldi"
-    version: "8.2.4133.52"
+    version: "8.2.4133.96"
     install_args:
       - --vivaldi-silent
       - --do-not-launch-chrome
@@ -60,9 +60,9 @@ win_workman_vivaldi_schema:
     cleanup_paths:
       - "{{ win_workman_vivaldi_program_file }}\\Vivaldi"
   files:
-    - filename: "Vivaldi.8.2.4133.52.x64.exe"
-      url: "https://downloads.vivaldi.com/stable/Vivaldi.8.2.4133.52.x64.exe"
-      checksum: "sha256:68124557ae03a28e5669ad4c62eb2c8a1771740d8a7866385d2cf3a33b379614"
+    - filename: "Vivaldi.8.2.4133.96.x64.exe"
+      url: "https://downloads.vivaldi.com/stable/Vivaldi.8.2.4133.96.x64.exe"
+      checksum: "sha256:cd3374dbbffe20ccc8dd1f621c171831ae4e79548af1d41db4dadadf3decb034"
   shortcuts: >-
     {{
       win_workman_vivaldi_shortcuts_schema if (

@@ -45,7 +45,7 @@ win_workman_tasks:
 
 Software name: `Vivaldi`  
 Provider: `registry`  
-Installer: `Vivaldi.8.2.4133.52.x64.exe`  
+Installer: `Vivaldi.8.2.4133.96.x64.exe`  
 Homepage: https://vivaldi.com/
 
 ---
