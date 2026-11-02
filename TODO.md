@@ -36,6 +36,8 @@ Priorities, assigned 2026-09-28:
 | P3 | `version_file`: a program found only that way cannot be removed |
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
 | P3 | `autoshutdown`: implement the `nouser` mode |
+| P3 | `scoobe`: a role to suppress the "finish setting up your PC" screen |
+| P3 | `wu`: a reset of the Windows Update state for stuck hosts |
 | P3 | `wim-repair`: the folder form of the source has never run |
 | P3 | Roles with no documentation at all |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` |
@@ -846,6 +848,64 @@ instance the `Windows` directory of a mounted install image) before
 documenting it as an alternative.
 
 ---
+
+### `scoobe`: a role to suppress the "finish setting up your PC" screen
+
+**Priority:** P3 — a nuisance on the lab PCs after updates, no data at risk  
+**Status:** proposed, 2026-11-02
+
+After a cumulative or a feature update Windows 11 shows the "Second Chance OOBE"
+(SCOOBE) full-screen page at logon: "La configurazione del PC è quasi
+completata", with OneDrive, Outlook, Copilot and phone-link promotions and the
+buttons *Continua* / *Inviami un promemoria tra 3 giorni*. Seen on host01 of
+`lab_b` on 2026-11-02, through Veyon remote access, after the October
+preview cumulative (26300.9818). Students have to dismiss it before using the
+PC, and it comes back after later updates.
+
+No role covers it. `oobe` only writes the privacy-experience and
+`SkipMachineOOBE` / `SkipUserOOBE` keys of the first-boot OOBE; a grep of the
+collection for `Scoobe`, `UserProfileEngagement`, `CloudContent` or
+`ContentDeliveryManager` finds nothing.
+
+The settings that control it, to be confirmed on a test VM:
+
+- `HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement`,
+  `ScoobeSystemSettingEnabled` = 0 (DWORD): the toggle *Settings → System →
+  Notifications → Suggest ways to finish setting up my device*. Per user,
+  honoured on Pro.
+- `HKCU\Software\Policies\Microsoft\Windows\CloudContent`,
+  `DisableWindowsSpotlightWindowsWelcomeExperience` = 1: the "Windows welcome
+  experience" after updates; check whether Pro honours it.
+- `HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent`,
+  `DisableWindowsConsumerFeatures` = 1 is Enterprise/Education only: not a fix
+  for the Pro labs.
+
+Both useful values are per user, so the role has to write them into every
+existing profile hive and into the Default profile (`C:\Users\Default\NTUSER.DAT`)
+for accounts created later, loading the hives of users not logged on. Actions:
+`scoobe-off` (suppress, the useful default for labs) and `scoobe-on` (remove the
+values). Follow the new-role checklist (schema, dispatcher, `meta/mcp.yaml`,
+a page in `docs/roles/management/`), and test it on `student01` by installing
+a cumulative after a revert, then checking that the page no longer appears at
+the next logon.
+
+### `wu`: a reset of the Windows Update state for stuck hosts
+
+**Priority:** P3 — done by hand twice, rare  
+**Status:** proposed, 2026-11-02
+
+`wu-sync_ui` (2026-11-02) fixes a Settings page that lags behind what `run`
+installed, with an interactive scan. It does not fix a Windows Update state
+that is wrong in itself, seen on host205/host206 of `lab_c` on 2026-10-21
+after a cumulative installed by hand with DISM: history entries left
+InProgress with `0x80242014`, `RebootRequired` set, a reboot asked for at every
+logon that does nothing, a "versione di ripristino" of an older release
+offered. The fix by hand was: stop `wuauserv`, `bits`, `cryptsvc`, `usosvc`;
+rename `SoftwareDistribution` and `catroot2`; delete the `RebootRequired` key;
+with Settings closed rename `C:\ProgramData\USOPrivate\UpdateStore`, which the
+service recreates empty; start the services; `wu-scan`. A `wu-reset` action
+could do it. It throws away the download cache and the history Settings shows,
+so never as part of `run`.
 
 ## MCP server
 
