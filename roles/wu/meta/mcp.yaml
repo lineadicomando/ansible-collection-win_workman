@@ -42,6 +42,16 @@ custom_actions:
       wu-run that Settings still offers ("Scarica e installa") or shows as
       failed. Skips hosts with nobody logged on. wu-run does it on its own after
       installing (win_workman_wu_sync_ui)
+  - name: reset
+    description: >-
+      By hand only, for a host whose Windows Update state is stuck (reboot asked
+      for at every logon, history entries left in progress with 0x80242014, a
+      "versione di ripristino" of an older release): stops the update services,
+      renames SoftwareDistribution, catroot2 and the Update Orchestrator store
+      (kept as .wu-reset-<stamp>, earlier copies deleted), clears RebootRequired,
+      starts the services, then refreshes Settings and lists what is offered.
+      Loses the download cache and the history in Settings. Refuses while
+      updates are installing (TiWorker running)
   - name: "on"
     description: Resume Windows Update (alias for resume)
   - name: "off"

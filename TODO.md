@@ -37,7 +37,6 @@ Priorities, assigned 2026-09-28:
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
 | P3 | `autoshutdown`: implement the `nouser` mode |
 | P3 | `scoobe`: a role to suppress the "finish setting up your PC" screen |
-| P3 | `wu`: a reset of the Windows Update state for stuck hosts |
 | P3 | `wim-repair`: the folder form of the source has never run |
 | P3 | Roles with no documentation at all |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` |
@@ -888,24 +887,6 @@ values). Follow the new-role checklist (schema, dispatcher, `meta/mcp.yaml`,
 a page in `docs/roles/management/`), and test it on `student01` by installing
 a cumulative after a revert, then checking that the page no longer appears at
 the next logon.
-
-### `wu`: a reset of the Windows Update state for stuck hosts
-
-**Priority:** P3 — done by hand twice, rare  
-**Status:** proposed, 2026-11-02
-
-`wu-sync_ui` (2026-11-02) fixes a Settings page that lags behind what `run`
-installed, with an interactive scan. It does not fix a Windows Update state
-that is wrong in itself, seen on host205/host206 of `lab_c` on 2026-10-21
-after a cumulative installed by hand with DISM: history entries left
-InProgress with `0x80242014`, `RebootRequired` set, a reboot asked for at every
-logon that does nothing, a "versione di ripristino" of an older release
-offered. The fix by hand was: stop `wuauserv`, `bits`, `cryptsvc`, `usosvc`;
-rename `SoftwareDistribution` and `catroot2`; delete the `RebootRequired` key;
-with Settings closed rename `C:\ProgramData\USOPrivate\UpdateStore`, which the
-service recreates empty; start the services; `wu-scan`. A `wu-reset` action
-could do it. It throws away the download cache and the history Settings shows,
-so never as part of `run`.
 
 ## MCP server
 

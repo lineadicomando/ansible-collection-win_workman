@@ -1,0 +1,132 @@
+---
+# Resets the Windows Update state of a host that is stuck, by hand only.
+#
+# For a state that is wrong in itself, not a Settings page lagging behind
+# (that is wu-sync_ui). Seen on host205/host206 of lab_c on 2026-10-21 after
+# a cumulative installed with DISM: history entries left InProgress with
+# 0x80242014, RebootRequired set, a reboot asked for at every logon that does
+# nothing, a "versione di ripristino" of an older release offered.
+#
+# Stops wuauserv, bits, cryptsvc and usosvc, renames SoftwareDistribution,
+# catroot2 and the Update Orchestrator store with a .wu-reset-<stamp> suffix,
+# deletes the RebootRequired key, starts the services again: Windows rebuilds
+# the folders empty. The renamed copies are kept for a way back, and the copies
+# of an earlier reset are deleted. This throws away the download cache and the
+# history Settings shows, so wu-run never calls it.
+#
+# Refuses to start while servicing is busy (TiWorker at work): pulling the
+# folders from under an install is how a store gets corrupted. Then an
+# interactive scan refreshes Settings (wu-sync_ui, not fatal here), and wu-scan
+# shows what Windows Update offers again.
+#
+# Leaves win_workman_wu_reset: stamp, renamed, removed_backups,
+# reboot_required_cleared.
+- name: Reset the Windows Update state
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+
+      # TiWorker is the process that applies packages. Microsoft.Update.Installer
+      # (IsBusy) cannot be created from a network logon: E_ACCESSDENIED.
+      if (Get-Process TiWorker -ErrorAction SilentlyContinue) {
+          throw 'Windows is installing updates (TiWorker running): retry when servicing is idle'
+      }
+
+      $services = 'wuauserv', 'bits', 'cryptsvc', 'usosvc'
+      $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+      $suffix = ".wu-reset-$stamp"
+      $folders = @(
+          "$env:SystemRoot\SoftwareDistribution",
+          "$env:SystemRoot\System32\catroot2",
+          "$env:ProgramData\USOPrivate\UpdateStore"
+      )
+
+      # Copies left by an earlier reset: only the latest one is worth keeping.
+      $removed = @()
+      foreach ($f in $folders) {
+          Get-ChildItem -Path (Split-Path $f) -Directory -Filter "$(Split-Path $f -Leaf).wu-reset-*" -ErrorAction SilentlyContinue |
+              ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue; $removed += $_.FullName }
+      }
+
+      # Read before stopping: wuauserv drops the key itself when it stops.
+      $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'
+      $hadKey = Test-Path $key
+
+      # Settings holds the orchestrator store open.
+      Get-Process SystemSettings -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      # wuauserv and usosvc are trigger-started and can come back between the
+      # stop and the rename: stop again and retry a few times. The services
+      # start again whatever happens.
+      $renamed = @()
+      $cleared = $false
+      try {
+          foreach ($f in $folders) {
+              if (-not (Test-Path $f)) { continue }
+              $done = $false
+              for ($i = 1; $i -le 5 -and -not $done; $i++) {
+                  foreach ($s in $services) { Stop-Service -Name $s -Force -ErrorAction SilentlyContinue }
+                  try {
+                      Rename-Item -Path $f -NewName ((Split-Path $f -Leaf) + $suffix)
+                      $renamed += "$f$suffix"
+                      $done = $true
+                  } catch {
+                      Start-Sleep -Seconds 3
+                  }
+              }
+              if (-not $done) {
+                  throw "Could not rename $f (a file is still in use); renamed so far: $($renamed -join ', ')"
+              }
+          }
+
+          if (Test-Path $key) { Remove-Item -Path $key -Recurse -Force }
+          $cleared = $hadKey
+      } finally {
+          foreach ($s in $services) { Start-Service -Name $s -ErrorAction SilentlyContinue }
+      }
+
+      $Ansible.Changed = $renamed.Count -gt 0 -or $cleared
+      $Ansible.Result = @{
+          stamp                   = $stamp
+          renamed                 = $renamed
+          removed_backups         = $removed
+          reboot_required_cleared = $cleared
+          services                = @(Get-Service -Name $services | ForEach-Object { "$($_.Name)=$($_.Status)" })
+      }
+  register: win_workman_wu_reset_raw
+
+- name: Keep the reset result
+  ansible.builtin.set_fact:
+    win_workman_wu_reset: "{{ win_workman_wu_reset_raw.result }}"
+
+- name: Report the reset
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        ['Renamed (kept as a way back): ' ~ (win_workman_wu_reset.renamed | join(', ') or 'nothing')]
+        + (['Deleted the copies of an earlier reset: ' ~ win_workman_wu_reset.removed_backups | join(', ')]
+            if win_workman_wu_reset.removed_backups else [])
+        + (['Cleared the RebootRequired flag'] if win_workman_wu_reset.reboot_required_cleared | bool else [])
+        + ['Services: ' ~ win_workman_wu_reset.services | join(', ')]
+      }}
+
+- name: Refresh the Windows Update page of Settings
+  block:
+    - name: Sync the Settings page
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.wu
+        tasks_from: act_sync_ui
+      vars:
+        win_workman_wu_sync_ui_in_run: true
+  rescue:
+    - name: Report a failed Settings refresh
+      ansible.builtin.debug:
+        msg: >-
+          Settings refresh failed after the reset; run wu-sync_ui to retry:
+          {{ ansible_failed_result.msg | default('unknown error') }}
+
+- name: Show what Windows Update offers after the reset
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.wu
+    tasks_from: act_scan

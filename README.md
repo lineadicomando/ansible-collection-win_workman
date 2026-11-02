@@ -192,7 +192,7 @@ dispatcher interface.
 | Role | Actions | Description |
 |---|---|---|
 | `optimize` | `on` | Volume optimisation and TRIM / defrag |
-| `wu` | `run` *(default)*, `scan`, `sync_ui`, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` | Windows Update control |
+| `wu` | `run` *(default)*, `scan`, `sync_ui`, `reset`, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` | Windows Update control |
 | `wim` | `check` *(default)*, `scan`, `repair`, `on` *(alias for `check`)* | DISM component store health |
 | `sfc` | `on` | System File Checker |
 | `chkdsk` | `on` | Check Disk |

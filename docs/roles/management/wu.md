@@ -14,6 +14,7 @@ and inspect or adjust the maximum allowed pause duration.
 | `run` | Install the updates selected by a profile or a category list (see below), rebooting and searching again until none is left, then report the outcome |
 | `scan` | Read-only: list what Windows Update offers, both the updates `run` installs and the optional ones |
 | `sync_ui` | Bring the Windows Update page of Settings in line with what is installed (see below); `run` does it on its own after installing |
+| `reset` | By hand only: reset the Windows Update state of a stuck host (see below) |
 | `on` | Resume Windows Update (alias for `resume`) |
 | `off` | Pause Windows Update at maximum duration (alias for `pause` at max days) |
 | `pause` | Pause quality and feature updates for `win_workman_wu_pause_days` days |
@@ -162,6 +163,32 @@ shows up in time.
 `win_workman_wu_sync_ui` is `false`; there a refresh that goes wrong is only
 reported, and the run is judged on the updates.
 
+### `reset`
+
+For a Windows Update state that is wrong in itself, where `sync_ui` is not
+enough. Seen after a cumulative installed by hand with DISM: history entries
+left in progress with `0x80242014`, the `RebootRequired` flag set, a reboot asked
+for at every logon that changes nothing, a "versione di ripristino" of an older
+release offered.
+
+`wu-reset` refuses to start while updates are installing (`TiWorker`
+running). Otherwise it:
+
+1. closes Settings and stops `wuauserv`, `bits`, `cryptsvc` and `usosvc`, again
+   before each rename since `wuauserv` and `usosvc` start on demand;
+2. renames `C:\Windows\SoftwareDistribution`, `C:\Windows\System32\catroot2`
+   and `C:\ProgramData\USOPrivate\UpdateStore` with a `.wu-reset-<stamp>` suffix,
+   which Windows rebuilds empty; the copies are kept as a way back, and those of
+   an earlier reset are deleted;
+3. deletes the `RebootRequired` key;
+4. starts the services, whatever happened before;
+5. runs `sync_ui` (reported, not fatal) and `scan`.
+
+The result is left in `win_workman_wu_reset` (`stamp`, `renamed`,
+`removed_backups`, `reboot_required_cleared`, `services`). It throws away the
+download cache and the update history shown in Settings, so `run` never calls
+it.
+
 ### `run` reboots
 
 `run` first finishes any servicing already pending on the host (updates Windows
@@ -273,6 +300,11 @@ win_workman_tasks:
 # Refresh the Settings page after updates installed by hand or by an older run
 win_workman_tasks:
   - wu-sync_ui
+
+# Reset a host stuck on a reboot that does nothing, then install again
+win_workman_tasks:
+  - wu-reset
+  - wu-run
 
 # Install updates even when updates are kept paused
 win_workman_tasks:
