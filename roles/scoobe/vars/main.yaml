@@ -1,0 +1,31 @@
+# ==============================================================================
+#  SCOOBE ("Second Chance OOBE"): the full-screen "Let's finish setting up your
+#  device" page ("La configurazione del PC e' quasi completata") that Windows 11
+#  shows at logon after a cumulative or a feature update.
+#
+#  All the switches that work on Pro are per user, so they are written into
+#  every profile hive and into the Default profile (template for new accounts).
+#  HKLM\...\CloudContent\DisableWindowsConsumerFeatures is Enterprise/Education
+#  only and is not used.
+# ==============================================================================
+---
+win_workman_scoobe_schema:
+  name: SCOOBE (finish setting up your device)
+  role: lineadicomando.win_workman.scoobe
+  default_action: info
+
+# Paths are relative to the user hive (HKCU). 'value' is what 'off' writes to
+# suppress the page; 'on' removes the value and gives Windows back its default.
+win_workman_scoobe_entries:
+  # Settings > System > Notifications > "Suggest ways to finish setting up my device"
+  - path: Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement
+    name: ScoobeSystemSettingEnabled
+    value: 0
+  # Settings > System > Notifications > "Show the Windows welcome experience after updates"
+  - path: Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager
+    name: SubscribedContent-310093Enabled
+    value: 0
+  # User policy "Turn off the Windows Welcome Experience"
+  - path: Software\Policies\Microsoft\Windows\CloudContent
+    name: DisableWindowsSpotlightWindowsWelcomeExperience
+    value: 1

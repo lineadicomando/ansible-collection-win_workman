@@ -36,7 +36,7 @@ Priorities, assigned 2026-09-28:
 | P3 | `version_file`: a program found only that way cannot be removed |
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
 | P3 | `autoshutdown`: implement the `nouser` mode |
-| P3 | `scoobe`: a role to suppress the "finish setting up your PC" screen |
+| P3 | `scoobe`: confirm that `off` keeps the page away after a cumulative |
 | P3 | `wim-repair`: the folder form of the source has never run |
 | P3 | Roles with no documentation at all |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` |
@@ -848,45 +848,23 @@ documenting it as an alternative.
 
 ---
 
-### `scoobe`: a role to suppress the "finish setting up your PC" screen
+### `scoobe`: confirm that `off` keeps the page away after a cumulative
 
 **Priority:** P3 — a nuisance on the lab PCs after updates, no data at risk  
-**Status:** proposed, 2026-11-02
+**Status:** role written 2026-11-04, effect not yet observed
 
-After a cumulative or a feature update Windows 11 shows the "Second Chance OOBE"
-(SCOOBE) full-screen page at logon: "La configurazione del PC è quasi
-completata", with OneDrive, Outlook, Copilot and phone-link promotions and the
-buttons *Continua* / *Inviami un promemoria tra 3 giorni*. Seen on host01 of
-`lab_b` on 2026-11-02, through Veyon remote access, after the October
-preview cumulative (26300.9818). Students have to dismiss it before using the
-PC, and it comes back after later updates.
+The role exists (`docs/roles/management/scoobe.md`) and writes its three
+per-user values correctly: tested on host102/host103 of `lab_d` (info, off
+twice, on), then `off` on the whole lab except host101, 141 profiles, none
+unavailable. What is not proven is that the values stop the page. Test under
+way on 2026-11-04: preview cumulative KB5127936 (26300.9818, the one after
+which the page was seen on host01 of `lab_b`) installed on host101 without the
+fix and on host102 with it; at the next logon the page should show on host101 only.
 
-No role covers it. `oobe` only writes the privacy-experience and
-`SkipMachineOOBE` / `SkipUserOOBE` keys of the first-boot OOBE; a grep of the
-collection for `Scoobe`, `UserProfileEngagement`, `CloudContent` or
-`ContentDeliveryManager` finds nothing.
-
-The settings that control it, to be confirmed on a test VM:
-
-- `HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement`,
-  `ScoobeSystemSettingEnabled` = 0 (DWORD): the toggle *Settings → System →
-  Notifications → Suggest ways to finish setting up my device*. Per user,
-  honoured on Pro.
-- `HKCU\Software\Policies\Microsoft\Windows\CloudContent`,
-  `DisableWindowsSpotlightWindowsWelcomeExperience` = 1: the "Windows welcome
-  experience" after updates; check whether Pro honours it.
-- `HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent`,
-  `DisableWindowsConsumerFeatures` = 1 is Enterprise/Education only: not a fix
-  for the Pro labs.
-
-Both useful values are per user, so the role has to write them into every
-existing profile hive and into the Default profile (`C:\Users\Default\NTUSER.DAT`)
-for accounts created later, loading the hives of users not logged on. Actions:
-`scoobe-off` (suppress, the useful default for labs) and `scoobe-on` (remove the
-values). Follow the new-role checklist (schema, dispatcher, `meta/mcp.yaml`,
-a page in `docs/roles/management/`), and test it on `student01` by installing
-a cumulative after a revert, then checking that the page no longer appears at
-the next logon.
+- If it shows on both, find which value Windows 26H2 actually reads (whether
+  Pro honours the CloudContent user policy is still open) before trusting
+  `off` on the other labs.
+- Either way, run `scoobe-off` on host101 afterwards.
 
 ## MCP server
 

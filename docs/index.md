@@ -121,6 +121,7 @@ The collection has two distinct role families:
 | [roles/management/sysinfo.md](roles/management/sysinfo.md) | `sysinfo` — system information and statistics collection |
 | [roles/management/wallpaper.md](roles/management/wallpaper.md) | `wallpaper` — set/reset/lock/unlock across all profiles |
 | [roles/management/display_scale.md](roles/management/display_scale.md) | `display_scale` — display scaling percentage across all profiles |
+| [roles/management/scoobe.md](roles/management/scoobe.md) | `scoobe` — suppress the "finish setting up your device" page after updates |
 | [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
 | [roles/management/autologon.md](roles/management/autologon.md) | `autologon` — automatic logon configuration |
 | [roles/management/autoshutdown.md](roles/management/autoshutdown.md) | `autoshutdown` — scheduled task that shuts the host down at fixed times |
@@ -156,7 +157,7 @@ The collection has two distinct role families:
 [`veyon`](roles/catalog/veyon.md) · [`gcpw`](roles/catalog/gcpw.md)
 
 ### Management — System & OS
-[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim) · [`win_iso`](roles/management/win_iso.md)
+[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`scoobe`](roles/management/scoobe.md) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim) · [`win_iso`](roles/management/win_iso.md)
 
 ### Management — Session & Access
 [`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown) · [`autoshutdown`](roles/management/autoshutdown.md)

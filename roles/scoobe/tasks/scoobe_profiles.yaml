@@ -1,0 +1,109 @@
+---
+# One script for the three modes: enumerate the profiles, write each hive in
+# place when it is already loaded (logged-on user, SSH user) or load it from
+# NTUSER.DAT, then unload it. No logoff is needed, since the values are only
+# read when Windows decides whether to show the page at the next logon.
+- name: Apply to user profiles the SCOOBE action {{ win_workman_scoobe_mode }}
+  ansible.windows.win_powershell:
+    parameters:
+      Mode: "{{ win_workman_scoobe_mode }}"
+      Entries: "{{ win_workman_scoobe_entries }}"
+      IncludeDefault: "{{ win_workman_scoobe_profiles_include_default | default(true) | bool }}"
+    script: |
+      param(
+        [string]$Mode,
+        [object[]]$Entries,
+        [bool]$IncludeDefault = $true
+      )
+
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $tempHive = 'WIN_WORKMAN_SCOOBE'
+
+      $targets = @()
+      foreach ($p in @(Get-CimInstance -ClassName Win32_UserProfile |
+          Where-Object { $_.LocalPath -and -not $_.Special -and $_.SID -match '^S-1-5-21-' })) {
+        $name = Split-Path -Leaf $p.LocalPath
+        try {
+          $name = (New-Object System.Security.Principal.SecurityIdentifier($p.SID)).Translate(
+            [System.Security.Principal.NTAccount]).Value
+        } catch { }
+        $targets += [pscustomobject]@{ Name = $name; SID = $p.SID; LocalPath = $p.LocalPath }
+      }
+      if ($IncludeDefault) {
+        $default = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList').Default
+        if ($default) {
+          $targets += [pscustomobject]@{
+            Name = 'Default'; SID = $null
+            LocalPath = [Environment]::ExpandEnvironmentVariables($default)
+          }
+        }
+      }
+
+      $rows = @()
+      foreach ($t in $targets) {
+        $row = [ordered]@{ Name = $t.Name; Hive = 'unavailable'; State = ''; Changed = $false }
+        $hiveName = $null
+        $loadedHere = $false
+        if ($t.SID -and [Microsoft.Win32.Registry]::Users.OpenSubKey($t.SID)) {
+          $hiveName = $t.SID
+          $row.Hive = 'loaded'
+        } else {
+          $hivePath = Join-Path $t.LocalPath 'NTUSER.DAT'
+          if (Test-Path -LiteralPath $hivePath) {
+            $null = & reg.exe load "HKU\$tempHive" $hivePath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              $hiveName = $tempHive
+              $loadedHere = $true
+              $row.Hive = 'offline'
+            }
+          }
+        }
+        if (-not $hiveName) { $rows += [pscustomobject]$row; continue }
+
+        $states = @()
+        try {
+          foreach ($e in $Entries) {
+            $keyPath = "$hiveName\$($e.path)"
+            $key = [Microsoft.Win32.Registry]::Users.OpenSubKey($keyPath, $true)
+            $current = if ($key) { $key.GetValue($e.name) } else { $null }
+            $wanted = [int]$e.value
+            if ($Mode -eq 'off' -and ($null -eq $current -or [int]$current -ne $wanted)) {
+              if (-not $key) { $key = [Microsoft.Win32.Registry]::Users.CreateSubKey($keyPath) }
+              $key.SetValue($e.name, $wanted, [Microsoft.Win32.RegistryValueKind]::DWord)
+              $current = $wanted
+              $row.Changed = $true
+            }
+            elseif ($Mode -eq 'on' -and $null -ne $current) {
+              $key.DeleteValue($e.name)
+              $current = $null
+              $row.Changed = $true
+            }
+            if ($key) { $key.Close() }
+            $shown = if ($null -eq $current) { 'unset' } else { "$current" }
+            $states += "$($e.name)=$shown"
+          }
+        }
+        finally {
+          if ($loadedHere) {
+            [gc]::Collect()
+            [gc]::WaitForPendingFinalizers()
+            $null = & reg.exe unload "HKU\$tempHive" 2>&1
+          }
+        }
+        $row.State = $states -join ' '
+        if ($row.Changed) { $Ansible.Changed = $true }
+        $rows += [pscustomobject]$row
+      }
+
+      $Ansible.Result = @($rows)
+  register: win_workman_scoobe_result
+
+- name: Report SCOOBE settings per profile
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.Name }} [{{ item.Hive }}]{{ ' changed' if item.Changed else '' }}:
+      {{ item.State }}
+  loop: "{{ win_workman_scoobe_result.result | default([]) }}"
+  loop_control:
+    label: "{{ item.Name }}"

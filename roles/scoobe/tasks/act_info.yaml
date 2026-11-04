@@ -1,0 +1,7 @@
+---
+- name: Apply SCOOBE mode 'info' to every user profile
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.scoobe
+    tasks_from: scoobe_profiles
+  vars:
+    win_workman_scoobe_mode: "info"

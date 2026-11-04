@@ -197,6 +197,7 @@ dispatcher interface.
 | `sfc` | `on` | System File Checker |
 | `chkdsk` | `on` | Check Disk |
 | `oobe` | `on`, `off` | Suppress Out-of-Box Experience prompts |
+| `scoobe` | `info` *(default)*, `off`, `on` | Suppress the "finish setting up your device" page after updates, in every profile |
 | `widgets` | `on`, `off` | Windows 11 Widgets panel (news and interests) |
 | `wallpaper` | `on` *(default)*, `off`, `set`, `reset`, `lock`, `unlock`, `clear_history` | Wallpaper across all user profiles |
 

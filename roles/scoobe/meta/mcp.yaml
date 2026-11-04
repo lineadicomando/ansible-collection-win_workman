@@ -1,0 +1,24 @@
+---
+display_name: SCOOBE (finish setting up your device)
+custom_actions:
+  - name: info
+    description: Report the SCOOBE settings of every user profile and the Default profile (default action)
+  - name: "off"
+    description: >-
+      Suppress the "Let's finish setting up your device" page shown at logon after
+      updates, in every profile and in the Default profile
+  - name: "on"
+    description: Remove the values written by 'off', giving Windows back its default behaviour
+defaults:
+  - var: win_workman_scoobe_profiles_include_default
+    type: bool
+    default: true
+    description: Also write the Default profile, template for accounts created later
+notes: >-
+  Per-user settings (UserProfileEngagement\ScoobeSystemSettingEnabled,
+  ContentDeliveryManager\SubscribedContent-310093Enabled, the CloudContent user
+  policy DisableWindowsSpotlightWindowsWelcomeExperience), written into every
+  profile hive: loaded hives in place, the others loaded from NTUSER.DAT. No
+  logoff or reboot; takes effect at the next logon. A profile whose hive is held
+  by another process is reported as unavailable. Not the first-boot OOBE: that is
+  the oobe role.
