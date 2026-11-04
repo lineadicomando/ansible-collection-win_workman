@@ -4,7 +4,7 @@ Planned improvements for the `lineadicomando.win_workman` collection.
 
 Reviewed 2026-09-28: every entry below was checked against the current tree, and
 the notes say what has changed since each was written. Re-checked 2026-10-01
-against the tree at `b599405`, and again on 2026-10-31 against `b47c901`.
+against the tree at `0771b71`, and again on 2026-10-31 against `824e33b`.
 
 Priorities, assigned 2026-09-28:
 
@@ -60,7 +60,7 @@ reusing `tasks/kill.yaml`. Roles already call it from their own task files:
 chrome, firefox, edge, libreoffice, autocadlt2026, and `autocadlt2023` through
 its own `win_workman_autocadlt2023_kill_processes` variable — which a schema
 field would make redundant. `kill.yaml` only handles lists of more than one name
-since `0f0ae61`. `sketchup2026` (`b599405`) closes SketchUp in its own
+since `243663b`. `sketchup2026` (`0771b71`) closes SketchUp in its own
 `tasks/ensure_closed.yaml` with a direct `Stop-Process`, bypassing `kill.yaml`;
 it guards the licence actions rather than an install, but is one more
 role-local kill to fold in.
@@ -90,7 +90,7 @@ read-only files included, whenever nothing is locked.
 The preliminary uninstall of an upgrade goes through `pkg_act_off` instead of
 calling `win_package` directly, so `uninstall_via_helper`, the
 `before_uninstall` / `after_uninstall` hooks, the Windows Installer wait
-(`65b0e03`), `cleanup_registry_key`, `cleanup_paths` and the leftovers pass all
+(`f9d7742`), `cleanup_registry_key`, `cleanup_paths` and the leftovers pass all
 apply to upgrades.
 
 The earlier version of this entry asked to verify the roles that declare
@@ -98,7 +98,7 @@ The earlier version of this entry asked to verify the roles that declare
 included). That was wrong: `uninstall_before_upgrade` defaults to `false` and,
 apart from `veyon`, none of them sets it, so their upgrade never calls
 `pkg_act_off`. Their uninstall path has
-meanwhile been exercised with `off` in `c0f7c5c` and `2e3dddf` (python313,
+meanwhile been exercised with `off` in `56aac0e` and `68b27cc` (python313,
 embarcadero_devcpp, winrar, foxit_pdf_reader, p7zip).
 
 The roles whose upgrade really goes through `pkg_act_off` are postman, winscp,
@@ -107,7 +107,7 @@ inkscape, putty, mysql_server and veyon. Run an upgrade of each on a test VM
 and restore around the uninstall leaves the install step running.
 
 `veyon` has run this path once in production: the upgrade 4.11.3 → 4.11.4
-(`a750220`, 2026-10-17) on the teacher station of a production lab went through
+(`fca3b46`, 2026-10-17) on the teacher station of a production lab went through
 cleanly. The other five have never run it.
 
 ### `pkg_act_off` does not stop declared services
@@ -147,7 +147,7 @@ redpanda_cpp, veyon, vivaldi, vlc, winrar. A fourteenth caller sits outside
 the schema: `audacity/tasks/remove_superseded.yaml` sets it to run the old
 release's Inno uninstaller. For most of them the job-object wait is
 load-bearing: NSIS uninstallers copy themselves to `%TEMP%` and the launched
-process exits immediately — `5a0e983` is exactly that failure on the Dev-C++
+process exits immediately — `b1ce531` is exactly that failure on the Dev-C++
 roles. A process-only wait would report a barely started uninstall as finished.
 
 So: add the option with `true` as the default, then enable it per role only
@@ -166,12 +166,12 @@ only because every `win_edulab` inventory sets
 (re-checked 2026-10-01 on all seven inventories).
 
 It is the last read of `ansible_remote_tmp` in the roles; the check that
-`6c73014` added a few tasks earlier (*version_file*) already uses
+`2d89556` added a few tasks earlier (*version_file*) already uses
 `win_workman_remote_tmp`. `roles/wu/tasks/run_optional.yaml` sets
 `ansible_remote_tmp` as a task var on purpose (become SYSTEM needs a folder it
 can read), which is not the same coupling. A consumer who
 does not set the variable gets either the wrong path or an undefined-variable
-error. The same coupling was removed from `autocadlt2026` in `fac39f0`.
+error. The same coupling was removed from `autocadlt2026` in `9304d43`.
 
 ### veyon `config`: a crashing `veyon-cli` export reads as a missing key
 
@@ -190,14 +190,14 @@ only if a 4.10.x lab needs `config` before being upgraded.
 ### `version_file`: a program found only that way cannot be removed
 
 **Priority:** P3 — chrome and edge only; the skip message already tells the operator  
-**Status:** known limitation of `6c73014` (2026-10-20), no fix designed
+**Status:** known limitation of `2d89556` (2026-10-20), no fix designed
 
 `package.version_file` lets `pkg_act_on` skip an MSI when the executable on disk
 is already at the MSI version or newer: Google Updater can move Chrome past the
 enterprise MSI and leave it with no uninstall entry. Detection still reads the
 uninstall entries only, so such a program is "not installed" for `off`, which
 cannot remove it; the skip message says so. Chrome sets `version_file` to
-`chrome.exe`; Edge opted in with `b3c1a30`.
+`chrome.exe`; Edge opted in with `fad8e57`.
 
 To decide when it matters: either have `off` fall back on the vendor's own
 uninstaller next to `version_file` (Chrome's `setup.exe --uninstall
@@ -365,7 +365,7 @@ roles include them from there.
 **Status:** blocking before lab-wide use — no run found in the project logs as
 of 2026-10-31
 
-- `autocadlt2026-on` has never been run end to end since `fac39f0` rewrote its
+- `autocadlt2026-on` has never been run end to end since `9304d43` rewrote its
   presence detection. The install path — 2.7 GB per host, the `db-bootstrap`
   polling, the licence registration through `AdskLicensingInstHelper` — is
   unverified.
@@ -374,7 +374,7 @@ of 2026-10-31
   exactly the leftovers that `off-full` targets (the two Material Library 2023
   packages, the emptied install directory, the ACDLT2023 licensing logs).
 - `autocadlt2026-off-full` has never been run since the GUIDs became
-  runtime-resolved in `93a26d7`.
+  runtime-resolved in `65baf6b`.
 
 ---
 
@@ -615,7 +615,7 @@ user's confirmation, see `CLAUDE.local.md`). Test with
    something like `Cannot repair member file …`; note the exact text in the role
    comment.
 
-Case 2 also covers the branch `7ca6df7` added and never ran: with the repair
+Case 2 also covers the branch `d68a392` added and never ran: with the repair
 staged, a second `sfc` before the restart should refuse to scan, leave no `[SR]`
 line and fail the task with the "did not scan" message.
 
@@ -816,7 +816,7 @@ itself was not fetched.
 ### `wim-repair`: the folder form of the source has never run
 
 **Priority:** P3 — every repair so far used a `wim:` source, which is tested  
-**Status:** known gap of `a9b0a16` (2026-10-06)
+**Status:** known gap of `996f5d4` (2026-10-06)
 
 `win_workman_wim_repair_source` takes `wim:<path>:<index>`, `esd:<path>:<index>`
 or a local folder holding the components (a mounted Windows directory or its
@@ -900,7 +900,7 @@ relying on the timeout to clean up.
 
 44 of the 58 files in `docs/roles/catalog/` still open with
 `> **Work in progress** — preliminary draft.` (2026-10-31; `goldendict.md`,
-added in `fc962a1`, carries it too). Six pages outside the catalog carry the
+added in `d563ed2`, carries it too). Six pages outside the catalog carry the
 same banner and belong to the audit: `management/display_scale.md`,
 `management/optimize.md`, `management/autologon.md`,
 `management/system-tools.md`, `core/dispatcher.md` and `core/pkg_utils.md`.
@@ -911,7 +911,7 @@ exist:
    — the banner is simply stale.
 - `autocadlt2026_en.md` and `autocadlt2026_it.md` documented two roles that had
   never existed under those names, with the wrong provider and the wrong
-  installer filename. Deleted and replaced in `fac39f0`.
+  installer filename. Deleted and replaced in `9304d43`.
 
 A wrong draft is worse than no page, because it reads as documentation. Go
 through them against the roles, fix what is wrong, and drop the banner from the
