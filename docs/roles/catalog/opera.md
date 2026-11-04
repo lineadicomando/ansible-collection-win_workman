@@ -25,7 +25,7 @@ download, and info queries.
 
 | Variable | Default | Description |
 |---|---|---|
-| `win_workman_opera_version` | `"117.0.5408.52"` | Installer version; update when upgrading |
+| `win_workman_opera_version` | `"139.0.6053.22"` | Installer version; update when upgrading |
 | `win_workman_opera_shortcuts` | `false` | Create desktop and Start Menu shortcuts |
 | `win_workman_opera_shortcut_url` | `""` | URL appended to shortcut arguments |
 | `win_workman_opera_shortcut_no_first_run` | `true` | Add `--no-first-run --no-default-browser-check --disable-search-engine-choice-screen` to shortcut |
@@ -60,5 +60,5 @@ Homepage: https://www.opera.com/
 - After uninstall, `%ProgramFiles%\Opera` is removed via `cleanup_paths`.
 - `win_workman_opera_version` must be updated manually when a new release is
   available; update both the variable and verify the download URL is reachable.
-- No checksum is defined: verify the installer integrity out-of-band when
-  updating the version.
+- The installer sha256 is pinned in `files[].checksum` next to the version:
+  a version bump needs a new checksum too, or `download` fails.
