@@ -51,8 +51,8 @@ Priorities, assigned 2026-09-28:
 **Status:** proposed — still unimplemented, verified 2026-10-31
 
 `pkg_utils` stops the services listed under `services:` before installing, but
-user-facing processes still lock their own files. On the teacher station of the
-`lab_a` lab the Veyon Master GUI was running during the upgrade, which is
+user-facing processes still lock their own files. On the teacher station of a
+production lab the Veyon Master GUI was running during the upgrade, which is
 how the stale DLLs got there.
 
 A `kill_processes:` schema field handled by `pkg_utils` would cover this,
@@ -107,7 +107,7 @@ inkscape, putty, mysql_server and veyon. Run an upgrade of each on a test VM
 and restore around the uninstall leaves the install step running.
 
 `veyon` has run this path once in production: the upgrade 4.11.3 → 4.11.4
-(`a750220`, 2026-10-17) on the teacher station of `lab_a` went through
+(`a750220`, 2026-10-17) on the teacher station of a production lab went through
 cleanly. The other five have never run it.
 
 ### `pkg_act_off` does not stop declared services
@@ -369,8 +369,8 @@ of 2026-10-31
   presence detection. The install path — 2.7 GB per host, the `db-bootstrap`
   polling, the licence registration through `AdskLicensingInstHelper` — is
   unverified.
-- `autocadlt2023-off` was validated on host05 of `lab_a` (2026-09-11); the
-  `off-full` variant was not. host05 is the natural candidate: it still carries
+- `autocadlt2023-off` was validated on one production host (2026-09-11); the
+  `off-full` variant was not. That host is the natural candidate: it still carries
   exactly the leftovers that `off-full` targets (the two Material Library 2023
   packages, the emptied install directory, the ACDLT2023 licensing logs).
 - `autocadlt2026-off-full` has never been run since the GUIDs became
@@ -411,29 +411,28 @@ two and goes offline in the third.
 ### `lock-off` leaves the logon screen without the user list until a restart
 
 **Priority:** P1 — hit on a whole lab after every maintenance; the workaround is restarting every idle host  
-**Status:** found 2026-10-17 on `lab_a`; cause verified on the hosts, fix not written
+**Status:** found 2026-10-17 on a production lab; cause verified on the hosts, fix not written
 
 After `lock` → `wu-scan` → `wu-run` → `lock-off` on the 30 hosts of
-`lab_a`, every host with nobody logged on showed the "user name and
+a production lab, every host with nobody logged on showed the "user name and
 password" prompt instead of the list of users. A restart brought the list
 back, host by host. The registry was already right: `lock-off` had done its
 job, the logon screen just had not read it again.
 
 #### What was read on the hosts
 
-`run_powershell` on host01, host05 and host06 at 09:58 (log
-a run log in the project repo, since deleted
+`run_powershell` on three of the hosts at 09:58 (the run log was later deleted
 by the log rotation of the MCP server, which keeps the newest 50 runs: the
 table below is the only record left):
 
 | Host | `DontDisplayLastUserName` | `HKLM:\SOFTWARE\Ansible\WinMaint` | `LogonUI.exe` started | Last boot |
 | --- | --- | --- | --- | --- |
-| host05 | absent | empty | 09:41:01 (session 2) | 09:34:55 |
-| host06 | absent | empty | 09:41:06 (session 2) | 09:34:55 |
-| host01 | absent | empty | 09:56:04 (session 2) | 09:55:10 (restarted by hand) |
+| A | absent | empty | 09:41:01 (session 2) | 09:34:55 |
+| B | absent | empty | 09:41:06 (session 2) | 09:34:55 |
+| C | absent | empty | 09:56:04 (session 2) | 09:55:10 (restarted by hand) |
 
-No `explorer.exe` on any of them, so no user logged on. host05 and host06 showed
-the prompt, host01 the user list.
+No `explorer.exe` on any of them, so no user logged on. A and B showed
+the prompt, C the user list.
 
 #### Cause
 
@@ -447,10 +446,8 @@ the prompt, host01 the user list.
   (`roles/lock/tasks/act_off.yaml`). LogonUI reads the policy only when it
   starts, so the screen keeps the locked layout until the next logon/logoff or
   restart.
-- The same happens when a host restarts while locked: on 2026-10-17 `teacher`
-  restarted inside `wu-run-optional-drivers` (run
-  a run log,
-  rotated away),
+- The same happens when a host restarts while locked: on 2026-10-17 the teacher
+  station restarted inside `wu-run-optional-drivers` (run log rotated away),
   so its LogonUI too came up with the lock on.
 - `lock-reset` (`act_reset.yaml`) removes the value in the same way and has the
   same gap.
@@ -510,18 +507,17 @@ which users the baseline has before relying on it, and create one if needed.
 ### `sfc`: repairs are reported as "no integrity violation"
 
 **Priority:** P1 — a correctness bug: the role hides exactly what it is run to find  
-**Status:** found 2026-10-31 on `lab_e` `lhost30`; cause read in the role and in CBS.log, fix not written
+**Status:** found 2026-10-31 on a production host; cause read in the role and in CBS.log, fix not written
 
-On 2026-10-31 `sfc` on `lhost30` (25H2 26200.9457, run
-a run log in the project repo, with
+On 2026-10-31 `sfc` on a lab host (25H2 26200.9457, with
 `win_workman_restart: false`) printed `sfc found no integrity violation.`,
 `changed: false`. In the same minutes sfc had written **2538** repair lines to
 CBS.log and had left the repairs staged for a restart: `wim-scan` right after
 failed with `ERROR_FAIL_REBOOT_REQUIRED` (0x80070bc9, "a pending repair
 transaction already exists"), and `RebootPending` plus `WinSxS\pending.xml`
 were set. Context: the host had just come back from a boot loop with thousands
-of system files replaced by hand (incident report
-the site notes in the project repo).
+of system files replaced by hand (incident report kept with the site notes,
+outside this repository).
 
 #### What the role reads and what sfc wrote
 
@@ -529,7 +525,7 @@ the site notes in the project repo).
 of the run (CBS.log plus the `CbsPersist_*.log` written since: that part works,
 CBS.log rolled over twice during this run) and counts:
 
-| Counter | Pattern in the role | Lines on `lhost30` |
+| Counter | Pattern in the role | Lines on the host |
 | --- | --- | --- |
 | `$repaired` | `Repaired file\|Repairing corrupted file` | **0** |
 | `$cannotRepair` | `Cannot repair` | 0 |
@@ -537,7 +533,7 @@ CBS.log rolled over twice during this run) and counts:
 
 The `[SR]` lines actually written by this build (3173 in total, numbers
 replaced by `N`; read from `CbsPersist_20261031095119.log` with
-`run_powershell`, log a run log):
+`run_powershell`):
 
 | Count | Text after `[SR]` |
 | --- | --- |
@@ -631,28 +627,26 @@ store is usable again. A test playbook in the project's `tests/` (like
 
 #### Evidence
 
-Copied on 2026-10-31 to the site notes in the
-project repo, since `logs/` keeps only the newest 50 runs:
+Copied on 2026-10-31 to the site notes, outside this repository, since `logs/`
+keeps only the newest 50 runs:
 
-- Run of the role: a run log
+- the run of the role;
 - `[SR]` counts after the run, reboot flags and the CBS tail with 0x80070bc9 /
-  "a pending repair transaction already exists": a run log
-  (2538 repaired, 0 cannot)
-- `wim-scan` refused: a run log (it only says
-  "Module failed: Unknown error."; the reason is in the CBS tail above)
-- Restart: a run log
-- `[SR]` line shapes: a run log
+  "a pending repair transaction already exists" (2538 repaired, 0 cannot);
+- the refused `wim-scan` (it only says "Module failed: Unknown error."; the
+  reason is in the CBS tail above);
+- the restart, and the reading of the `[SR]` line shapes.
 
 ### `wu`: a feature update that does not apply is reported as installed
 
 **Priority:** P1 — a correctness bug in the report, and five needless restarts of a lab host  
-**Status:** found 2026-10-10 on `host16` of `lab_b`; cause read in the code and in the host's logs, fix not written
+**Status:** found 2026-10-10 on a production host; cause read in the code and in the host's logs, fix not written
 
 `wu-run-upgrades` reported a feature update as installed while Windows Setup
 had refused it, and restarted the host five times before giving up with a
 message that suggests running it again. The run ended `failed=0`, exit code 0.
 
-The entry is written to be worked without the host: `host16` is being repaired
+The entry is written to be worked without the host: it is being repaired
 and will not be in this state again. Everything quoted below was read on
 2026-10-10; the evidence is saved in the project repo (see **Evidence**).
 
@@ -744,7 +738,7 @@ Why Windows Update offered a full setup instead of a cumulative: the component
 store of the host was corrupted (`DISM /CheckHealth`: "The component store is
 repairable"; last cumulative installed on 2025-07-11, `26100.6899`; a
 `Package_for_RollupFix~26100.1742.1.10` left `Staged` since 2024). It is the
-state described in the site notes of the project repo. On such
+same corrupted-store state met on other lab hosts. On such
 a host a plain `wu-run` reports `0 found` and lists `Windows 11, version 2xH2`
 under "Filtered out", on 24H2 and on 25H2 alike: that pair is a recognisable
 signature (see point 4 below).
@@ -794,43 +788,30 @@ WUA `ResultCode` (2 succeeded, 3 succeeded with errors) or only `installed`:
 if Setup's failure comes back as "succeeded with errors", point 1 may reduce to
 reading that field.
 
-#### How to reproduce without `host16`
+#### How to reproduce without the original host
 
 The block is not specific to that host: Setup refuses any target older than
 the host. On a test VM (see the `win-workman-pkg-test` skill), from a 24H2
 baseline: install the 25H2 enablement package
-(a site playbook in the project repo), then `wu-run-upgrades`.
+(a site-specific playbook outside this repository), then `wu-run-upgrades`.
 If Windows Update does not offer the feature update to a healthy VM — it is
 offered to hosts it considers in need of repair — the detection of point 1 can
 still be unit-tested by feeding `run_round.yaml` two rounds with the same
 update id, `installed: true`, `reboot_required: true` and an unchanged build;
-a site playbook and a site playbook in the project
-repo are the existing harnesses for the report and the selection.
+the site-specific harnesses for the report and the selection are outside this
+repository.
 
 #### Evidence
 
-In the project repo (`ansible-win_edulab`, not tracked by git: `local/` and
-`logs/` are ignored):
-
-- the site notes — `setupact.log`,
-  `setuperr.log` and `ReportingEvents.log` fetched from the host at 11:21, plus
-  copies of the run logs: a run log (`wu-run` on
-  24H2, 0 found), `20261010-ekb25h2-host16.log` (enablement package),
-  a run log (`wu-run` on 25H2, 0 found),
-  a run log (the run of this entry),
-  a run log (scan after it).
-- a run log, `…-111653-ps-host16.log`,
-  `…-111739-ps-host16.log` held the readings of boots, WUA events, Setup errors,
-  `CompatData`, DISM state and packages quoted above. They were deleted by the
-  log rotation of the MCP server (newest 50 runs kept) and no copy exists: the
-  WUA event counts and the `CompatData` hard block survive only in this entry.
-  The Setup logs in the folder above still back the `MigChoice` and
-  `0xC1900204` lines.
-- the site notes, section "Aggiornamento del 10 ottobre 2026" —
-  the history of the host and of the day.
-
-The `CompatData_*.xml` file itself was not fetched; its hard block is quoted
-above from the reading in `…-111653-ps-host16.log`, now lost.
+Kept with the site notes, outside this repository: the Windows Setup logs
+(`setupact.log`, `setuperr.log`, `ReportingEvents.log`) fetched from the host,
+copies of the run logs (`wu-run` on 24H2 and 25H2 with 0 found, the enablement
+package, the `wu-run-upgrades` of this entry, the scan after it) and the history
+of the host. The readings of boots, WUA events, Setup errors, `CompatData`, DISM
+state and packages quoted above were deleted by the log rotation of the MCP
+server (newest 50 runs kept) and no copy exists: the WUA event counts and the
+`CompatData` hard block survive only in this entry. The `CompatData_*.xml` file
+itself was not fetched.
 
 ### `wim-repair`: the folder form of the source has never run
 
@@ -841,7 +822,7 @@ above from the reading in `…-111653-ps-host16.log`, now lost.
 or a local folder holding the components (a mounted Windows directory or its
 `WinSxS`). The commit tested invalid and missing sources and full and partial
 repairs from `wim:`; the folder form and `esd:` were never run, and every lab
-repair since (lab_c, lab_d, lab_b) used
+repair since, on three production labs, used
 `wim:C:\WimSrc\repair.wim:1`. Run a repair from a folder on a test VM (for
 instance the `Windows` directory of a mounted install image) before
 documenting it as an alternative.
@@ -851,20 +832,28 @@ documenting it as an alternative.
 ### `scoobe`: confirm that `off` keeps the page away after a cumulative
 
 **Priority:** P3 — a nuisance on the lab PCs after updates, no data at risk  
-**Status:** role written 2026-11-04, effect not yet observed
+**Status:** role written 2026-11-04; first test inconclusive
 
 The role exists (`docs/roles/management/scoobe.md`) and writes its three
-per-user values correctly: tested on host102/host103 of `lab_d` (info, off
-twice, on), then `off` on the whole lab except host101, 141 profiles, none
-unavailable. What is not proven is that the values stop the page. Test under
-way on 2026-11-04: preview cumulative KB5127936 (26300.9818, the one after
-which the page was seen on host01 of `lab_b`) installed on host101 without the
-fix and on host102 with it; at the next logon the page should show on host101 only.
+per-user values correctly: `info`, `off` twice (the second a no-op) and
+`off`/`on`/`on` back to the initial state on two lab hosts, then `off` on a
+whole lab of 28 hosts, 141 profiles, none unavailable. What is not proven is
+that the values stop the page.
 
-- If it shows on both, find which value Windows 26H2 actually reads (whether
-  Pro honours the CloudContent user policy is still open) before trusting
-  `off` on the other labs.
-- Either way, run `scoobe-off` on host101 afterwards.
+Test of 2026-11-04 on two identical lab hosts, one with `off` and one without,
+after the preview cumulative KB5127936 (26300.9818, the update after which the
+page had been seen on another lab): the page showed on neither at the first
+logon of the same domain user. Both ran `UserOOBEBroker.exe`, and the shell
+logon task `RemoveTempOOBEUser` (Microsoft-Windows-Shell-Core/Operational,
+events 62170/62171) ran with flags `132116` on the host without the values and
+`1044` on the one with them. The only difference is bit `0x20000`, so it may
+be the "offer SCOOBE" decision that the values switch off. That is an
+inference, not documented by Microsoft.
+
+- Watch the host without the values over the following days: if the page
+  appears there and never on hosts with `off`, the role is confirmed.
+- If it appears on a host with `off`, find which value Windows 26H2 actually
+  reads (whether Pro honours the CloudContent user policy is still open).
 
 ## MCP server
 
@@ -876,11 +865,10 @@ copy of `runlog.py`.
 ### `run_powershell`: `timeout` is ignored with `background=true`
 
 **Priority:** P3 — no harm observed, but a hung background run is never killed  
-**Status:** found 2026-10-08 on `host19` of `lab_a`; cause read in the code, fix not written
+**Status:** found 2026-10-08 on a production host; cause read in the code, fix not written
 
 A `DISM /StartComponentCleanup` started with `background=true` and
-`timeout=3600` ran for 65 minutes and ended on its own (log
-a run log). The tool schema describes `timeout` as "Seconds
+`timeout=3600` ran for 65 minutes and ended on its own. The tool schema describes `timeout` as "Seconds
 before the run is killed", with no exception for background runs.
 
 The background branch of `run_powershell` (`mcp/server.py:410`) calls

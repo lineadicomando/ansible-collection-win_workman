@@ -212,7 +212,7 @@ come from `pkg_utils` `user_sessions`, which leaves them in the
 on prints:
 
 ```
-Not shutting down, logged on: host05\student (Active)
+Not shutting down, logged on: SCHOOL\student-alice (Active)
 ```
 
 A lab with autologon always has a user logged on, so there `if-nouser` never

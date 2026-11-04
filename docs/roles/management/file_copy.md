@@ -96,9 +96,9 @@ win_workman_tasks:
 Through the MCP server, the items go in `extra_vars`:
 
 ```
-run_tasks(t=["file_copy-push"], l="teacher", inventory="lab_c",
+run_tasks(t=["file_copy-push"], l="teacher", inventory="school",
           extra_vars={"win_workman_file_copy_items": [
-            {"src": "backup_mysql/", "profile": "docente", "dest": "Backup"}]})
+            {"src": "backup_mysql/", "profile": "teacher-carol", "dest": "Backup"}]})
 ```
 
 ---

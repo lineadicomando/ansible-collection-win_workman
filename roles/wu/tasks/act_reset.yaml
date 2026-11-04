@@ -2,7 +2,7 @@
 # Resets the Windows Update state of a host that is stuck, by hand only.
 #
 # For a state that is wrong in itself, not a Settings page lagging behind
-# (that is wu-sync_ui). Seen on host205/host206 of lab_c on 2026-10-21 after
+# (that is wu-sync_ui). Seen on two lab hosts on 2026-10-21 after
 # a cumulative installed with DISM: history entries left InProgress with
 # 0x80242014, RebootRequired set, a reboot asked for at every logon that does
 # nothing, a "versione di ripristino" of an older release offered.

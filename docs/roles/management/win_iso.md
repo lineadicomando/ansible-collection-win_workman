@@ -59,8 +59,8 @@ A run targets **exactly one host**, which plays two parts:
   connects to it (the playbook has `gather_facts: false`), so it may be off.
 
 ```bash
-# MSI, credentials of the lab of host01
-ansible-playbook lineadicomando.win_workman.win_workman -l host01 \
+# MSI, credentials of the lab of student01
+ansible-playbook lineadicomando.win_workman.win_workman -l student01 \
   -e '{"t": "win_iso-build", "win_workman_win_iso_source": "Win11_25H2_Italian_x64.iso"}'
 
 # Capability integrated by DISM on a Windows host

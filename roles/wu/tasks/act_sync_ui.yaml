@@ -6,7 +6,7 @@
 # refreshed only by an orchestrator scan. After a wu-run the page keeps the
 # result of the last scan Windows ran on its own: an update already installed
 # still shows as available ("Scarica e installa") or, once the orchestrator
-# tries it, as failed ("Aggiornamenti non riusciti"). Seen on lab_b on
+# tries it, as failed ("Aggiornamenti non riusciti"). Seen on a lab on
 # 2026-11-02 after wu-run-optional-updates installed the preview cumulative.
 #
 # Only an interactive scan started in a user session refreshes the store:

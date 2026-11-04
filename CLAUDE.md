@@ -118,7 +118,7 @@ Both of these fail **silently**, which is why they are here rather than in a doc
 
 ## Environment
 
-The lab project at `../ansible-win_edulab` reaches this
+The lab project (`ansible-win_edulab`, checked out next to this one) reaches this
 collection through a symlink under its `ansible_collections/`, so edits here take
 effect there with no reinstall. That project drives runs through its own
 `playbooks/win_wm.yaml`; this collection's own entry point is

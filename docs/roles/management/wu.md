@@ -72,7 +72,7 @@ Three kinds have been seen in the labs:
 - the monthly **non-security preview** cumulative (the "D week" release, fourth
   week of the month), in the `Updates` classification;
 - **feature updates**: on 2026-10-02 "Windows 11, version 26H2" was offered to
-  every 25H2 host of lab_a as optional, in `Upgrades`;
+  every 25H2 host of a production lab as optional, in `Upgrades`;
 - optional **drivers**.
 
 No profile and no `wu-run-cat-...` reaches them. win_updates searches with the
@@ -100,7 +100,7 @@ optional updates left out by the categories are listed under "Filtered out".
 A category is required: a bare `wu-run-optional` is rejected, because the
 optional set mixes feature updates with drivers. `wu-run-optional-upgrades`
 alone stops at the feature update, keeping the revision the host had
-(26200.9457 became 26300.9457 on lab_a); chain `wu-run` after it for the
+(26200.9457 became 26300.9457 on a production lab); chain `wu-run` after it for the
 cumulative of the new release.
 
 Leaving the preview out is harmless, and is what Microsoft intends for devices
