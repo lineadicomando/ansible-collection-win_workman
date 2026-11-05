@@ -22,11 +22,10 @@ env:
 jobs:
   ansible-lint:
     name: ansible-lint
-    # The Debian 13 CI runner of git.cmdln.it. Its only label is cockpit-fleet,
-    # the first project it served; the job runs inside its container (host
-    # mode), so the home directory persists between runs and nothing is
-    # installed there.
-    runs-on: cockpit-fleet
+    # The shared Debian 13 CI runner of git.cmdln.it. The job runs inside its
+    # container (host mode), so the home directory persists between runs and
+    # nothing is installed there.
+    runs-on: ci
 
     steps:
       - name: Checkout
