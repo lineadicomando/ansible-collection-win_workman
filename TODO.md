@@ -4,7 +4,7 @@ Planned improvements for the `lineadicomando.win_workman` collection.
 
 Reviewed 2026-09-28: every entry below was checked against the current tree, and
 the notes say what has changed since each was written. Re-checked 2026-10-01
-against the tree at `0771b71`, and again on 2026-10-31 against `824e33b`.
+against the tree at `0771b71`, and again on 2026-10-31 against `03660be`.
 
 Priorities, assigned 2026-09-28:
 
@@ -107,7 +107,7 @@ inkscape, putty, mysql_server and veyon. Run an upgrade of each on a test VM
 and restore around the uninstall leaves the install step running.
 
 `veyon` has run this path once in production: the upgrade 4.11.3 → 4.11.4
-(`fca3b46`, 2026-10-17) on the teacher station of a production lab went through
+(`1bd8558`, 2026-10-17) on the teacher station of a production lab went through
 cleanly. The other five have never run it.
 
 ### `pkg_act_off` does not stop declared services
@@ -166,7 +166,7 @@ only because every `win_edulab` inventory sets
 (re-checked 2026-10-01 on all seven inventories).
 
 It is the last read of `ansible_remote_tmp` in the roles; the check that
-`2d89556` added a few tasks earlier (*version_file*) already uses
+`d5aa649` added a few tasks earlier (*version_file*) already uses
 `win_workman_remote_tmp`. `roles/wu/tasks/run_optional.yaml` sets
 `ansible_remote_tmp` as a task var on purpose (become SYSTEM needs a folder it
 can read), which is not the same coupling. A consumer who
@@ -190,14 +190,14 @@ only if a 4.10.x lab needs `config` before being upgraded.
 ### `version_file`: a program found only that way cannot be removed
 
 **Priority:** P3 — chrome and edge only; the skip message already tells the operator  
-**Status:** known limitation of `2d89556` (2026-10-20), no fix designed
+**Status:** known limitation of `d5aa649` (2026-10-20), no fix designed
 
 `package.version_file` lets `pkg_act_on` skip an MSI when the executable on disk
 is already at the MSI version or newer: Google Updater can move Chrome past the
 enterprise MSI and leave it with no uninstall entry. Detection still reads the
 uninstall entries only, so such a program is "not installed" for `off`, which
 cannot remove it; the skip message says so. Chrome sets `version_file` to
-`chrome.exe`; Edge opted in with `fad8e57`.
+`chrome.exe`; Edge opted in with `5912f96`.
 
 To decide when it matters: either have `off` fall back on the vendor's own
 uninstaller next to `version_file` (Chrome's `setup.exe --uninstall
