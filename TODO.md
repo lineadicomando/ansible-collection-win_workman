@@ -25,6 +25,7 @@ Priorities, assigned 2026-09-28:
 | P2 | `pkg_act_off` does not stop declared services |
 | P2 | `usr`: test a version upgrade |
 | P2 | Audit the catalog drafts |
+| P2 | `file_copy-pull`: large directories lose files and flood the output |
 | P3 | Wait mode for the helper uninstall in `pkg_act_off` |
 | P3 | veyon `config`: a crashing `veyon-cli` export reads as a missing key |
 | P3 | `usr`: fewer round trips in `usr-on` |
@@ -37,7 +38,7 @@ Priorities, assigned 2026-09-28:
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` |
 | P3 | `autoshutdown`: implement the `nouser` mode |
 | P3 | `scoobe`: confirm that `off` keeps the page away after a cumulative |
-| P3 | `wim-repair`: the folder form of the source has never run |
+| P3 | `wim-repair`: the folder form of the source, only partly exercised |
 | P3 | Roles with no documentation at all |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` |
 
@@ -813,19 +814,92 @@ server (newest 50 runs kept) and no copy exists: the WUA event counts and the
 `CompatData` hard block survive only in this entry. The `CompatData_*.xml` file
 itself was not fetched.
 
-### `wim-repair`: the folder form of the source has never run
+### `file_copy-pull`: large directories lose files and flood the output
 
-**Priority:** P3 — every repair so far used a `wim:` source, which is tested  
-**Status:** known gap of `996f5d4` (2026-10-06)
+**Priority:** P2 — the action had only been run on small folders; on a large one it silently drops files and can bring down the MCP client  
+**Status:** found 2026-11-05 on a production host; cause read in the log and in `tasks/act_pull.yaml`, fix not written
+
+A `file_copy-pull` of three directories of about 550–575 files each, plus
+three single files (1702 files, 36 MB in all), without `archive`, run through
+`run_tasks` of the collection MCP server.
+
+What happened:
+
+- 1662 files arrived, 40 did not. The 40 are consecutive items of the
+  `Fetch the files` loop: the host stopped answering for a while (SSH
+  "connection refused", then "timed out", then "no route to host") and came
+  back for the remaining items. The outage itself was outside the role.
+- The play ended with the host `unreachable=1`, `failed=0`, and the loop
+  result `"msg": "All items completed"`. `Report what was pulled` never ran,
+  so nothing said which files were missing; they were found only by
+  comparing the result list with the tree on the controller.
+- The run log was **~380 MB**, almost all on the one line of the final loop
+  result. Every item of the `subelements('Files')` loop carries `item.0`,
+  the whole target **with its `Files` list**, so each per-item result is
+  ~230 KB on a 575-file directory and the total grows with the square of the
+  number of files. The MCP client lost the connection to the server while
+  the run was still going (`Connection closed`); the run itself finished and
+  its `.done` sentinel was written.
+
+#### What to change
+
+1. Loop over a flat list of `{Index, Profile, Path, Rel}` built once
+   (for instance with `subelements` followed by a `map` that drops `Files`),
+   so that a per-item result no longer embeds the listing. Or pass only the
+   fields `fetch` needs through `loop_control.label` and a slim loop var.
+2. Retry a fetch on a transient SSH error (`retries`/`until` on the item, or
+   `ignore_unreachable: true` on the task and a summary of what failed), and
+   make the final report list the files that did not arrive, per item, with
+   a non-zero count failing the host.
+3. Consider switching to the archive path automatically above a file count
+   threshold, or at least say in the role notes that `archive: true` is the
+   form for directories with hundreds of files: one zip, one `fetch`.
+4. MCP server: check what the server does with a 380 MB run output and why
+   the client connection dropped; the summary returned by `run_tasks` should
+   stay small whatever the play prints (see also the server section below).
+
+#### How to reproduce without the original host
+
+On a test VM:
+
+1. Create a directory with ~600 small files in three subfolders, for
+   instance by copying any `C:\Windows\WinSxS\amd64_*` component folder of
+   that size, or with a PowerShell loop writing 600 small text files.
+2. `run_tasks(["file_copy-pull"], extra_vars={"win_workman_file_copy_items":
+   [{"src": "C:\\Temp\\pulltest", "dest": "pulltest"}]})` with three such
+   items. Measure the run log size: it should grow roughly with the square of
+   the files per item.
+3. For the lost files: while the loop runs, block port 22 on the VM for a
+   minute (`New-NetFirewallRule -Direction Inbound -LocalPort 22 -Protocol TCP
+   -Action Block`, then remove it), or `virsh suspend`/`resume` the domain.
+   Expect `unreachable=1`, `failed=0`, no report, and missing files on the
+   controller.
+4. After the fix: the same test must end with a list of the missing files
+   (or none, after retries) and a log of a few MB at most.
+
+---
+
+### `wim-repair`: the folder form of the source, only partly exercised
+
+**Priority:** P3 — the common case (`wim:`) is tested; the folder form has worked once  
+**Status:** known gap of `996f5d4` (2026-10-06); folder form first used 2026-11-05
 
 `win_workman_wim_repair_source` takes `wim:<path>:<index>`, `esd:<path>:<index>`
 or a local folder holding the components (a mounted Windows directory or its
 `WinSxS`). The commit tested invalid and missing sources and full and partial
-repairs from `wim:`; the folder form and `esd:` were never run, and every lab
-repair since, on three production labs, used
-`wim:C:\WimSrc\repair.wim:1`. Run a repair from a folder on a test VM (for
-instance the `Windows` directory of a mounted install image) before
-documenting it as an alternative.
+repairs from `wim:`; `esd:` has still never run.
+
+The folder form ran once, on a production host, on 2026-11-05. A repair from
+a `wim:` image of the base build had fixed all but three payloads, which
+belonged to component versions installed by later cumulatives and so absent
+from the image. The source was a folder `<dir>\Windows\WinSxS\` holding
+only the three component directories, copied from a healthy host with the
+same versions, plus their three `.manifest` files under `WinSxS\Manifests\`;
+`win_workman_wim_repair_source: '<dir>\Windows'`. `RestoreHealth` succeeded
+and the following `scan` was `Healthy`, 0 corruptions. Not tested: whether
+the manifests are needed, and pointing the source at `WinSxS` instead of
+`Windows`. Document the form in the role notes as the way to repair payloads
+of cumulative versions, after a run on a test VM.
 
 ---
 
