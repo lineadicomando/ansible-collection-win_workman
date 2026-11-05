@@ -4,7 +4,7 @@
 # .github/workflows when this directory exists.
 name: Lint
 
-on:
+"on":
   push:
     branches: [main]
   pull_request:
