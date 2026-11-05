@@ -1,0 +1,62 @@
+---
+# CI on git.cmdln.it, where the collection is developed. GitHub is a push
+# mirror of it and runs .github/workflows/lint.yml instead: Gitea ignores
+# .github/workflows when this directory exists.
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ANSIBLE_CORE_VERSION: "2.20.4"
+  ANSIBLE_LINT_VERSION: "26.4.0"
+
+jobs:
+  ansible-lint:
+    name: ansible-lint
+    # The Debian 13 CI runner of git.cmdln.it. Its only label is cockpit-fleet,
+    # the first project it served; the job runs inside its container (host
+    # mode), so the home directory persists between runs and nothing is
+    # installed there.
+    runs-on: cockpit-fleet
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ansible-core and ansible-lint
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet \
+            "ansible-core==$ANSIBLE_CORE_VERSION" \
+            "ansible-lint==$ANSIBLE_LINT_VERSION"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+
+      # ansible-lint requires the collection to live at the canonical
+      # namespace path; a symlink avoids duplicating the checkout. Everything
+      # goes under RUNNER_TEMP, not ~/.ansible, so no run sees a previous one.
+      - name: Install collection dependencies and expose the collection
+        run: |
+          coll="$RUNNER_TEMP/collections"
+          mkdir -p "$coll/ansible_collections/lineadicomando"
+          ln -sfn "$GITHUB_WORKSPACE" \
+            "$coll/ansible_collections/lineadicomando/win_workman"
+          ansible-galaxy collection install -p "$coll" -r requirements.yml
+          echo "ANSIBLE_COLLECTIONS_PATH=$coll" >> "$GITHUB_ENV"
+
+      - name: Show versions
+        run: |
+          python3 --version
+          ansible --version
+          ansible-lint --version
+
+      - name: Run ansible-lint
+        run: ansible-lint --profile production

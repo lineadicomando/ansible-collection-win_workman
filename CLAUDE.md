@@ -90,7 +90,9 @@ Variables are namespaced `win_workman_<role>_*`. User-overridable ones go in
 ### 4. Lint is the gate
 
 CI runs `ansible-lint --profile production` on ansible-core 2.20.4 over the whole
-tree, and nothing else. Run it on the role you touched before declaring done —
+tree, and nothing else: `.gitea/workflows/lint.yml` on git.cmdln.it, where the
+collection is pushed, and `.github/workflows/lint.yml` on the GitHub mirror. Keep
+the two in step. Run it on the role you touched before declaring done —
 it catches module misuse, not just formatting.
 
 ### 5. Keep `on`/`off` meaningful

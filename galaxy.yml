@@ -29,6 +29,7 @@ dependencies:
   community.general: ">=8.0.0"
   microsoft.ad: ">=1.0.0"
 build_ignore:
+  - .gitea
   - .github
   - .gitignore
   - "*.retry"
