@@ -1,0 +1,5 @@
+---
+- name: Dispatch action {{ win_workman_action or win_workman_ps_policy_schema.default_action }}
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.ps_policy
+    tasks_from: "act_{{ win_workman_action or win_workman_ps_policy_schema.default_action }}"

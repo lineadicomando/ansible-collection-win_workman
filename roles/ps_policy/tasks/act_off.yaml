@@ -1,0 +1,5 @@
+---
+- name: Restore the Windows default execution policy
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.ps_policy
+    tasks_from: act_reset

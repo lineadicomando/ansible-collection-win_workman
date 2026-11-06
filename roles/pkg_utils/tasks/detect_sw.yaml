@@ -12,11 +12,13 @@
           ) | to_json
         }}
       VersionLike: "{{ win_workman_detect_sw_args.version_like | default('*', true) }}"
+      VersionNotLike: "{{ win_workman_detect_sw_args.version_not_like | default('', true) }}"
       SearchAppx: "{{ (win_workman_detect_sw_args.search_appx | default(false, true) | bool) | ternary(1, 0) }}"
     script: |
       param(
         [Parameter(Mandatory=$true)] [string]$NameLikeJson,
         [string]$VersionLike = "*",
+        [string]$VersionNotLike = "",
         [int]$SearchAppx = 0
       )
 
@@ -130,7 +132,8 @@
             Where-Object {
               $dn = $_.DisplayName
               ($NameLikes | Where-Object { $dn -like $_ }) -and
-              ($_.DisplayVersion -like $VersionLike -or -not $_.PSObject.Properties['DisplayVersion'])
+              ($_.DisplayVersion -like $VersionLike -or -not $_.PSObject.Properties['DisplayVersion']) -and
+              -not ($VersionNotLike -and $_.DisplayVersion -like $VersionNotLike)
             }
           foreach ($i in $items) {
             $isMsi = ($i.WindowsInstaller -eq 1) -or ([string]$i.UninstallString -match '(?i)msiexec')
@@ -158,7 +161,8 @@
           Where-Object {
             $dn = $_.DisplayName
             ($NameLikes | Where-Object { $dn -like $_ }) -and
-            ($_.DisplayVersion -like $VersionLike -or -not $_.PSObject.Properties['DisplayVersion'])
+            ($_.DisplayVersion -like $VersionLike -or -not $_.PSObject.Properties['DisplayVersion']) -and
+            -not ($VersionNotLike -and $_.DisplayVersion -like $VersionNotLike)
           }
         foreach ($i in $items) {
           $isMsi = ($i.WindowsInstaller -eq 1) -or ([string]$i.UninstallString -match '(?i)msiexec')
@@ -193,7 +197,8 @@
             })
           }
           foreach ($a in $appx) {
-            if (([string]$a.Version) -like $VersionLike) {
+            if ((([string]$a.Version) -like $VersionLike) -and
+                -not ($VersionNotLike -and ([string]$a.Version) -like $VersionNotLike)) {
               $allMatches.Add((New-SafeMatch `
                 -Provider 'appx' `
                 -Id ([string]$a.PackageFullName) `
@@ -232,6 +237,7 @@
         installed        = ($best -ne $null)
         name_like        = @($NameLikes)
         version_like     = [string]$VersionLike
+        version_not_like = [string]$VersionNotLike
         search_appx      = [bool]$SearchAppxFlag
         appx_available   = [bool]$appxAvailable
         provider         = $(if ($best) { $best.provider } else { $null })

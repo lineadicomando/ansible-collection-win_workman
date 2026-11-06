@@ -1,0 +1,7 @@
+---
+- name: Read the execution policy
+  ansible.builtin.include_tasks: ps_policy_state.yaml
+
+- name: Report the execution policy
+  ansible.builtin.debug:
+    var: win_workman_ps_policy_state.result

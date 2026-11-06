@@ -1,0 +1,10 @@
+---
+# Policy applied by ps_policy-on and by a bare ps_policy-set.
+win_workman_ps_policy: RemoteSigned
+# local_machine: the LocalMachine scope, what Set-ExecutionPolicy -Scope LocalMachine
+#   writes. Users can still override it for themselves (CurrentUser scope).
+# machine_policy: the "Turn on Script Execution" policy key, the same one a GPO
+#   writes. It wins over every other scope, but a domain GPO setting it
+#   overwrites it at the next refresh.
+win_workman_ps_policy_mode: local_machine
+win_workman_action: ""

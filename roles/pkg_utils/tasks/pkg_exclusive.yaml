@@ -1,0 +1,75 @@
+---
+# package.exclusive: one version at a time. Some vendors ship every release with
+# the same MSI UpgradeCode and an unversioned DisplayName (Node.js), so a role
+# per major line tells its own version apart only through package.version_like.
+# Before installing, the machine-wide entries with the same searchName and a
+# version outside version_like are uninstalled: the MSI refuses to go back to
+# an older major, and would otherwise replace a newer one only when upgrading.
+#
+# detect_sw registers win_workman_detect_sw, which the rest of pkg_act_on and
+# the hooks read as the state of this role's own version: it is saved here and
+# restored at the end.
+- name: Save the detection of this version
+  ansible.builtin.set_fact:
+    win_workman_exclusive_saved_detect: "{{ win_workman_detect_sw | default({}) }}"
+
+- name: Detect the other versions of the package
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: detect_sw
+  vars:
+    win_workman_detect_sw_args:
+      name_like: "{{ win_workman_schema.package.searchName }}"
+      version_not_like: "{{ win_workman_schema.package.version_like | default('', true) }}"
+
+# A single match is reported in the top-level fields, several in results.
+- name: List the other versions to remove
+  ansible.builtin.set_fact:
+    win_workman_exclusive_others: >-
+      {{
+        (
+          win_workman_detect_sw.result.results
+          if (win_workman_detect_sw.result.match_count | default(0) | int > 1)
+          else (
+            [win_workman_detect_sw.result]
+            if (win_workman_detect_sw.result.installed | default(false) | bool)
+            else []
+          )
+        )
+        | selectattr('display_version')
+        | selectattr('hive', 'equalto', 'HKLM')
+        | list
+      }}
+
+- name: Report the other versions to remove
+  ansible.builtin.debug:
+    msg: >-
+      {{ win_workman_schema.name }} is exclusive: removing
+      {{ win_workman_exclusive_others | map(attribute='display_version') | join(', ') }}
+      before installing {{ win_workman_schema.package.version | default('latest') }}.
+  when: win_workman_exclusive_others | length > 0
+
+- name: Wait for Windows Installer before removing the other versions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: wait_installer
+  when: win_workman_exclusive_others | length > 0
+
+- name: Remove the other versions
+  ansible.windows.win_package:
+    product_id: "{{ win_workman_exclusive_item.id }}"
+    state: absent
+    provider: "{{ win_workman_exclusive_item.provider | default('auto', true) }}"
+    arguments: "{{ win_workman_schema.package.uninstall_args | default(omit) }}"
+  loop: "{{ win_workman_exclusive_others }}"
+  loop_control:
+    loop_var: win_workman_exclusive_item
+    label: "{{ win_workman_exclusive_item.display_name }} {{ win_workman_exclusive_item.display_version }}"
+  register: win_workman_exclusive_uninstall_result
+  until: win_workman_exclusive_uninstall_result.rc | default(0) | int not in win_workman_installer_retry_codes
+  retries: "{{ win_workman_installer_retries | int }}"
+  delay: "{{ win_workman_installer_retry_delay | int }}"
+
+- name: Restore the detection of this version
+  ansible.builtin.set_fact:
+    win_workman_detect_sw: "{{ win_workman_exclusive_saved_detect }}"

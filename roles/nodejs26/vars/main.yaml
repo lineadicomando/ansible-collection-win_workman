@@ -1,0 +1,31 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Node.js 26 LTS ("Lithium")
+#      - Homepage:    https://nodejs.org/
+#      - Download:    https://nodejs.org/dist/latest-v26.x/
+#      - Schedule:    https://github.com/nodejs/Release (LTS 2026-10-28,
+#                     maintenance 2027-10-20, end of life 2029-04-30)
+# ==============================================================================
+---
+win_workman_nodejs26_schema:
+  name: Node.js 26
+  role: lineadicomando.win_workman.nodejs26
+  default_action: !!str on
+  package:
+    setup_file: node-v26.13.0-x64.msi
+    # Every Node.js MSI has DisplayName "Node.js" and the same UpgradeCode, so
+    # two major lines cannot be installed together: version_like tells this
+    # role's line apart, exclusive removes the others before installing.
+    searchName: "Node.js"
+    version: "26.13.0"
+    version_like: "26.*"
+    exclusive: true
+    # Left out: DocumentationShortcuts, and EnvironmentPathNpmModules, which
+    # adds %APPDATA%\npm to the PATH of the account running the install only.
+    install_args: ADDLOCAL=NodeRuntime,npm,EnvironmentPath,EnvironmentPathNode
+    cleanup_paths:
+      - '%ProgramFiles%\nodejs'
+  files:
+    - filename: node-v26.13.0-x64.msi
+      url: https://nodejs.org/dist/v26.13.0/node-v26.13.0-x64.msi
+      checksum: sha256:0e5ee99c7cbf922887f04af268e3665990748945336a44956f47cc0df695b6df

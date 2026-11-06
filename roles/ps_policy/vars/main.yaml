@@ -1,0 +1,55 @@
+# ==============================================================================
+#  PowerShell execution policy (Windows PowerShell 5.1)
+#      - LocalMachine scope:
+#          HKLM\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell
+#          and its WOW6432Node twin, read by the 32-bit powershell.exe
+#      - MachinePolicy scope ("Turn on Script Execution"):
+#          HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell
+#      PowerShell 7 keeps its own setting in powershell.config.json and defaults
+#      to RemoteSigned on Windows: not managed here.
+# ==============================================================================
+---
+win_workman_ps_policy_schema:
+  name: PowerShell Execution Policy
+  role: lineadicomando.win_workman.ps_policy
+  default_action: set
+
+win_workman_ps_policy_modes:
+  - local_machine
+  - machine_policy
+
+# Lowercase name -> canonical name; the task string may carry either.
+win_workman_ps_policy_supported:
+  restricted: Restricted
+  allsigned: AllSigned
+  remotesigned: RemoteSigned
+  unrestricted: Unrestricted
+  bypass: Bypass
+
+# The policy template offers only these: EnableScripts=0 for Restricted, else
+# EnableScripts=1 plus ExecutionPolicy.
+win_workman_ps_policy_supported_machine_policy:
+  - Restricted
+  - AllSigned
+  - RemoteSigned
+  - Unrestricted
+
+# The task argument (ps_policy-set-AllSigned) wins over the variable.
+win_workman_ps_policy_requested: >-
+  {{
+    (win_workman_task_argv | default([]))[2]
+    if ((win_workman_task_argv | default([]) | length) > 2)
+    else win_workman_ps_policy
+  }}
+
+win_workman_ps_policy_value: >-
+  {{
+    win_workman_ps_policy_supported[win_workman_ps_policy_requested | string | lower]
+    | default('')
+  }}
+
+win_workman_ps_policy_local_machine_keys:
+  - 'HKLM:\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell'
+  - 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell'
+
+win_workman_ps_policy_policy_key: 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell'

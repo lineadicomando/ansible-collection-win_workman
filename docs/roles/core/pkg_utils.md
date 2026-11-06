@@ -28,6 +28,8 @@ win_workman_<schema>_schema:
       - /VERYSILENT
     uninstall_before_upgrade: false # uninstall old version before installing new
     version_file: "%ProgramFiles%\\App\\app.exe"  # optional, see below
+    version_like: "26.*"            # optional: match only these DisplayVersions, see below
+    exclusive: false                # optional: remove other versions before installing
 
   files:                            # list of downloadable assets
     - filename: installer.exe
@@ -64,6 +66,27 @@ the install goes ahead as before.
 
 A program found only through `version_file` still has no uninstall entry, so
 `off` cannot remove it; the skip message says so.
+
+### One role per major line (`version_like`, `exclusive`)
+
+Some vendors ship every release with the same unversioned `DisplayName` and the
+same MSI `UpgradeCode`: every Node.js MSI is "Node.js", and a newer one replaces
+an older one in place, so two major lines can never be installed together. A
+role per major line (`nodejs26`, `nodejs27`, …) then needs two fields:
+
+- `version_like` — a `-like` pattern on `DisplayVersion` (`"26.*"`). `info`,
+  `is_present`, `on` and `off` see only the entries that match it, so
+  `nodejs26-off` leaves a Node.js 27 alone and `nodejs26-info` reports it
+  absent. Default `*`, every version, as before.
+- `exclusive` — when `true`, `on` uninstalls every machine-wide entry with the
+  same `searchName` and a version outside `version_like` before installing
+  (`pkg_exclusive.yaml`). The MSI would refuse to go back to an older major,
+  and would replace a newer one only when upgrading. Requires `version_like`;
+  without it the step is skipped, since every version would count as "other".
+
+`<role>-on` then means "this major line is the one on the host", in either
+direction. Listing two such roles in the same run makes them replace each other
+at every run.
 
 ---
 

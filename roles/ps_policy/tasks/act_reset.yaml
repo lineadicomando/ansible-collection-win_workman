@@ -1,0 +1,42 @@
+---
+- name: Validate the mode
+  ansible.builtin.assert:
+    that:
+      - win_workman_ps_policy_mode in win_workman_ps_policy_modes
+    fail_msg: >-
+      Invalid win_workman_ps_policy_mode '{{ win_workman_ps_policy_mode }}': one of
+      {{ win_workman_ps_policy_modes | join(', ') }}.
+    quiet: true
+
+- name: Remove the LocalMachine execution policy
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_ps_policy_key }}"
+    name: ExecutionPolicy
+    state: absent
+  loop: "{{ win_workman_ps_policy_local_machine_keys }}"
+  loop_control:
+    loop_var: win_workman_ps_policy_key
+  when: win_workman_ps_policy_mode == 'local_machine'
+
+# Only in machine_policy mode: in local_machine mode these values belong to a
+# GPO, not to this role.
+- name: Remove the execution policy set by policy
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_ps_policy_policy_key }}"
+    name: "{{ win_workman_ps_policy_value_name }}"
+    state: absent
+  loop:
+    - EnableScripts
+    - ExecutionPolicy
+  loop_control:
+    loop_var: win_workman_ps_policy_value_name
+  when: win_workman_ps_policy_mode == 'machine_policy'
+
+- name: Read the resulting execution policy
+  ansible.builtin.include_tasks: ps_policy_state.yaml
+
+- name: Report the execution policy
+  ansible.builtin.debug:
+    msg: >-
+      Execution policy {{ win_workman_ps_policy_state.result.effective }}
+      (from {{ win_workman_ps_policy_state.result.source }}).

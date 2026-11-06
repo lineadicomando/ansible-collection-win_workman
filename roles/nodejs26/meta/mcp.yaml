@@ -1,0 +1,9 @@
+---
+display_name: "Node.js 26 LTS"
+notes: >-
+  One Node.js major line per host: every Node.js MSI shares the same UpgradeCode,
+  so 'on' removes any other version (24, 27, ...) before installing 26, and 'off'
+  removes only 26. 'on' also runs ps_policy-on (RemoteSigned, LocalMachine) so
+  that npm and npx work from PowerShell; nodejs26-on-nodep skips it. The PATH of
+  global npm packages (%APPDATA%\npm) is not added for the users. End of life
+  2029-04-30.

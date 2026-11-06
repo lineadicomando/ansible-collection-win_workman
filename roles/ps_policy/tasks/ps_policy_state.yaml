@@ -1,0 +1,53 @@
+---
+# Read-only: the machine-wide scopes and the policy they add up to. The
+# CurrentUser and UserPolicy scopes live in each profile and are not read, so
+# "effective" is what a user gets unless they override it for themselves.
+- name: Read the execution policy scopes
+  ansible.windows.win_powershell:
+    parameters:
+      LocalMachineKey: "{{ win_workman_ps_policy_local_machine_keys[0] }}"
+      LocalMachineKeyWow: "{{ win_workman_ps_policy_local_machine_keys[1] }}"
+      PolicyKey: "{{ win_workman_ps_policy_policy_key }}"
+    script: |
+      param([string]$LocalMachineKey, [string]$LocalMachineKeyWow, [string]$PolicyKey)
+      $Ansible.Changed = $false
+
+      function Read-Value([string]$Key, [string]$Name) {
+        try { return (Get-ItemProperty -LiteralPath $Key -Name $Name -ErrorAction Stop).$Name }
+        catch { return $null }
+      }
+
+      $localMachine = Read-Value $LocalMachineKey 'ExecutionPolicy'
+      $localMachineWow = Read-Value $LocalMachineKeyWow 'ExecutionPolicy'
+      $enableScripts = Read-Value $PolicyKey 'EnableScripts'
+      $policyValue = Read-Value $PolicyKey 'ExecutionPolicy'
+
+      $machinePolicy = $null
+      if ($null -ne $enableScripts) {
+        if ([int]$enableScripts -eq 0) { $machinePolicy = 'Restricted' }
+        elseif ($policyValue) { $machinePolicy = [string]$policyValue }
+      }
+
+      # Windows client editions default to Restricted, Server to RemoteSigned.
+      $isClient = (Get-CimInstance -ClassName Win32_OperatingSystem).ProductType -eq 1
+      $windowsDefault = if ($isClient) { 'Restricted' } else { 'RemoteSigned' }
+
+      if ($machinePolicy) {
+        $effective = $machinePolicy; $source = 'MachinePolicy'
+      } elseif ($localMachine -and [string]$localMachine -ne 'Undefined') {
+        $effective = [string]$localMachine; $source = 'LocalMachine'
+      } else {
+        $effective = $windowsDefault; $source = 'Windows default'
+      }
+
+      $Ansible.Result = [ordered]@{
+        effective                = $effective
+        source                   = $source
+        machine_policy           = $machinePolicy
+        policy_enable_scripts    = $enableScripts
+        policy_execution_policy  = $policyValue
+        local_machine            = $localMachine
+        local_machine_wow64      = $localMachineWow
+        windows_default          = $windowsDefault
+      }
+  register: win_workman_ps_policy_state

@@ -347,6 +347,7 @@
   vars:
     win_workman_detect_sw_args:
       name_like: "{{ win_workman_schema.package.searchName }}"
+      version_like: "{{ win_workman_schema.package.version_like | default('*', true) }}"
   when:
     - not (win_workman_pkg_portable | bool)
     - win_workman_needs_action | default(false) | bool
@@ -379,6 +380,7 @@
   vars:
     win_workman_detect_sw_args:
       name_like: "{{ win_workman_schema.package.searchName }}"
+      version_like: "{{ win_workman_schema.package.version_like | default('*', true) }}"
   when:
     - not (win_workman_pkg_portable | bool)
     - win_workman_needs_action | default(false) | bool

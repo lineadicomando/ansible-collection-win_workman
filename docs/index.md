@@ -71,6 +71,7 @@ The collection has two distinct role families:
 | [roles/catalog/python312.md](roles/catalog/python312.md) | `python312` — Python 3.12 interpreter and IDLE |
 | [roles/catalog/python313.md](roles/catalog/python313.md) | `python313` — Python 3.13 interpreter |
 | [roles/catalog/python314.md](roles/catalog/python314.md) | `python314` — Python 3.14 interpreter |
+| [roles/catalog/nodejs26.md](roles/catalog/nodejs26.md) | `nodejs26` — Node.js 26 LTS runtime and npm |
 | [roles/catalog/embarcadero_devcpp.md](roles/catalog/embarcadero_devcpp.md) | `embarcadero_devcpp` — C++ IDE |
 | [roles/catalog/orwell_devcpp.md](roles/catalog/orwell_devcpp.md) | `orwell_devcpp` — C++ IDE community fork |
 | [roles/catalog/redpanda_cpp.md](roles/catalog/redpanda_cpp.md) | `redpanda_cpp` — Red Panda C++ IDE with MinGW64 |
@@ -121,6 +122,7 @@ The collection has two distinct role families:
 | [roles/management/sysinfo.md](roles/management/sysinfo.md) | `sysinfo` — system information and statistics collection |
 | [roles/management/wallpaper.md](roles/management/wallpaper.md) | `wallpaper` — set/reset/lock/unlock across all profiles |
 | [roles/management/display_scale.md](roles/management/display_scale.md) | `display_scale` — display scaling percentage across all profiles |
+| [roles/management/ps_policy.md](roles/management/ps_policy.md) | `ps_policy` — PowerShell execution policy, machine-wide |
 | [roles/management/scoobe.md](roles/management/scoobe.md) | `scoobe` — suppress the "finish setting up your device" page after updates |
 | [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
 | [roles/management/autologon.md](roles/management/autologon.md) | `autologon` — automatic logon configuration |
@@ -142,7 +144,7 @@ The collection has two distinct role families:
 [`brave`](roles/catalog/brave.md) · [`chrome`](roles/catalog/chrome.md) · [`edge`](roles/catalog/edge.md) · [`firefox`](roles/catalog/firefox.md) · [`opera`](roles/catalog/opera.md) · [`seb`](roles/catalog/seb.md) · [`vivaldi`](roles/catalog/vivaldi.md)
 
 ### Catalog — Developer tools
-[`vscode`](roles/catalog/vscode.md) · [`zed`](roles/catalog/zed.md) · [`notepadpp`](roles/catalog/notepadpp.md) · [`git`](roles/catalog/git.md) · [`embarcadero_devcpp`](roles/catalog/embarcadero_devcpp.md) · [`orwell_devcpp`](roles/catalog/orwell_devcpp.md) · [`redpanda_cpp`](roles/catalog/redpanda_cpp.md) · [`laragon`](roles/catalog/laragon.md) · [`mysql_server`](roles/catalog/mysql_server.md) · [`mysql_workbench`](roles/catalog/mysql_workbench.md) · [`dbeaver`](roles/catalog/dbeaver.md) · [`postman`](roles/catalog/postman.md) · [`netbeans`](roles/catalog/netbeans.md) · [`python310`](roles/catalog/python310.md) · [`python311`](roles/catalog/python311.md) · [`python312`](roles/catalog/python312.md) · [`python313`](roles/catalog/python313.md) · [`python314`](roles/catalog/python314.md)
+[`vscode`](roles/catalog/vscode.md) · [`zed`](roles/catalog/zed.md) · [`notepadpp`](roles/catalog/notepadpp.md) · [`git`](roles/catalog/git.md) · [`embarcadero_devcpp`](roles/catalog/embarcadero_devcpp.md) · [`orwell_devcpp`](roles/catalog/orwell_devcpp.md) · [`redpanda_cpp`](roles/catalog/redpanda_cpp.md) · [`laragon`](roles/catalog/laragon.md) · [`mysql_server`](roles/catalog/mysql_server.md) · [`mysql_workbench`](roles/catalog/mysql_workbench.md) · [`dbeaver`](roles/catalog/dbeaver.md) · [`postman`](roles/catalog/postman.md) · [`netbeans`](roles/catalog/netbeans.md) · [`python310`](roles/catalog/python310.md) · [`python311`](roles/catalog/python311.md) · [`python312`](roles/catalog/python312.md) · [`python313`](roles/catalog/python313.md) · [`python314`](roles/catalog/python314.md) · [`nodejs26`](roles/catalog/nodejs26.md)
 
 ### Catalog — Graphics, CAD & Multimedia
 [`gimp`](roles/catalog/gimp.md) · [`inkscape`](roles/catalog/inkscape.md) · [`blender`](roles/catalog/blender.md) · [`sketchup2026`](roles/catalog/sketchup2026.md) · [`autocadlt2023`](roles/catalog/autocadlt2023.md) · [`autocadlt2026`](roles/catalog/autocadlt2026.md) · [`vlc`](roles/catalog/vlc.md) · [`puredata`](roles/catalog/puredata.md) · [`audacity`](roles/catalog/audacity.md)
@@ -157,7 +159,7 @@ The collection has two distinct role families:
 [`veyon`](roles/catalog/veyon.md) · [`gcpw`](roles/catalog/gcpw.md)
 
 ### Management — System & OS
-[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`scoobe`](roles/management/scoobe.md) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim) · [`win_iso`](roles/management/win_iso.md)
+[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`scoobe`](roles/management/scoobe.md) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim) · [`win_iso`](roles/management/win_iso.md) · [`ps_policy`](roles/management/ps_policy.md)
 
 ### Management — Session & Access
 [`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown) · [`autoshutdown`](roles/management/autoshutdown.md)

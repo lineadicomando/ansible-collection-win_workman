@@ -1,0 +1,70 @@
+---
+- name: Validate the requested execution policy
+  ansible.builtin.assert:
+    that:
+      - win_workman_ps_policy_mode in win_workman_ps_policy_modes
+      - win_workman_ps_policy_value | length > 0
+      - win_workman_ps_policy_mode != 'machine_policy'
+        or win_workman_ps_policy_value in win_workman_ps_policy_supported_machine_policy
+    fail_msg: >-
+      Invalid ps_policy settings: '{{ win_workman_ps_policy_requested }}' in mode
+      '{{ win_workman_ps_policy_mode }}'. The mode is one of
+      {{ win_workman_ps_policy_modes | join(', ') }}; the policy is one of
+      {{ win_workman_ps_policy_supported.values() | join(', ') }}, and in
+      machine_policy mode one of
+      {{ win_workman_ps_policy_supported_machine_policy | join(', ') }}.
+    quiet: true
+
+# Set-ExecutionPolicy from a 64-bit process writes only the first key: the
+# 32-bit powershell.exe would keep its own default.
+- name: Set the LocalMachine execution policy
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_ps_policy_key }}"
+    name: ExecutionPolicy
+    data: "{{ win_workman_ps_policy_value }}"
+    type: string
+  loop: "{{ win_workman_ps_policy_local_machine_keys }}"
+  loop_control:
+    loop_var: win_workman_ps_policy_key
+  when: win_workman_ps_policy_mode == 'local_machine'
+
+- name: Turn script execution on or off by policy
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_ps_policy_policy_key }}"
+    name: EnableScripts
+    data: "{{ 0 if win_workman_ps_policy_value == 'Restricted' else 1 }}"
+    type: dword
+  when: win_workman_ps_policy_mode == 'machine_policy'
+
+- name: Set the execution policy by policy
+  ansible.windows.win_regedit:
+    path: "{{ win_workman_ps_policy_policy_key }}"
+    name: ExecutionPolicy
+    data: "{{ win_workman_ps_policy_value }}"
+    type: string
+    state: "{{ 'absent' if win_workman_ps_policy_value == 'Restricted' else 'present' }}"
+  when: win_workman_ps_policy_mode == 'machine_policy'
+
+- name: Read the resulting execution policy
+  ansible.builtin.include_tasks: ps_policy_state.yaml
+
+# A GPO, from the domain or local, wins over LocalMachine: say so instead of
+# reporting a policy that PowerShell will not apply.
+- name: Warn that a policy overrides the LocalMachine setting
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: the LocalMachine execution policy is {{ win_workman_ps_policy_value }},
+      but a policy ("Turn on Script Execution", HKLM\SOFTWARE\Policies) sets
+      {{ win_workman_ps_policy_state.result.machine_policy }} and wins over it.
+      Change the GPO, or use win_workman_ps_policy_mode=machine_policy if the
+      policy is local.
+  when:
+    - win_workman_ps_policy_mode == 'local_machine'
+    - win_workman_ps_policy_state.result.machine_policy is not none
+    - win_workman_ps_policy_state.result.machine_policy != win_workman_ps_policy_value
+
+- name: Report the execution policy
+  ansible.builtin.debug:
+    msg: >-
+      Execution policy {{ win_workman_ps_policy_state.result.effective }}
+      (from {{ win_workman_ps_policy_state.result.source }}).

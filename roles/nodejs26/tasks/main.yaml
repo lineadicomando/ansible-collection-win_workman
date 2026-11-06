@@ -1,0 +1,19 @@
+---
+# npm and npx come with .ps1 shims, which PowerShell prefers to the .cmd ones and
+# the default Restricted policy of Windows client refuses to run.
+# win_workman_dep: lineadicomando.win_workman.ps_policy
+- name: Allow the npm and npx PowerShell shims to run
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.ps_policy
+  vars:
+    win_workman_action: "on"
+  when:
+    - (win_workman_task.act | default('on', true)) == 'on'
+    - "'nodep' not in (win_workman_task_argv | default([]))"
+
+- name: Dispatch to package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_nodejs26_schema }}"

@@ -6,6 +6,7 @@
   vars:
     win_workman_detect_sw_args:
       name_like: "{{ win_workman_schema.package.searchName }}"
+      version_like: "{{ win_workman_schema.package.version_like | default('*', true) }}"
   when:
     - win_workman_schema.package is defined
     - win_workman_schema.package.searchName is defined

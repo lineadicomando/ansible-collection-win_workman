@@ -1,0 +1,38 @@
+---
+display_name: PowerShell Execution Policy
+custom_actions:
+  - name: set
+    description: >-
+      Apply an execution policy (default action). The policy can be passed as
+      task argument, e.g. ps_policy-set-AllSigned
+  - name: reset
+    description: >-
+      Remove the value this role writes, so Windows falls back to its default
+      (Restricted on client editions)
+  - name: "on"
+    description: Alias for 'set' — applies win_workman_ps_policy
+  - name: "off"
+    description: Alias for 'reset'
+  - name: info
+    description: Report the machine-wide scopes and the resulting policy without changing them
+defaults:
+  - var: win_workman_ps_policy
+    type: str
+    default: RemoteSigned
+    description: >-
+      Policy applied when no argument is given: Restricted, AllSigned,
+      RemoteSigned, Unrestricted or Bypass
+  - var: win_workman_ps_policy_mode
+    type: str
+    default: local_machine
+    description: >-
+      local_machine writes the LocalMachine scope (64 and 32 bit), which users
+      may override for themselves; machine_policy writes the "Turn on Script
+      Execution" policy key, which wins over every scope but is overwritten by
+      a domain GPO that sets it
+notes: >-
+  Windows PowerShell 5.1 only; PowerShell 7 defaults to RemoteSigned on its own.
+  Needed by tools that ship .ps1 shims (npm, npx) or activation scripts (venv
+  Activate.ps1): on Windows client the default Restricted blocks them. The
+  nodejs roles call ps_policy-on as a dependency. In local_machine mode, a GPO
+  that sets the policy wins: set warns about it.

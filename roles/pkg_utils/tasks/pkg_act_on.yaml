@@ -473,6 +473,19 @@
     win_workman_operation: "{{ win_workman_install_operation }}"
     win_workman_needs_action: "{{ win_workman_install_needs_action }}"
 
+- name: Remove the other versions of an exclusive package
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_exclusive
+  when:
+    - win_workman_needs_action | bool
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_schema.package.exclusive | default(false) | bool
+    # Without version_like every version would count as "other", this one too.
+    - win_workman_schema.package.version_like | default('', true) | length > 0
+    - win_workman_schema.package.searchName is defined
+    - win_workman_schema.package.searchName is string
+
 - name: Before install hook
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
