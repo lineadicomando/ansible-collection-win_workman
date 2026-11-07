@@ -1,0 +1,37 @@
+---
+- name: Set the state of the Node.js 26 firewall rule
+  ansible.builtin.set_fact:
+    win_workman_nodejs26_fw_state: "{{ 'absent' if (win_workman_task.act | default('on', true)) == 'off' else 'present' }}"
+
+- name: Allow node.exe inbound
+  community.windows.win_firewall_rule:
+    name: Node.js 26 (win_workman)
+    description: Inbound connections to node.exe, managed by lineadicomando.win_workman.nodejs26
+    program: '%ProgramFiles%\nodejs\node.exe'
+    direction: in
+    action: allow
+    protocol: any
+    remoteip: "{{ win_workman_nodejs26_firewall_remoteip
+                  if win_workman_nodejs26_firewall_remoteip is string
+                  else win_workman_nodejs26_firewall_remoteip | join(',') }}"
+    profiles: "{{ win_workman_nodejs26_firewall_profiles }}"
+    enabled: true
+    state: "{{ win_workman_nodejs26_fw_state }}"
+
+# When a user without admin rights dismisses the "Windows Defender Firewall has
+# blocked some features" prompt, Windows adds "TCP/UDP Query User{GUID}" inbound
+# block rules for the program, and a block rule wins over any allow rule.
+- name: Remove the inbound block rules for node.exe
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $target = [Environment]::ExpandEnvironmentVariables('%ProgramFiles%\nodejs\node.exe')
+      $rules = @(Get-NetFirewallApplicationFilter -PolicyStore PersistentStore |
+        Where-Object { $_.Program -and
+          [Environment]::ExpandEnvironmentVariables($_.Program) -ieq $target } |
+        Get-NetFirewallRule |
+        Where-Object { $_.Direction -eq 'Inbound' -and $_.Action -eq 'Block' })
+      $rules | Remove-NetFirewallRule
+      $Ansible.Changed = $rules.Count -gt 0
+      @($rules | ForEach-Object { $_.DisplayName })
+  when: win_workman_nodejs26_fw_state == 'present'

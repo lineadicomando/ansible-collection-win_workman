@@ -1,0 +1,10 @@
+---
+# Allow node.exe through Windows Firewall: an inbound rule for the program, any
+# protocol and port, from the local subnet only. 'on' also removes the block rules
+# Windows creates when a user without admin rights dismisses the firewall prompt,
+# since a block rule wins over an allow rule. 'off' always removes the rule; with
+# false, 'on' leaves the firewall alone.
+win_workman_nodejs26_firewall: false
+win_workman_nodejs26_firewall_profiles: [domain, private, public]
+# Remote addresses allowed: LocalSubnet, Any, or a list of addresses/ranges.
+win_workman_nodejs26_firewall_remoteip: LocalSubnet

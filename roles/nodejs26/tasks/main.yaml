@@ -17,3 +17,13 @@
     tasks_from: pkg_workflow
   vars:
     win_workman_schema: "{{ win_workman_nodejs26_schema }}"
+
+# Outside the package workflow on purpose: its after_install hook runs only when
+# the package is installed or upgraded, so hosts that already have Node.js 26
+# would never get the rule.
+- name: Manage the Windows Firewall rule for node.exe
+  ansible.builtin.include_tasks: firewall.yaml
+  when: >-
+    ((win_workman_task.act | default('on', true)) == 'on'
+     and win_workman_nodejs26_firewall | bool)
+    or (win_workman_task.act | default('on', true)) == 'off'

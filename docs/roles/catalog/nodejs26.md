@@ -12,9 +12,9 @@ One role per LTS major line: when a new line becomes LTS, a new role is added
 
 | Action | Description |
 |---|---|
-| `on` | Make Node.js 26 the version on the host: remove any other Node.js, install or upgrade 26, set the PowerShell execution policy |
+| `on` | Make Node.js 26 the version on the host: remove any other Node.js, install or upgrade 26, set the PowerShell execution policy, and the firewall rule if `win_workman_nodejs26_firewall` is true |
 | `on-nodep` | Same, without touching the execution policy |
-| `off` | Uninstall Node.js 26; another major line, if present, is left alone |
+| `off` | Uninstall Node.js 26 and remove its firewall rule; another major line, if present, is left alone |
 | `download` | Download installer to storage |
 | `copy` | Copy installer to remote temp (no install) |
 | `info` | Report installation state of Node.js 26 |
@@ -51,7 +51,46 @@ hosts: they would replace each other at every run.
   policy, which other tools may rely on.
 - Corepack is no longer shipped from Node.js 25 on.
 
-No user-configurable variables; `ps_policy`'s own variables apply.
+`ps_policy`'s own variables apply.
+
+---
+
+## Windows Firewall
+
+The first time `node.exe` listens on a port, Windows shows "Windows Defender
+Firewall has blocked some features of this app". A student without admin rights
+cannot allow it; dismissing the prompt makes Windows add inbound **block** rules
+(`TCP Query User{GUID}…\node.exe`, `UDP Query User{…}`), and a block rule wins
+over any allow rule. A dev server started in class is then unreachable from the
+other PCs, and the prompt never shows again.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `win_workman_nodejs26_firewall` | `false` | Manage the firewall rule on `on` |
+| `win_workman_nodejs26_firewall_profiles` | `[domain, private, public]` | Profiles the rule applies to |
+| `win_workman_nodejs26_firewall_remoteip` | `LocalSubnet` | Allowed sources: `LocalSubnet`, `Any`, or a list of addresses/ranges |
+
+With the variable true, `on`:
+
+- adds the inbound rule "Node.js 26 (win_workman)" for
+  `%ProgramFiles%\nodejs\node.exe`, any protocol and port, from the allowed
+  sources only;
+- removes the inbound block rules on `node.exe` from the local store, those
+  created by the prompt included. Rules pushed by a GPO are not touched.
+
+It runs at every `on`, outside the package workflow, so re-running `nodejs26-on`
+also applies it to hosts that already have Node.js 26. With the variable false,
+`on` leaves the firewall alone. `off` always removes the rule.
+
+The rule names the program, not ports: any port a student's project opens is
+reachable, but only from the local subnet by default. A domain GPO that sets
+"Apply local firewall rules: No" makes Windows ignore the rule. Node.js installed
+elsewhere (nvm, portable) is not covered.
+
+```yaml
+# group_vars/all/vars.yaml
+win_workman_nodejs26_firewall: true
+```
 
 ---
 
