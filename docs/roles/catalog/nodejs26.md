@@ -58,11 +58,14 @@ hosts: they would replace each other at every run.
 ## Windows Firewall
 
 The first time `node.exe` listens on a port, Windows shows "Windows Defender
-Firewall has blocked some features of this app". A student without admin rights
-cannot allow it; dismissing the prompt makes Windows add inbound **block** rules
-(`TCP Query User{GUID}…\node.exe`, `UDP Query User{…}`), and a block rule wins
-over any allow rule. A dev server started in class is then unreachable from the
-other PCs, and the prompt never shows again.
+Firewall has blocked some features of this app" and turns the answer into inbound
+rules named `TCP Query User{GUID}…\node.exe` and `UDP Query User{…}`:
+
+- dismissed by a student without admin rights, they **block**, and a block rule
+  wins over any allow rule. A dev server started in class is then unreachable
+  from the other PCs, and the prompt never shows again;
+- accepted by an admin, they allow from **any** address, on the current profile
+  only.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -75,8 +78,9 @@ With the variable true, `on`:
 - adds the inbound rule "Node.js 26 (win_workman)" for
   `%ProgramFiles%\nodejs\node.exe`, any protocol and port, from the allowed
   sources only;
-- removes the inbound block rules on `node.exe` from the local store, those
-  created by the prompt included. Rules pushed by a GPO are not touched.
+- removes from the local store the inbound rules on `node.exe` left by the
+  prompt, block or allow, and any other inbound block rule on it. Allow rules
+  added by hand under another name stay; rules pushed by a GPO are not touched.
 
 It runs at every `on`, outside the package workflow, so re-running `nodejs26-on`
 also applies it to hosts that already have Node.js 26. With the variable false,

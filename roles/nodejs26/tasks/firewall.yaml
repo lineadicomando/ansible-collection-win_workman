@@ -18,10 +18,13 @@
     enabled: true
     state: "{{ win_workman_nodejs26_fw_state }}"
 
-# When a user without admin rights dismisses the "Windows Defender Firewall has
-# blocked some features" prompt, Windows adds "TCP/UDP Query User{GUID}" inbound
-# block rules for the program, and a block rule wins over any allow rule.
-- name: Remove the inbound block rules for node.exe
+# The "Windows Defender Firewall has blocked some features" prompt leaves inbound
+# rules named "TCP/UDP Query User{GUID}<path>" for the program. Dismissed by a user
+# without admin rights, they block, and a block rule wins over any allow rule;
+# accepted by an admin, they allow from any address, which makes remoteip moot.
+# Both kinds go, with any other inbound block rule on node.exe; allow rules added
+# by hand under another name stay.
+- name: Remove the prompt and block rules for node.exe
   ansible.windows.win_powershell:
     script: |
       $ErrorActionPreference = 'Stop'
@@ -30,8 +33,9 @@
         Where-Object { $_.Program -and
           [Environment]::ExpandEnvironmentVariables($_.Program) -ieq $target } |
         Get-NetFirewallRule |
-        Where-Object { $_.Direction -eq 'Inbound' -and $_.Action -eq 'Block' })
+        Where-Object { $_.Direction -eq 'Inbound' -and
+          ($_.Action -eq 'Block' -or $_.Name -like '*Query User{*}*') })
       $rules | Remove-NetFirewallRule
       $Ansible.Changed = $rules.Count -gt 0
-      @($rules | ForEach-Object { $_.DisplayName })
+      @($rules | ForEach-Object { '{0} ({1})' -f $_.Name, $_.Action })
   when: win_workman_nodejs26_fw_state == 'present'
