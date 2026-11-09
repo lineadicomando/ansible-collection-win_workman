@@ -59,7 +59,14 @@ custom_actions:
   - name: pause
     description: Pause Windows Update for win_workman_wu_pause_days days
   - name: max_pause_days
-    description: "Read or set FlightSettingsMaxPauseDays: without args reports current value; with a duration (e.g. max_pause_days-35 or max_pause_days-5-w) sets the cap"
+    description: >-
+      Read or set FlightSettingsMaxPauseDays: without args reports current value;
+      with a duration (e.g. max_pause_days-35 or max_pause_days-5-w) sets the cap.
+      The cap only bounds wu-pause/wu-off of this role: on 25H2 and 26H2 the
+      "Seleziona data" picker of Settings ignores it and stays at 35 days. The
+      picker follows the SetMaxPauseDays policy instead, which accepts 1-35 and
+      can only lower it. To pause beyond 35 days, raise the cap here, then
+      wu-pause-<n>: Settings accepts and shows the longer pause
   - name: resume
     description: Resume Windows Update (clear pause)
   - name: is_paused

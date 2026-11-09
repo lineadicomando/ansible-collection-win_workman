@@ -19,7 +19,7 @@ and inspect or adjust the maximum allowed pause duration.
 | `off` | Pause Windows Update at maximum duration (alias for `pause` at max days) |
 | `pause` | Pause quality and feature updates for `win_workman_wu_pause_days` days |
 | `resume` | Remove the update pause (resume immediately) |
-| `max_pause_days` | Read or set `FlightSettingsMaxPauseDays`; without args reports the current value, with a duration sets the cap |
+| `max_pause_days` | Read or set `FlightSettingsMaxPauseDays`; without args reports the current value, with a duration sets the cap of `pause`/`off`. It no longer lifts the 35-day limit of the Settings date picker (see below) |
 | `is_paused` | Report whether updates are paused and, if so, the expiry timestamp |
 | `policy_standard` | Restore standard Windows Update Group Policy (reverts Ansible-managed policy) |
 | `policy_ansible_managed` | *(removed)* Raises an error; use `pause` or `off` instead |
@@ -244,6 +244,34 @@ An optional unit suffix controls how the numeric argument is interpreted:
 
 Passing `0` resets the cap to the role default (`win_workman_wu_default_max_pause_days`).
 
+### Pause limit on 25H2 and 26H2
+
+`FlightSettingsMaxPauseDays` used to lift the limit of the pause control in Settings.
+On Windows 11 25H2 (26200) and 26H2 (26300), Settings has a date picker instead
+("Sospendi aggiornamenti → Seleziona data"). The picker ignores that value and stops
+35 days from today even with `max_pause_days-6-m`, after reopening Settings and
+restarting `UsoSvc`.
+
+The picker follows the `SetMaxPauseDays` policy
+(`HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate`, DWORD; Policy CSP
+`Update/SetMaxPauseDays`). The policy accepts 1–35, so it can only shorten the limit:
+14 cuts the picker to 14 days, and 168 is discarded in favour of the 35-day default.
+
+A pause written to the registry is still accepted beyond 35 days. `max_pause_days`
+now matters only as the cap of `pause` and `off` in this role. To pause for six months:
+
+```yaml
+win_workman_tasks:
+  - wu-max_pause_days-6-m   # cap of wu-pause: 168 days
+  - wu-pause-6-m            # pause until today + 168 days
+```
+
+Settings then shows "Gli aggiornamenti sono stati sospesi fino al …" with the date
+written by the role, and "Riprendi aggiornamenti" works. The picker still offers only
+dates within 35 days, so a longer pause can be extended again only through the role.
+Microsoft does not document pauses written this way, and nobody has checked that one
+holds for its full length.
+
 ---
 
 ## Variables
@@ -327,9 +355,10 @@ win_workman_tasks:
 win_workman_tasks:
   - wu-max_pause_days
 
-# Raise the cap to 90 days
+# Pause for 90 days: raise the role cap first (Settings still offers only 35 days)
 win_workman_tasks:
   - wu-max_pause_days-90
+  - wu-pause-90
 
 # Check whether updates are currently paused
 win_workman_tasks:
