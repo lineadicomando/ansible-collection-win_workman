@@ -7,14 +7,22 @@
       - win_workman_task.argv[3] is not defined or win_workman_task.argv[2] is defined
     fail_msg: "pause on accepts an optional non-negative integer duration and an optional unit among: d, w, m"
 
-- name: Set pause days with optional unit conversion
+# Months are calendar months: the end date is computed on the host with
+# AddMonths, since their length in days depends on the start date. The facts
+# below are set on every call, so a duration given to one wu-pause does not
+# leak into the next task of the same play.
+- name: Set requested pause duration
+  vars:
+    _unit: "{{ win_workman_task.argv[3] | default('d') | lower }}"
+    _count: "{{ win_workman_task.argv[2] | default(0) | int }}"
   ansible.builtin.set_fact:
-    win_workman_wu_pause_days: >-
-      {{
-        (win_workman_task.argv[2] | default(win_workman_wu_pause_days) | int)
-        * (7  if (win_workman_task.argv[3] | default('') | lower) in ['w', 'week', 'weeks'] else
-           28 if (win_workman_task.argv[3] | default('') | lower) in ['m', 'month', 'months'] else 1)
-      }}
+    win_workman_wu_req_pause_months: >-
+      {{ (_count | int) if _unit in ['m', 'month', 'months']
+         else (0 if win_workman_task.argv[2] is defined else win_workman_wu_pause_months | int) }}
+    win_workman_wu_req_pause_days: >-
+      {{ (_count | int * 7) if _unit in ['w', 'week', 'weeks']
+         else (0 if _unit in ['m', 'month', 'months']
+         else (_count | int if win_workman_task.argv[2] is defined else win_workman_wu_pause_days | int)) }}
 
 - name: Windows Update Paused
   ansible.builtin.include_role:

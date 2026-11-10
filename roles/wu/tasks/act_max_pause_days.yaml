@@ -23,13 +23,14 @@
   when: win_workman_task.argv[2] is defined
 
 - name: Set max pause days with optional unit conversion
-  # 1 month = 4 weeks: Windows Update UX uses weekly steps, so 28 days aligns with the GUI.
+  # The cap is a number of days, so a month counts as 31: a cap of N months
+  # never shortens a later wu-pause-N-m, whatever its start date.
   ansible.builtin.set_fact:
     win_workman_wu_max_pause_days: >-
       {{
         (win_workman_task.argv[2] | int)
         * (7  if (win_workman_task.argv[3] | default('') | lower) in ['w', 'week', 'weeks'] else
-           28 if (win_workman_task.argv[3] | default('') | lower) in ['m', 'month', 'months'] else 1)
+           31 if (win_workman_task.argv[3] | default('') | lower) in ['m', 'month', 'months'] else 1)
       }}
   when: win_workman_task.argv[2] is defined
 

@@ -1,8 +1,9 @@
 ---
 # Alias for pause at max duration: wu-off suspends updates identically to wu-pause at max days.
-- name: Set pause days to role default max for wu-off
+- name: Set pause duration to role default max for wu-off
   ansible.builtin.set_fact:
-    win_workman_wu_pause_days: "{{ win_workman_wu_default_max_pause_days | int }}"
+    win_workman_wu_req_pause_months: 0
+    win_workman_wu_req_pause_days: "{{ win_workman_wu_default_max_pause_days | int }}"
 
 - name: Windows Update off (pause at role max duration)
   ansible.builtin.include_role:

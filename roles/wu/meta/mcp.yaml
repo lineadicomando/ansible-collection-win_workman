@@ -57,11 +57,17 @@ custom_actions:
   - name: "off"
     description: Pause Windows Update at max duration (alias for pause at max)
   - name: pause
-    description: Pause Windows Update for win_workman_wu_pause_days days
+    description: >-
+      Pause Windows Update. Bare wu-pause uses win_workman_wu_pause_months plus
+      win_workman_wu_pause_days; wu-pause-<n>[-d|-w|-m] gives the duration in days,
+      weeks or calendar months (end date computed on the host, e.g. wu-pause-1-m on
+      10 Nov ends on 10 Dec). A pause longer than FlightSettingsMaxPauseDays
+      (default 35) is shortened to it; raise it with max_pause_days first
   - name: max_pause_days
     description: >-
       Read or set FlightSettingsMaxPauseDays: without args reports current value;
-      with a duration (e.g. max_pause_days-35 or max_pause_days-5-w) sets the cap.
+      with a duration (e.g. max_pause_days-35, max_pause_days-5-w, max_pause_days-6-m) sets the cap,
+      in days (a month counts as 31).
       The cap only bounds wu-pause/wu-off of this role: on 25H2 and 26H2 the
       "Seleziona data" picker of Settings ignores it and stays at 35 days. The
       picker follows the SetMaxPauseDays policy instead, which accepts 1-35 and
@@ -79,7 +85,11 @@ defaults:
   - var: win_workman_wu_pause_days
     type: int
     default: 7
-    description: Number of days to pause updates when using 'pause' action
+    description: Days of a bare 'pause', added to win_workman_wu_pause_months
+  - var: win_workman_wu_pause_months
+    type: int
+    default: 0
+    description: Calendar months of a bare 'pause'
   - var: win_workman_wu_default_max_pause_days
     type: int
     default: 35

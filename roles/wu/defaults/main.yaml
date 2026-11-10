@@ -1,5 +1,8 @@
 ---
+# Duration of a bare wu-pause: calendar months plus days, end date computed on
+# the host. wu-pause-<n>[-d|-w|-m] replaces both.
 win_workman_wu_pause_days: 7
+win_workman_wu_pause_months: 0
 win_workman_wu_default_max_pause_days: 35
 win_workman_restart: true
 win_workman_wu_unpause: false

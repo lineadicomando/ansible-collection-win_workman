@@ -17,7 +17,7 @@ and inspect or adjust the maximum allowed pause duration.
 | `reset` | By hand only: reset the Windows Update state of a stuck host (see below) |
 | `on` | Resume Windows Update (alias for `resume`) |
 | `off` | Pause Windows Update at maximum duration (alias for `pause` at max days) |
-| `pause` | Pause quality and feature updates for `win_workman_wu_pause_days` days |
+| `pause` | Pause quality and feature updates for `win_workman_wu_pause_months` months plus `win_workman_wu_pause_days` days, or for the duration in the task (`wu-pause-14`, `wu-pause-3-w`, `wu-pause-2-m`) |
 | `resume` | Remove the update pause (resume immediately) |
 | `max_pause_days` | Read or set `FlightSettingsMaxPauseDays`; without args reports the current value, with a duration sets the cap of `pause`/`off`. It no longer lifts the 35-day limit of the Settings date picker (see below) |
 | `is_paused` | Report whether updates are paused and, if so, the expiry timestamp |
@@ -232,17 +232,31 @@ The same data is left in the `win_workman_wu_report` fact (`build_before`,
 `filtered`). The report is printed even when the install task fails, and the host
 is marked failed when single updates fail although win_updates itself succeeded.
 
-### `max_pause_days` duration syntax
+### Duration syntax of `pause` and `max_pause_days`
 
 An optional unit suffix controls how the numeric argument is interpreted:
 
-| Suffix | Meaning |
-|---|---|
-| *(omitted)* or `d` / `day` / `days` | days |
-| `w` / `week` / `weeks` | weeks (× 7) |
-| `m` / `month` / `months` | months (× 28) |
+| Suffix | `pause` | `max_pause_days` |
+|---|---|---|
+| *(omitted)* or `d` / `day` / `days` | days | days |
+| `w` / `week` / `weeks` | weeks (× 7) | weeks (× 7) |
+| `m` / `month` / `months` | calendar months | months × 31 days |
 
-Passing `0` resets the cap to the role default (`win_workman_wu_default_max_pause_days`).
+`pause` computes the end date on the host, in its local time: `wu-pause-1-m` run on
+10 November pauses until 10 December, and one run on 31 January until the last day
+of February, as the date picker of Settings would. The pause starts now and ends at
+the same time of day.
+
+`FlightSettingsMaxPauseDays` holds a number of days, so `max_pause_days` counts a
+month as 31 days: a cap set with `max_pause_days-6-m` never shortens a later
+`pause-6-m`, whatever its start date.
+
+When the pause is longer than the cap, `pause` shortens it to the cap and says so in
+its output. Passing `0` to `max_pause_days` resets the cap to the role default
+(`win_workman_wu_default_max_pause_days`).
+
+Up to v0.5.2 a month counted as 28 days for both actions, after the week selector
+of older Windows 11 Settings: `wu-pause-3-m` now pauses for 89 to 92 days, not 84.
 
 ### Pause limit on 25H2 and 26H2
 
@@ -262,8 +276,8 @@ now matters only as the cap of `pause` and `off` in this role. To pause for six 
 
 ```yaml
 win_workman_tasks:
-  - wu-max_pause_days-6-m   # cap of wu-pause: 168 days
-  - wu-pause-6-m            # pause until today + 168 days
+  - wu-max_pause_days-6-m   # cap of wu-pause: 186 days
+  - wu-pause-6-m            # pause until the same day, six months from today
 ```
 
 Settings then shows "Gli aggiornamenti sono stati sospesi fino al …" with the date
@@ -278,7 +292,8 @@ holds for its full length.
 
 | Variable | Default | Description |
 |---|---|---|
-| `win_workman_wu_pause_days` | `7` | Days to pause updates when using `pause` |
+| `win_workman_wu_pause_days` | `7` | Days of a bare `pause` (added to `win_workman_wu_pause_months`) |
+| `win_workman_wu_pause_months` | `0` | Calendar months of a bare `pause` |
 | `win_workman_wu_default_max_pause_days` | `35` | Maximum pause cap; used by `off` and as reset target for `max_pause_days 0` |
 | `win_workman_wu_default_profile` | `security` | Profile used by a bare `wu-run` |
 | `win_workman_wu_profiles` | `security`, `full`, `upgrades` | Profiles for `wu-run-<name>`: `categories` (aliases) and `skip_optional` |
@@ -346,6 +361,10 @@ win_workman_tasks:
 # Pause updates for 3 weeks (inline duration)
 win_workman_tasks:
   - wu-pause-3-w
+
+# Pause updates for one calendar month (within the default 35-day cap)
+win_workman_tasks:
+  - wu-pause-1-m
 
 # Resume paused updates
 win_workman_tasks:
