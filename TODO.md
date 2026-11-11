@@ -39,6 +39,7 @@ Priorities, assigned 2026-09-28:
 | P3 | `autoshutdown`: implement the `nouser` mode |
 | P3 | `scoobe`: confirm that `off` keeps the page away after a cumulative |
 | P3 | `wim-repair`: the folder form of the source, only partly exercised |
+| P3 | `w32time`: a role for the Windows time service |
 | P3 | Roles with no documentation at all |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` |
 
@@ -928,6 +929,49 @@ inference, not documented by Microsoft.
   appears there and never on hosts with `off`, the role is confirmed.
 - If it appears on a host with `off`, find which value Windows 26H2 actually
   reads (whether Pro honours the CloudContent user policy is still open).
+
+### `w32time`: a role for the Windows time service
+
+**Priority:** P3 — the labs that needed it were configured by hand with ad hoc PowerShell  
+**Status:** proposed 2026-11-11
+
+No role manages the clock. On workgroup hosts Windows polls
+`time.windows.com` every 32768 s by default (`SpecialPollInterval`), and
+W32Time is trigger-started, so it is
+often stopped after boot and the source reads "Local CMOS Clock". Clocks drift
+by minutes, and by days on hosts with a failing RTC. W32Time also refuses
+corrections larger than `MaxPosPhaseCorrection`/`MaxNegPhaseCorrection`
+(15 h on a workgroup host), which then need `Set-Date`. The fix applied so far
+by hand: `SpecialPollInterval` 3600, `w32tm /config
+/manualpeerlist:<server>,0x9 /syncfromflags:manual /update`, a restart of the
+service and `w32tm /resync /force`.
+
+Proposed actions:
+
+- `on`: set the NTP server list, `SpecialPollInterval`, the service to
+  automatic start, then restart the service and resync. Idempotent: compares
+  the registry values before writing.
+- `info`: read only. Reports the source, the stratum, the last successful
+  sync, the poll interval, the service state and start mode, and the offset
+  measured with `w32tm /stripchart` against the configured server. Also lists
+  large clock jumps in the System log since the last boot (Kernel-General
+  event 1), which reveal hosts whose RTC stops while they are off.
+- `resync`: `w32tm /resync /force`; when the offset exceeds the phase
+  correction limit, sets the time from the server first.
+- `off`: back to the Windows defaults (`time.windows.com`, poll 32768 as found on
+  untouched Windows 11 hosts, trigger start).
+
+Variables: `win_workman_w32time_servers` (default
+`["time.windows.com"]`), `win_workman_w32time_poll_interval` (default 3600),
+and for `info` an offset threshold above which the host is reported as out of
+sync. Domain members take their time from the domain hierarchy (`NT5DS`):
+`on` should refuse them unless asked explicitly, so as not to override the
+domain controller.
+
+To check when implementing: hosts booted an hour earlier that still showed
+"Local CMOS Clock" while the NtpClient logged samples received (event 37) but
+no sync (event 35). Find out whether this is normal before the first poll or
+a configuration that never syncs, and make `info` say which.
 
 ## MCP server
 
