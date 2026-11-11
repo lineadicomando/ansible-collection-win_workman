@@ -118,9 +118,9 @@ immediately with a clear error if an unknown action is passed.
 | `win_workman_restart_timeout` | `600` | Seconds to wait after reboot until sshd runs and servicing (TrustedInstaller, TiWorker) is idle |
 | `win_workman_default_lang` | `en_US` | Locale hint for multi-locale roles |
 | `win_workman_cleanup_uninstaller_dir` | `true` | Remove an install directory left holding only uninstaller files |
-| `win_workman_installer_wait_timeout` | `900` | Seconds to wait for Windows Installer and servicing to be idle before win_package |
+| `win_workman_installer_wait_timeout` | `120` | Seconds to wait before win_package until no MSI holds the Windows Installer mutex; component servicing (TiWorker) is not waited for |
 | `win_workman_installer_retry_codes` | `[1601, 1618]` | win_package return codes retried as "installer busy" |
-| `win_workman_installer_retries` | `3` | Retries on those codes |
+| `win_workman_installer_retries` | `5` | Retries on those codes |
 | `win_workman_installer_retry_delay` | `60` | Seconds between retries |
 
 ### Uninstall cleanup

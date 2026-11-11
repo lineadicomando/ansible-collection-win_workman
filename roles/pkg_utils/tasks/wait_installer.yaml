@@ -1,12 +1,15 @@
 ---
-# Waits, up to win_workman_installer_wait_timeout seconds, until Windows
-# Installer and component servicing are idle: no MSI transaction holds the
-# Global\_MSIExecute mutex and no TiWorker is running. Right after Windows
-# Update, whether driven by wu or by Windows itself, an MSI can otherwise fail
-# with 1601 (Windows Installer service not accessible) or 1618 (another
-# install in progress). On timeout it warns and lets the install go on: the
-# install task retries on those codes anyway.
-- name: Wait for Windows Installer and servicing to be idle
+# Waits, up to win_workman_installer_wait_timeout seconds, until no MSI
+# transaction holds the Global\_MSIExecute mutex: right after Windows Update,
+# whether driven by wu or by Windows itself, an MSI can otherwise fail with
+# 1618 (another install in progress). On timeout it warns and lets the install
+# go on: the install task retries on 1601 and 1618 anyway.
+#
+# Component servicing (TiWorker) is not waited for. It does not hold the
+# Windows Installer mutex, so an MSI installs fine while it runs, and it runs
+# for a long time after every boot and while a cumulative installs, even with
+# Windows Update paused: waiting for it held installs for the whole timeout.
+- name: Wait for Windows Installer to be idle
   ansible.windows.win_powershell:
     script: |
       param([int]$Timeout)
@@ -25,30 +28,25 @@
       }
 
       $start = Get-Date
-      $waited = $false
-      $busy = @()
+      $busy = $false
       do {
-        $busy = @()
-        if (Test-MsiBusy) { $busy += 'msi' }
-        if (Get-Process -Name TiWorker -ErrorAction SilentlyContinue) { $busy += 'servicing' }
-        if ($busy.Count -eq 0) { break }
-        $waited = $true
-        Start-Sleep -Seconds 10
+        $busy = Test-MsiBusy
+        if (-not $busy) { break }
+        Start-Sleep -Seconds 5
       } while (((Get-Date) - $start).TotalSeconds -lt $Timeout)
 
       $Ansible.Result = @{
         waited  = [int]((Get-Date) - $start).TotalSeconds
-        busy    = $busy
-        timeout = ($busy.Count -gt 0)
+        timeout = $busy
       }
       $Ansible.Changed = $false
     parameters:
-      Timeout: "{{ win_workman_installer_wait_timeout | default(900) | int }}"
+      Timeout: "{{ win_workman_installer_wait_timeout | default(120) | int }}"
   register: win_workman_installer_wait
 
 - name: Warn when Windows Installer is still busy
   ansible.builtin.debug:
     msg: >-
-      Still busy after {{ win_workman_installer_wait.result.waited }}s
-      ({{ win_workman_installer_wait.result.busy | join(', ') }}): installing anyway
+      Windows Installer still busy after {{ win_workman_installer_wait.result.waited }}s:
+      installing anyway, retrying on 1601/1618
   when: win_workman_installer_wait.result.timeout | bool
