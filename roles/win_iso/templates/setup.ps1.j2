@@ -65,21 +65,71 @@ try {
     # Windows deletes it only at the first interactive logon, which a PC managed
     # over SSH may never see. A task removes it, with its profile, once OOBE is
     # over, then removes itself. Not fatal: SSH matters more.
+    #
+    # "Over" is the hard part. OOBEInProgress, SystemSetupInProgress and
+    # ImageState all reach their final values while OOBE still runs in the session
+    # of defaultuser0: deleting the account then kills that session and OOBE stops
+    # with "Si e' verificato un errore - REBOOT". So the task waits until OOBE has
+    # signed defaultuser0 in (its profile exists) and out again (no process runs as
+    # it, the profile is unloaded), on two runs in a row, since OOBE may restart the
+    # PC half way and sign in again.
+    #
+    # Winlogon keeps the automatic sign-in as defaultuser0 that OOBE set up: with
+    # the account gone, every boot shows "Nome utente o password non corretta".
+    # The task clears it together with the account.
     try {
         $dir = "$env:ProgramData\win_workman"
         New-Item -Path $dir -ItemType Directory -Force | Out-Null
         Set-Content -Path "$dir\remove-defaultuser0.ps1" -Encoding UTF8 -Value @'
-$setup = Get-ItemProperty HKLM:\SYSTEM\Setup
-if ($setup.OOBEInProgress -ne 0 -or $setup.SystemSetupInProgress -ne 0) { exit 0 }
-if (Get-LocalUser -Name defaultuser0 -ErrorAction SilentlyContinue) {
-    Remove-LocalUser -Name defaultuser0
+$log = 'C:\Windows\Temp\win_workman-defaultuser0.log'
+function Write-Log([string]$Message) {
+    Add-Content -Path $log -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $Message"
 }
-# Right after OOBE its registry hive may still be loaded: the profile cannot be
-# deleted yet, so try again at the next run.
+$idle = Join-Path $PSScriptRoot 'defaultuser0.idle'
+function Wait-Next([string]$Why) {
+    Remove-Item -Path $idle -Force -ErrorAction SilentlyContinue
+    Write-Log "waiting: $Why"
+    exit 0
+}
+
+$state = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State' -ErrorAction SilentlyContinue).ImageState
+if ($state -ne 'IMAGE_STATE_COMPLETE') { Wait-Next "image state $state" }
+
+$user = Get-LocalUser -Name defaultuser0 -ErrorAction SilentlyContinue
+$profiles = @(Get-CimInstance Win32_UserProfile | Where-Object { $_.LocalPath -like '*\defaultuser0*' })
+if ($user) {
+    if ($profiles.Count -eq 0) { Wait-Next 'OOBE has not signed defaultuser0 in yet' }
+    if ($profiles | Where-Object Loaded) { Wait-Next 'the profile of defaultuser0 is loaded' }
+    $busy = @(Get-Process -IncludeUserName -ErrorAction SilentlyContinue |
+        Where-Object { $_.UserName -like '*\defaultuser0' })
+    if ($busy.Count -gt 0) { Wait-Next "$($busy.Count) processes run as defaultuser0" }
+    # Idle now: act only if it was idle at the previous run too.
+    if (-not (Test-Path -Path $idle)) {
+        New-Item -Path $idle -ItemType File -Force | Out-Null
+        Write-Log 'defaultuser0 idle, checking again at the next run'
+        exit 0
+    }
+}
+
+$wl = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+if ((Get-ItemProperty -Path $wl).DefaultUserName -eq 'defaultuser0') {
+    Set-ItemProperty -Path $wl -Name AutoAdminLogon -Value '0'
+    foreach ($name in 'DefaultUserName', 'AutoLogonSID', 'DefaultPassword', 'AutoLogonCount') {
+        Remove-ItemProperty -Path $wl -Name $name -ErrorAction SilentlyContinue
+    }
+    Write-Log 'automatic sign-in as defaultuser0 cleared'
+}
+if ($user) {
+    Remove-LocalUser -Name defaultuser0
+    Write-Log 'account defaultuser0 removed'
+}
 try {
-    Get-CimInstance Win32_UserProfile | Where-Object { $_.LocalPath -like '*\defaultuser0*' } |
-        Remove-CimInstance -ErrorAction Stop
-} catch { exit 0 }
+    $profiles | Remove-CimInstance -ErrorAction Stop
+} catch {
+    Write-Log "profile not removed yet: $($_.Exception.Message)"
+    exit 0
+}
+Write-Log 'done, task removed'
 Unregister-ScheduledTask -TaskName 'win_workman remove defaultuser0' -Confirm:$false
 Remove-Item -Path $PSScriptRoot -Recurse -Force
 '@
