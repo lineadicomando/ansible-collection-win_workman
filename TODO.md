@@ -20,6 +20,7 @@ Priorities, assigned 2026-09-28:
 | P1 | `wu`: a feature update that does not apply is reported as installed |
 | P1 | `lock-off` leaves the logon screen without the user list until a restart |
 | P1 | `sfc`: repairs are reported as "no integrity violation" |
+| P1 | `widgets`: `off` and `on` are refused by UCPD on current Windows 11 |
 | P1 / P3 | AutoCAD: end-to-end validation on a real host (P1 only before a rollout) |
 | P2 | Verify the upgrade path of the `uninstall_before_upgrade` roles |
 | P2 | `pkg_act_off` does not stop declared services |
@@ -505,6 +506,78 @@ a Disconnected session and asserts the registry after each step. Add, after the
 
 The VM must have more than one local user for the list to mean anything: check
 which users the baseline has before relying on it, and create one if needed.
+
+### `widgets`: `off` and `on` are refused by UCPD on current Windows 11
+
+**Priority:** P1 — the role cannot do its one job on any up-to-date Windows 11 host  
+**Status:** found 2026-11-12 on a workgroup PC; cause verified on the host, fix tested by hand, role not changed
+
+`widgets-off` failed on a Windows 11 Pro 26H2 host (build 26300.9974) at its
+only registry step:
+
+```
+failed to create registry property 'AllowNewsAndInterests' at
+HKLM:\SOFTWARE\Policies\Microsoft\Dsh: ... "Tentativo di eseguire
+un'operazione non autorizzata."
+```
+
+The ACL of the key is the usual one for `Policies` (Administrators and SYSTEM
+full control) and the SSH session runs elevated (high mandatory level), so it
+is not a permission problem. The cause is **UCPD** (User Choice Protection
+Driver, `C:\Windows\System32\drivers\UCPD.sys`, running, with its
+`\Microsoft\Windows\AppxDeploymentClient\UCPD velocity` task): it denies
+writes to a short list of registry values, `Dsh\AllowNewsAndInterests` and the
+per-user `Explorer\Advanced\TaskbarDa` among them, from processes it does not
+trust, and `powershell.exe` is one of them. A plain `Set-ItemProperty` from
+the same session fails the same way, even when the value would not change.
+`widgets-on` writes the same value and must fail too (not run).
+
+Second, smaller defect: both actions start with `pkg_utils` `tasks/logoff`, so
+the failed run had already logged the user off. A policy change needs no
+logoff; at most Explorer picks it up at the next sign-in.
+
+#### What was tested by hand
+
+Writing the setting into the **local Group Policy** works, because the value is
+then written by the Group Policy service, which UCPD lets through:
+
+1. add the entry `Software\Policies\Microsoft\Dsh` / `AllowNewsAndInterests`,
+   `REG_DWORD 0`, to `C:\Windows\System32\GroupPolicy\Machine\Registry.pol`
+   (PReg format, version 1; keep the entries already there);
+2. in `C:\Windows\System32\GroupPolicy\gpt.ini`, bump the machine half
+   (low 16 bits) of `Version=` and make sure `gPCMachineExtensionNames`
+   contains `[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]`;
+3. `gpupdate /target:computer /force`.
+
+After step 3 `HKLM\SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests`
+read 0. The script used parses and rewrites `Registry.pol` with a
+`BinaryWriter` in Windows PowerShell 5.1, no extra module.
+
+#### What to change
+
+- Add a `pkg_utils` task, say `tasks/gpo_registry.yaml`, that sets or removes a
+  value in the local machine policy (`Registry.pol` + `gpt.ini` + `gpupdate`),
+  idempotent (`changed: false` when the entry is already there with the same
+  type and data) and keeping a `.bak` of the previous file. Other roles that
+  write under `HKLM:\SOFTWARE\Policies` can move to it as UCPD's list grows.
+- `widgets-off`: set the entry to 0 through that task. `widgets-on`: remove
+  the entry (going back to "not configured") rather than writing 1, then
+  `gpupdate`. Drop the logoff from both.
+- Domain-joined hosts: a domain GPO wins over the local one for the same value;
+  report it (`gpresult /scope computer /r` or the `RSOP` WMI namespace) instead
+  of reporting success.
+- Do not disable UCPD (`Start=4` on the driver plus the velocity task): it
+  works, but it removes a protection on the whole host and Windows Update can
+  re-enable it.
+
+#### How to test
+
+On the `teacher` VM from the baseline, with an up-to-date cumulative (UCPD has
+to be running: `Get-CimInstance Win32_SystemDriver -Filter "Name='UCPD'"`):
+`widgets-off`, assert the value is 0 and that a direct `Set-ItemProperty` of the
+same value is still refused (proves the test exercised the UCPD path), a
+second `widgets-off` reports `changed: false`, then `widgets-on` and assert the
+value is gone; check that no session was logged off in either step.
 
 ### `sfc`: repairs are reported as "no integrity violation"
 
