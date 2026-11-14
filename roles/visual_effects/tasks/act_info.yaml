@@ -1,0 +1,140 @@
+---
+- name: Report the visual effects configured in every user profile
+  ansible.windows.win_powershell:
+    parameters:
+      IncludeDefault: "{{ win_workman_visual_effects_profiles_include_default | bool }}"
+      Prefix: "{{ win_workman_visual_effects_hive_prefix }}"
+      ValueDefs: "{{ win_workman_visual_effects_values }}"
+      Presets: "{{ win_workman_visual_effects_presets | dict2items }}"
+    script: |
+      param(
+        [bool]$IncludeDefault = $true,
+        [string]$Prefix,
+        [object[]]$ValueDefs = @(),
+        [object[]]$Presets = @()
+      )
+
+      $Ansible.Changed = $false
+
+      function Format-Value {
+        param($Value)
+        if ($null -eq $Value) { return $null }
+        if ($Value -is [byte[]]) {
+          return 'hex:' + (($Value | ForEach-Object { '{0:x2}' -f $_ }) -join ',')
+        }
+        return [string]$Value
+      }
+
+      function Test-Preset {
+        param([hashtable]$Read, $Data)
+        foreach ($e in $ValueDefs) {
+          $key = "$($e.path.Replace($Prefix, ''))\$($e.name)"
+          $expected = ([string]$Data[$e.name]).ToLower()
+          $actual = $Read[$key]
+          # A fresh profile has no VisualFXSetting: absent means "let Windows choose"
+          if ($null -eq $actual -and $e.name -eq 'VisualFXSetting') { $actual = '0' }
+          if ($actual -ne $expected) { return $false }
+        }
+        return $true
+      }
+
+      function Read-Values {
+        param([string]$KeyRoot)
+        $values = @{}
+        foreach ($e in $ValueDefs) {
+          $rel = $e.path.Replace($Prefix, '')
+          $raw = $null
+          try {
+            $raw = (Get-ItemProperty -LiteralPath "$KeyRoot\$rel" -Name $e.name -ErrorAction Stop).($e.name)
+          }
+          catch {
+            $raw = $null
+          }
+          $values["$rel\$($e.name)"] = Format-Value $raw
+        }
+        return $values
+      }
+
+      $targets = @()
+      $cimProfiles = @(Get-CimInstance -ClassName Win32_UserProfile |
+        Where-Object { $_.LocalPath -and -not $_.Special -and $_.SID -match '^S-1-5-21-' })
+      foreach ($userProfile in $cimProfiles) {
+        $name = Split-Path -Leaf $userProfile.LocalPath
+        try {
+          $sidObj = New-Object System.Security.Principal.SecurityIdentifier($userProfile.SID)
+          $name = $sidObj.Translate([System.Security.Principal.NTAccount]).Value
+        }
+        catch {
+          # SID not resolvable: keep the folder name
+        }
+        $targets += [pscustomobject]@{ Name = $name; SID = $userProfile.SID; LocalPath = $userProfile.LocalPath }
+      }
+      if ($IncludeDefault) {
+        $profileList = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'
+        if ($profileList.Default) {
+          $targets += [pscustomobject]@{
+            Name      = 'Default'
+            SID       = $null
+            LocalPath = [Environment]::ExpandEnvironmentVariables($profileList.Default)
+          }
+        }
+      }
+
+      $rows = @()
+      $tempHive = 'WIN_WORKMAN_VFX'
+      foreach ($target in $targets) {
+        $mounted = $target.SID -and (Test-Path -LiteralPath "Registry::HKEY_USERS\$($target.SID)")
+        $keyRoot = $null
+        $loadedHere = $false
+        if ($mounted) {
+          $keyRoot = "Registry::HKEY_USERS\$($target.SID)"
+        }
+        else {
+          $hivePath = Join-Path $target.LocalPath 'NTUSER.DAT'
+          if (Test-Path -LiteralPath $hivePath) {
+            $null = & reg.exe load "HKU\$tempHive" $hivePath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              $keyRoot = "Registry::HKEY_USERS\$tempHive"
+              $loadedHere = $true
+            }
+          }
+        }
+        if (-not $keyRoot) {
+          $rows += [pscustomobject]@{ Name = $target.Name; HiveState = 'unavailable'; Preset = $null; Values = @{} }
+          continue
+        }
+
+        $values = Read-Values -KeyRoot $keyRoot
+        if ($loadedHere) {
+          [gc]::Collect()
+          [gc]::WaitForPendingFinalizers()
+          $null = & reg.exe unload "HKU\$tempHive" 2>&1
+        }
+
+        $preset = 'custom'
+        foreach ($p in $Presets) {
+          if (Test-Preset -Read $values -Data $p.value) { $preset = $p.key; break }
+        }
+        if ($preset -eq 'custom' -and ($null -eq $values['Control Panel\Desktop\UserPreferencesMask'] -and
+                $null -eq $values['Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\VisualFXSetting'])) {
+          # Never customised (typically the Default profile): Windows defaults at first logon
+          $preset = 'unset'
+        }
+
+        $rows += [pscustomobject]@{
+          Name      = $target.Name
+          HiveState = $(if ($mounted) { 'loaded' } else { 'offline' })
+          Preset    = $preset
+          Values    = $values
+        }
+      }
+
+      $Ansible.Result = @{ profiles = @($rows) }
+  register: win_workman_visual_effects_info
+
+- name: Show the visual effects preset per profile
+  ansible.builtin.debug:
+    msg: "{{ item.Name }} [{{ item.HiveState }}]: {{ item.Preset | default('unknown') }}"
+  loop: "{{ win_workman_visual_effects_info.result.profiles | default([]) }}"
+  loop_control:
+    label: "{{ item.Name }}"

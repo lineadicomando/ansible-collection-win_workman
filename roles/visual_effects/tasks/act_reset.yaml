@@ -1,0 +1,7 @@
+---
+- name: Restore the visual effects of a fresh Windows 11 profile
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.visual_effects
+    tasks_from: visual_effects_apply
+  vars:
+    win_workman_visual_effects_apply_preset: default

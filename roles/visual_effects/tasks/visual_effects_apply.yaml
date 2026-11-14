@@ -1,0 +1,49 @@
+---
+- name: Logoff interactive sessions
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: logoff
+
+- name: Get SID and localpath of local users
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: profiles
+  vars:
+    win_workman_profiles_include_default: "{{ win_workman_visual_effects_profiles_include_default }}"
+
+- name: Build visual effects target profiles list
+  ansible.builtin.set_fact:
+    win_workman_visual_effects_profiles_target: >-
+      {{
+        (win_workman_profiles | default([]))
+        | selectattr('Loaded', 'equalto', false)
+        | selectattr('HiveExists', 'equalto', true)
+        | list
+      }}
+    win_workman_visual_effects_profiles_skipped_logged: >-
+      {{
+        (win_workman_profiles | default([]))
+        | selectattr('Loaded', 'equalto', true)
+        | list
+      }}
+
+- name: Warn about profiles skipped because they are currently logged in
+  ansible.builtin.debug:
+    msg: "Skipped (user logged in): {{ item.LocalPath }}"
+  loop: "{{ win_workman_visual_effects_profiles_skipped_logged }}"
+  loop_control:
+    label: "{{ item.LocalPath }}"
+
+- name: Write the visual effects values into each profile hive
+  ansible.windows.win_regedit:
+    hive: "{{ (item.0.HiveMounted | default(false) | bool) | ternary(omit, item.0.HivePath) }}"
+    path: "{{ item.0.HiveRoot ~ (item.1.path | replace(win_workman_visual_effects_hive_prefix, '')) }}"
+    name: "{{ item.1.name }}"
+    data: "{{ win_workman_visual_effects_presets[win_workman_visual_effects_apply_preset][item.1.name] }}"
+    type: "{{ item.1.type }}"
+    state: present
+  loop: "{{ win_workman_visual_effects_profiles_target | product(win_workman_visual_effects_values) | list }}"
+  loop_control:
+    label: >-
+      {{ item.0.LocalPath }} -> {{ item.1.name }}={{
+      win_workman_visual_effects_presets[win_workman_visual_effects_apply_preset][item.1.name] }}

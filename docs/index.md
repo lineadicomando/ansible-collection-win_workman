@@ -122,6 +122,7 @@ The collection has two distinct role families:
 | [roles/management/sysinfo.md](roles/management/sysinfo.md) | `sysinfo` — system information and statistics collection |
 | [roles/management/wallpaper.md](roles/management/wallpaper.md) | `wallpaper` — set/reset/lock/unlock across all profiles |
 | [roles/management/display_scale.md](roles/management/display_scale.md) | `display_scale` — display scaling percentage across all profiles |
+| [roles/management/visual_effects.md](roles/management/visual_effects.md) | `visual_effects` — Performance Options visual effects across all profiles |
 | [roles/management/ps_policy.md](roles/management/ps_policy.md) | `ps_policy` — PowerShell execution policy, machine-wide |
 | [roles/management/scoobe.md](roles/management/scoobe.md) | `scoobe` — suppress the "finish setting up your device" page after updates |
 | [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
@@ -171,4 +172,4 @@ The collection has two distinct role families:
 [`file_copy`](roles/management/file_copy.md)
 
 ### Management — UX & Appearance
-[`wallpaper`](roles/management/wallpaper.md) · [`display_scale`](roles/management/display_scale.md) · [`widgets`](roles/management/system-tools.md#widgets)
+[`wallpaper`](roles/management/wallpaper.md) · [`display_scale`](roles/management/display_scale.md) · [`visual_effects`](roles/management/visual_effects.md) · [`widgets`](roles/management/system-tools.md#widgets)

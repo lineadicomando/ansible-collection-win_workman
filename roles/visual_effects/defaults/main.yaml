@@ -1,0 +1,4 @@
+---
+win_workman_visual_effects_preset: minimal
+win_workman_visual_effects_profiles_include_default: true
+win_workman_action: ""

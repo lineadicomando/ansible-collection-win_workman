@@ -1,0 +1,5 @@
+---
+- name: Apply the configured preset
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.visual_effects
+    tasks_from: act_set

@@ -1,0 +1,16 @@
+---
+- name: Validate the requested preset
+  ansible.builtin.assert:
+    that:
+      - win_workman_visual_effects_requested in win_workman_visual_effects_presets
+    fail_msg: >-
+      Unknown visual effects preset '{{ win_workman_visual_effects_requested }}'.
+      Available presets: {{ win_workman_visual_effects_presets.keys() | join(', ') }}.
+    success_msg: "Preset {{ win_workman_visual_effects_requested }}"
+
+- name: Apply the preset to every profile
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.visual_effects
+    tasks_from: visual_effects_apply
+  vars:
+    win_workman_visual_effects_apply_preset: "{{ win_workman_visual_effects_requested }}"

@@ -1,0 +1,106 @@
+# ==============================================================================
+#  Visual effects (sysdm.cpl > Avanzate > Prestazioni > Effetti visivi)
+#      - HKCU\Control Panel\Desktop\UserPreferencesMask   most checkboxes, as bits
+#      - HKCU\Control Panel\Desktop\DragFullWindows       window contents while dragging
+#      - HKCU\Control Panel\Desktop\FontSmoothing         smooth edges of screen fonts
+#      - HKCU\Control Panel\Desktop\WindowMetrics\MinAnimate  animate minimise/maximise
+#      - HKCU\...\Explorer\Advanced  TaskbarAnimations, ListviewAlphaSelect,
+#                                    ListviewShadow, IconsOnly
+#      - HKCU\...\DWM  EnableAeroPeek, AlwaysHibernateThumbnails
+#      - HKCU\...\Explorer\VisualEffects\VisualFXSetting  radio button of the dialog
+# ==============================================================================
+---
+# Registry entries below are written relative to this prefix: pkg_utils/profiles
+# returns HiveRoot as HKLM:\ANSIBLE\ for an offline hive or HKU:\<SID>\ for a
+# loaded one, so the prefix is stripped and HiveRoot prepended. A YAML single-
+# quoted var, because Jinja string literals keep backslashes verbatim.
+win_workman_visual_effects_hive_prefix: 'HKLM:\ANSIBLE\'
+
+win_workman_visual_effects_schema:
+  name: Visual Effects
+  role: lineadicomando.win_workman.visual_effects
+  default_action: set
+
+# The task argument (visual_effects-set-balanced) wins over the variable.
+win_workman_visual_effects_requested: >-
+  {{
+    (win_workman_task_argv | default([]))[2]
+    if ((win_workman_task_argv | default([]) | length) > 2)
+    else win_workman_visual_effects_preset
+  }}
+
+# Every value the Visual Effects dialog reads, with the key it lives in.
+win_workman_visual_effects_values:
+  - { path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects, name: VisualFXSetting, type: dword }
+  - { path: HKLM:\ANSIBLE\Control Panel\Desktop, name: UserPreferencesMask, type: binary }
+  - { path: HKLM:\ANSIBLE\Control Panel\Desktop, name: DragFullWindows, type: string }
+  - { path: HKLM:\ANSIBLE\Control Panel\Desktop, name: FontSmoothing, type: string }
+  - { path: HKLM:\ANSIBLE\Control Panel\Desktop\WindowMetrics, name: MinAnimate, type: string }
+  - { path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced, name: TaskbarAnimations, type: dword }
+  - { path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced, name: ListviewAlphaSelect, type: dword }
+  - { path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced, name: ListviewShadow, type: dword }
+  - { path: HKLM:\ANSIBLE\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced, name: IconsOnly, type: dword }
+  - { path: HKLM:\ANSIBLE\Software\Microsoft\Windows\DWM, name: EnableAeroPeek, type: dword }
+  - { path: HKLM:\ANSIBLE\Software\Microsoft\Windows\DWM, name: AlwaysHibernateThumbnails, type: dword }
+
+# Data of each value per preset. Every UserPreferencesMask is the one Windows
+# writes itself when the same boxes are set in the dialog, never computed bit
+# by bit. VisualFXSetting: 0 let Windows choose, 1 best appearance, 3 custom.
+win_workman_visual_effects_presets:
+  # Every effect off except font smoothing: the lightest setting that keeps
+  # text readable (Windows' own "best performance" turns smoothing off too).
+  minimal:
+    VisualFXSetting: 3
+    UserPreferencesMask: "hex:90,00,03,80,10,00,00,00"
+    DragFullWindows: "0"
+    FontSmoothing: "2"
+    MinAnimate: "0"
+    TaskbarAnimations: 0
+    ListviewAlphaSelect: 0
+    ListviewShadow: 0
+    IconsOnly: 1
+    EnableAeroPeek: 0
+    AlwaysHibernateThumbnails: 0
+  # Animations, fades, shadows and Peek off; kept the cheap effects that help
+  # everyday use: font smoothing, thumbnails, window contents while dragging,
+  # translucent selection rectangle, shadows under desktop icon labels.
+  balanced:
+    VisualFXSetting: 3
+    UserPreferencesMask: "hex:90,00,03,80,10,00,00,00"
+    DragFullWindows: "1"
+    FontSmoothing: "2"
+    MinAnimate: "0"
+    TaskbarAnimations: 0
+    ListviewAlphaSelect: 1
+    ListviewShadow: 1
+    IconsOnly: 0
+    EnableAeroPeek: 0
+    AlwaysHibernateThumbnails: 0
+  # Every effect on: "Adjust for best appearance".
+  full:
+    VisualFXSetting: 1
+    UserPreferencesMask: "hex:9e,2c,07,80,12,00,00,00"
+    DragFullWindows: "1"
+    FontSmoothing: "2"
+    MinAnimate: "1"
+    TaskbarAnimations: 1
+    ListviewAlphaSelect: 1
+    ListviewShadow: 1
+    IconsOnly: 0
+    EnableAeroPeek: 1
+    AlwaysHibernateThumbnails: 1
+  # A fresh Windows 11 profile. The values are written, not just
+  # VisualFXSetting=0: Windows turns the radio button into settings only when
+  # the dialog is confirmed, never at logon.
+  default:
+    VisualFXSetting: 0
+    UserPreferencesMask: "hex:9e,1e,07,80,12,00,00,00"
+    DragFullWindows: "1"
+    FontSmoothing: "2"
+    MinAnimate: "1"
+    TaskbarAnimations: 1
+    ListviewAlphaSelect: 1
+    ListviewShadow: 1
+    IconsOnly: 0
+    EnableAeroPeek: 1
+    AlwaysHibernateThumbnails: 0

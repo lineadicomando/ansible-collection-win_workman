@@ -1,0 +1,35 @@
+---
+display_name: Visual Effects
+custom_actions:
+  - name: set
+    description: >-
+      Apply a preset to every profile (default action). The preset can be passed
+      as task argument, e.g. visual_effects-set-balanced. Presets: minimal (every
+      effect off except font smoothing), balanced (animations, fades, shadows and
+      Peek off; font smoothing, thumbnails, window contents while dragging,
+      translucent selection and icon label shadows kept), full (best appearance),
+      default (a fresh Windows 11 profile)
+  - name: reset
+    description: Restore the visual effects of a fresh Windows 11 profile (same as set-default)
+  - name: "on"
+    description: Alias for 'set' — applies win_workman_visual_effects_preset
+  - name: "off"
+    description: Alias for 'reset'
+  - name: info
+    description: >-
+      Report the preset of every user profile (minimal, balanced, full, default,
+      custom when changed by hand, unset when never customised) without changing it
+defaults:
+  - var: win_workman_visual_effects_preset
+    type: str
+    default: minimal
+    description: "Preset applied when no argument is given: minimal, balanced, full, default"
+  - var: win_workman_visual_effects_profiles_include_default
+    type: bool
+    default: true
+    description: Apply to the default user profile (new user template)
+notes: >-
+  Per-user setting written into each profile hive, so it applies at the next
+  logon. Profiles of users currently logged in are skipped: set and reset force
+  a logoff first. No reboot required. minimal is worth it on old hardware with
+  integrated graphics and little RAM.
