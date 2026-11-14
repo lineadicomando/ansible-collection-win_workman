@@ -37,6 +37,7 @@ def _get_tools() -> list[Tool]:
                     }
                 },
                 "required": ["role"],
+                "additionalProperties": False,
             },
         ),
         Tool(
@@ -247,7 +248,15 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
     arguments = params.arguments or {}
 
     if name == "get_role_info":
+        unexpected = sorted(set(arguments) - {"role"})
+        if unexpected:
+            return CallToolResult(content=[TextContent(
+                type="text",
+                text=f"Error: unexpected argument(s) {', '.join(unexpected)}; the only argument is 'role'",
+            )])
         role = arguments.get("role", "")
+        if not role:
+            return CallToolResult(content=[TextContent(type="text", text="Error: role is required")])
         try:
             data = get_role_info(role)
         except FileNotFoundError as e:

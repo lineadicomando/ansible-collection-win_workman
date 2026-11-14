@@ -76,9 +76,13 @@ def install_scopes(role_dir: Path) -> list[str]:
 
 
 def get_role_info(role_name: str) -> dict:
+    # Match against the directory names instead of joining the path: an empty
+    # name resolved to roles/ itself, a directory, and returned an empty card
+    # instead of an error; "../x" would have escaped it.
+    roles = {p.name for p in _ROLES_DIR.iterdir() if p.is_dir()}
+    if role_name not in roles:
+        raise FileNotFoundError(f"Role not found: {role_name!r}")
     role_dir = _ROLES_DIR / role_name
-    if not role_dir.is_dir():
-        raise FileNotFoundError(f"Role not found: {role_name}")
     manifest_path = role_dir / "meta" / "mcp.yaml"
     if manifest_path.exists():
         data = yaml.safe_load(manifest_path.read_text()) or {}
