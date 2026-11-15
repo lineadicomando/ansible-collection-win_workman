@@ -54,7 +54,8 @@ Before writing PowerShell, check whether one of these already does the job:
 
 `profiles` · `logoff` · `restart` · `pending_restart` · `kill` · `services_stop` ·
 `detect_sw` · `registry_read` · `download` · `win_copy` · `win_extract` ·
-`win_path` · `shortcuts` · `start_process` · `run_as_system` · `win_clean_temp`
+`win_path` · `shortcuts` · `start_process` · `run_as_system` · `win_clean_temp` ·
+`remote_tmp`
 
 `profiles` is the one most worth knowing, and its implementation is ~300 lines of
 P/Invoke you never need to read. It returns `win_workman_profiles`, one entry per

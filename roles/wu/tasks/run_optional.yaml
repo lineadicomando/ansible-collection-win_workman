@@ -16,10 +16,10 @@
 # logon, hence SYSTEM. Async, since a feature update outlasts the connection
 # timeout. The entries stay flat (kb and categories as strings) to fit the
 # serialization depth.
-# The remote tmp is moved for this task: Ansible creates the inventory's
-# ansible_remote_tmp (C:\Windows\Temp\ansible) readable by the connecting user
-# only, and the become wrapper, running as SYSTEM, then fails there with
-# "CompileAssemblyFromSource ... path not found" before the script starts.
+# The become wrapper runs as SYSTEM in ansible_remote_tmp: the dispatcher gives that
+# directory an ACL SYSTEM can use (pkg_utils/remote_tmp.yaml). With the ACL Ansible
+# creates it with, the wrapper failed there with "CompileAssemblyFromSource ... path
+# not found" before the script started.
 - name: "Download and install optional updates (round {{ win_workman_wu_round_number }})"
   ansible.windows.win_powershell:
     parameters:
@@ -126,8 +126,6 @@
           failed_update_count    = @($updates.Values | Where-Object { $_.ContainsKey('failure_hresult_code') }).Count
           reboot_required        = $rebootRequired
       }
-  vars:
-    ansible_remote_tmp: C:\Windows\Temp
   become: true
   become_method: ansible.builtin.runas
   become_user: SYSTEM

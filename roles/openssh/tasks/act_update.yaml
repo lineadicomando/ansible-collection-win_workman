@@ -1,0 +1,186 @@
+---
+# Upgrade an MSI installation of OpenSSH Server to win_workman_openssh_release.
+#
+# The play reaches the host through this very server, so the upgrade cannot run
+# inside the session: msiexec stops sshd and replaces the binaries the session runs
+# on. files/update.ps1 runs it from a SYSTEM scheduled task instead; the play checks
+# the new binaries against the current configuration first, starts the task,
+# reconnects and waits for the outcome file the script writes at the end. A capability installation is updated by Windows Update, not here.
+- name: Read the OpenSSH installation
+  ansible.builtin.include_tasks: act_info.yaml
+
+- name: Stop unless OpenSSH comes from the MSI
+  ansible.builtin.assert:
+    that:
+      - win_workman_openssh_info.result.source == 'msi'
+    fail_msg: >-
+      OpenSSH Server here comes from {{ win_workman_openssh_info.result.source }}, not from
+      the Win32-OpenSSH MSI. The Windows capability is updated by Windows Update (wu);
+      replacing it with the MSI over SSH would remove the server the play runs on.
+    quiet: true
+
+- name: Upgrade OpenSSH to {{ win_workman_openssh_version }}
+  when: win_workman_openssh_info.result.version is version(win_workman_openssh_version, '<')
+  block:
+    - name: Download the MSI into the storage
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.pkg_utils
+        tasks_from: download
+      vars:
+        win_workman_schema:
+          files: "{{ win_workman_openssh_files }}"
+
+    - name: Prepare the update directory
+      ansible.windows.win_powershell:
+        parameters:
+          Dir: "{{ win_workman_openssh_update_dir }}"
+          Task: "{{ win_workman_openssh_update_task }}"
+        script: |
+          param([string]$Dir, [string]$Task)
+          $ErrorActionPreference = 'Stop'
+          Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction SilentlyContinue
+          if (Test-Path -LiteralPath $Dir) { Remove-Item -LiteralPath $Dir -Recurse -Force }
+          New-Item -ItemType Directory -Path $Dir | Out-Null
+
+    - name: Copy the MSI and the update script
+      ansible.windows.win_copy:
+        src: "{{ item.src }}"
+        dest: "{{ win_workman_openssh_update_dir }}\\{{ item.dest }}"
+      loop:
+        - src: "{{ win_workman_storage_path }}/{{ win_workman_openssh_msi }}"
+          dest: "{{ win_workman_openssh_msi }}"
+        - src: update.ps1
+          dest: update.ps1
+      loop_control:
+        label: "{{ item.dest }}"
+
+    # sshd -t parses sshd_config and loads the host keys. A directive the new release
+    # no longer accepts would keep it from starting after the upgrade, with no way back
+    # in: find out now, while the session is still up and nothing has changed.
+    - name: Check the current configuration with the new sshd
+      ansible.windows.win_powershell:
+        parameters:
+          Dir: "{{ win_workman_openssh_update_dir }}"
+          Msi: "{{ win_workman_openssh_update_dir }}\\{{ win_workman_openssh_msi }}"
+        script: |
+          param([string]$Dir, [string]$Msi)
+          $ErrorActionPreference = 'Stop'
+          $Ansible.Changed = $false
+          $extract = Join-Path $Dir 'extract'
+          $p = Start-Process msiexec.exe -Wait -PassThru `
+            -ArgumentList "/a `"$Msi`" /qn TARGETDIR=`"$extract`" /l*v `"$Dir\extract.log`""
+          if ($p.ExitCode -ne 0) { throw "administrative extraction of the MSI exited with $($p.ExitCode)" }
+          $sshd = Get-ChildItem -LiteralPath $extract -Recurse -Filter sshd.exe | Select-Object -First 1
+          if (-not $sshd) { throw "no sshd.exe in $Msi" }
+          $config = Join-Path $env:ProgramData 'ssh\sshd_config'
+          $out = & $sshd.FullName -t -f $config 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) {
+            throw "the new sshd rejects $config, nothing changed: $out"
+          }
+          $Ansible.Result = @{ sshd = $sshd.FullName; version = $sshd.VersionInfo.ProductVersion }
+
+    - name: Start the upgrade outside the SSH session
+      ansible.windows.win_powershell:
+        parameters:
+          Dir: "{{ win_workman_openssh_update_dir }}"
+          Msi: "{{ win_workman_openssh_update_dir }}\\{{ win_workman_openssh_msi }}"
+          Task: "{{ win_workman_openssh_update_task }}"
+        script: |
+          param([string]$Dir, [string]$Msi, [string]$Task)
+          $ErrorActionPreference = 'Stop'
+          $arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}\update.ps1" -Msi "{1}" -Dir "{0}"' -f $Dir, $Msi
+          $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument $arguments
+          $principal = New-ScheduledTaskPrincipal -UserId SYSTEM -LogonType ServiceAccount -RunLevel Highest
+          $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+          Register-ScheduledTask -TaskName $Task -Action $action -Principal $principal -Settings $settings | Out-Null
+          Start-ScheduledTask -TaskName $Task
+          # Return only once the script runs, so that the play does not wait for an
+          # outcome file of a task that never started.
+          $deadline = (Get-Date).AddSeconds(60)
+          while (-not (Test-Path -LiteralPath "$Dir\started")) {
+            if ((Get-Date) -gt $deadline) { throw "the upgrade task did not start within 60 seconds" }
+            Start-Sleep -Milliseconds 500
+          }
+
+    # The upgrade can take only a few seconds, sshd down included, so waiting for
+    # port 22 to close would miss it. Wait for the outcome file instead. The session
+    # of the play survives sshd stopping and is reused; should the upgrade cut it, the
+    # host is reported unreachable and the play reconnects once sshd is back.
+    - name: Wait for the outcome of the upgrade
+      block:
+        - name: Wait for sshd to accept connections
+          ansible.builtin.wait_for_connection:
+            delay: 5
+            sleep: 3
+            timeout: "{{ win_workman_openssh_update_up_timeout | int }}"
+
+        - name: Wait for the outcome file
+          ansible.windows.win_wait_for:
+            path: "{{ win_workman_openssh_update_dir }}\\result.json"
+            state: present
+            timeout: "{{ win_workman_openssh_update_up_timeout | int }}"
+          ignore_unreachable: true
+
+        - name: Wait for sshd again, in case the upgrade cut the session
+          ansible.builtin.wait_for_connection:
+            sleep: 3
+            timeout: "{{ win_workman_openssh_update_up_timeout | int }}"
+
+        - name: Check that the outcome file is there
+          ansible.windows.win_stat:
+            path: "{{ win_workman_openssh_update_dir }}\\result.json"
+          register: win_workman_openssh_update_stat
+          until: win_workman_openssh_update_stat.stat.exists
+          retries: 30
+          delay: 2
+      rescue:
+        - name: Stop, sshd did not come back
+          ansible.builtin.fail:
+            msg: >-
+              No outcome of the upgrade within {{ win_workman_openssh_update_up_timeout }}
+              seconds, and sshd may be down. On the console of the host, read
+              {{ win_workman_openssh_update_dir }}\result.json and msiexec.log, then
+              Start-Service sshd. Error: {{ ansible_failed_result.msg | default('') }}
+
+    - name: Read the outcome of the upgrade
+      ansible.builtin.slurp:
+        src: "{{ win_workman_openssh_update_dir }}\\result.json"
+      register: win_workman_openssh_update_slurp
+
+    - name: Remove the scheduled task and the copies of the MSI
+      ansible.windows.win_powershell:
+        parameters:
+          Dir: "{{ win_workman_openssh_update_dir }}"
+          Task: "{{ win_workman_openssh_update_task }}"
+        script: |
+          param([string]$Dir, [string]$Task)
+          Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath (Join-Path $Dir 'extract') -Recurse -Force -ErrorAction SilentlyContinue
+          Get-ChildItem -LiteralPath $Dir -Filter *.msi | Remove-Item -Force
+
+    - name: Show the outcome of the upgrade
+      ansible.builtin.debug:
+        msg: "{{ win_workman_openssh_update_result }}"
+      vars:
+        win_workman_openssh_update_result: "{{ win_workman_openssh_update_slurp.content | b64decode | from_json }}"
+      changed_when: true
+
+    - name: Check the outcome of the upgrade
+      ansible.builtin.assert:
+        that:
+          - win_workman_openssh_update_result.errors | length == 0
+          - win_workman_openssh_update_result.service_state == 'Running'
+          - win_workman_openssh_update_result.version == win_workman_openssh_version
+        fail_msg: >-
+          The upgrade to {{ win_workman_openssh_version }} did not complete:
+          {{ win_workman_openssh_update_result }}. Logs in {{ win_workman_openssh_update_dir }}.
+        quiet: true
+      vars:
+        win_workman_openssh_update_result: "{{ win_workman_openssh_update_slurp.content | b64decode | from_json }}"
+
+- name: Report that OpenSSH is up to date
+  ansible.builtin.debug:
+    msg: >-
+      OpenSSH {{ win_workman_openssh_info.result.version }} is already at or past
+      {{ win_workman_openssh_version }}: nothing to do.
+  when: win_workman_openssh_info.result.version is version(win_workman_openssh_version, '>=')

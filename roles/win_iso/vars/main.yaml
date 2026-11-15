@@ -1,17 +1,14 @@
 ---
-win_workman_win_iso_openssh_version: 10.4.0.0p1-Preview
-win_workman_win_iso_openssh_msi: OpenSSH-Win64-v10.4.0.0.msi
+# The Win32-OpenSSH MSI is the one of the openssh role (roles/openssh/vars/main/msi.yaml),
+# which act_build loads: one version for the ISO and for openssh-update.
+win_workman_win_iso_openssh_msi: "{{ win_workman_openssh_msi }}"
 
 win_workman_win_iso_schema:
   name: Windows installation ISO
   role: lineadicomando.win_workman.win_iso
   default_action: !!str build
   # Downloaded into win_workman_storage_path by pkg_utils/download (ssh=msi).
-  files:
-    - filename: "{{ win_workman_win_iso_openssh_msi }}"
-      url: >-
-        https://github.com/PowerShell/Win32-OpenSSH/releases/download/{{ win_workman_win_iso_openssh_version }}/{{ win_workman_win_iso_openssh_msi }}
-      checksum: sha256:788d8643464a01eb63640a2fd746f9ed23d106b5a901a35f88dc8cd40e446ac9
+  files: "{{ win_workman_openssh_files }}"
 
 # The OpenSSH Server package in the Languages and Optional Features ISO.
 win_workman_win_iso_fod_cab: OpenSSH-Server-Package~31bf3856ad364e35~amd64~~.cab

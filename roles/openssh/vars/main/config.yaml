@@ -22,3 +22,9 @@ win_workman_openssh_directives:
   - name: AllowUsers
     value: "{{ ansible_user }}"
     enabled: "{{ win_workman_openssh_manage_allow_users }}"
+
+# Working directory and scheduled task of update on the host. The Windows Installer
+# service and the SYSTEM task read the MSI and the script there: the dispatcher gives
+# win_workman_remote_tmp an ACL that lets them (pkg_utils/remote_tmp.yaml).
+win_workman_openssh_update_dir: "{{ win_workman_remote_tmp }}\\openssh-update"
+win_workman_openssh_update_task: win_workman_openssh_update

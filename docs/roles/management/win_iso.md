@@ -20,6 +20,11 @@ What the output ISO adds to the Microsoft one:
 - **OpenSSH Server**, with PowerShell as its shell, port 22 open on every
   profile and the controller's key in `administrators_authorized_keys`, set up
   by a script that runs as SYSTEM in the specialize pass;
+- **the remote temporary directory** (`win_workman_remote_tmp`, and
+  `ansible_remote_tmp` when different) already there with the ACL the dispatcher
+  expects, SYSTEM and Administrators only: Ansible would otherwise create it on
+  the first run readable by `ansible_user` alone (see `pkg_utils`, *Remote
+  temporary directory*);
 - **no leftover OOBE account**: OOBE works as `defaultuser0`, a local
   administrator without password that Windows deletes only at the first
   interactive logon, which a PC managed over SSH may never see. The setup
@@ -41,7 +46,7 @@ wins over `win_workman_win_iso_ssh`:
 
 | Task | OpenSSH Server |
 |---|---|
-| `win_iso-build-msi` *(default)* | The Win32-OpenSSH MSI, carried on the ISO and installed during Setup. Nothing but the controller is involved; Windows Update does not update it afterwards |
+| `win_iso-build-msi` *(default)* | The Win32-OpenSSH MSI, carried on the ISO and installed during Setup. Nothing but the controller is involved; Windows Update does not update it afterwards, `openssh-update` does. The release is the one of the `openssh` role (`roles/openssh/vars/main/msi.yaml`) |
 | `win_iso-build-dism` | The Windows capability, added to every edition of the image by DISM on the target host. Windows Update keeps it updated like any other component |
 | `win_iso-build-none` | No SSH: the answer file and the other settings only |
 

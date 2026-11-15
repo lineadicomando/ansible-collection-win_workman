@@ -218,7 +218,7 @@ dispatcher interface.
 | Role | Actions | Description |
 |---|---|---|
 | `domain` | `status` *(default)*, `join`, `leave`, `on`, `off` | Active Directory domain membership |
-| `openssh` | `info` *(default)*, `harden`, `unharden`, `on`, `off` | OpenSSH Server: installation info and hardening (`secure_ssh` is a deprecated alias) |
+| `openssh` | `info` *(default)*, `update`, `harden`, `unharden`, `on`, `off` | OpenSSH Server: installation info, MSI upgrade and hardening (`secure_ssh` is a deprecated alias) |
 | `veyon` | `on`, `off`, `config` | Veyon classroom agent (install + key/network config) |
 | `ping` | `on` | Connectivity test |
 | `wol` | `on` | Send Wake-on-LAN magic packets |
@@ -322,7 +322,7 @@ define the schema variable and call `pkg_utils tasks_from: pkg_workflow`.
 |---|---|---|
 | `win_workman_tasks` | `[]` | List of task strings for the dispatcher |
 | `win_workman_storage_path` | `~/win_workman_storage` | Controller-side path for installer storage |
-| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Temp directory on the Windows target |
+| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Staging directory on the Windows target; the dispatcher gives it an ACL SYSTEM can use (`docs/roles/core/pkg_utils.md`) |
 | `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |
 | `win_workman_restart_timeout` | `600` | Seconds to wait after a reboot |
 | `win_workman_restart` | `true` | Allow roles to trigger a reboot when needed |

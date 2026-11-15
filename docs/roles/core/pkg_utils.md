@@ -112,7 +112,7 @@ immediately with a clear error if an unknown action is passed.
 | Variable | Default | Description |
 |---|---|---|
 | `win_workman_storage_path` | `~/win_workman_storage` | Controller-side installer storage |
-| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Temp dir on target |
+| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Staging dir on target; its ACL is set by the dispatcher, see [below](#remote-temporary-directory) |
 | `win_workman_portable_path` | `C:\PortableApps` | Root for portable apps |
 | `win_workman_restart` | `true` | Allow reboot after install if needed |
 | `win_workman_restart_timeout` | `600` | Seconds to wait after reboot until sshd runs and servicing (TrustedInstaller, TiWorker) is idle |
@@ -122,6 +122,40 @@ immediately with a clear error if an unknown action is passed.
 | `win_workman_installer_retry_codes` | `[1601, 1618]` | win_package return codes retried as "installer busy" |
 | `win_workman_installer_retries` | `5` | Retries on those codes |
 | `win_workman_installer_retry_delay` | `60` | Seconds between retries |
+
+### Remote temporary directory
+
+`win_workman_remote_tmp` is where installers, archives and scripts are staged, and in
+the lab inventories it is also Ansible's own `ansible_remote_tmp`. When that
+directory does not exist, Ansible creates it readable by the connecting user alone
+(owner `ansible_user`, inheritance off, one entry). Whatever does not run as that
+user then fails there:
+
+- `become_user: SYSTEM` (the `wu` optional updates): the become wrapper stops with
+  `CompileAssemblyFromSource ... path not found`;
+- a SYSTEM scheduled task (`run_as_system`) or the Windows Installer service reading
+  a staged file (`openssh-update`);
+- another `ansible_user` connecting to the same PC later.
+
+`remote_tmp.yaml` gives the directory, and `ansible_remote_tmp` when it is a
+different absolute path, the ACL every role expects: SYSTEM and Administrators full
+control, inherited by what is created inside, no inheritance from
+`C:\Windows\Temp`, nothing else. Users get no access: installers run as SYSTEM from
+there, and a user able to replace one would run code as SYSTEM. The
+`ansible-moduletmp-*` directories Ansible creates for each module keep their own ACL,
+private to the connecting user.
+
+The dispatcher runs it once per host before the first role, so a PC whose directory
+still has the old ACL is fixed on its next run; it reports a change only when the
+ACL was different. `win_iso` creates the directory with this ACL during Setup, so it
+is right from the first run. Roles included without the dispatcher can call it
+themselves:
+
+```yaml
+- ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: remote_tmp
+```
 
 ### Uninstall cleanup
 

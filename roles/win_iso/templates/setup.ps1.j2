@@ -57,6 +57,16 @@ try {
     }
 
 {% endif %}
+    # The remote temporary directories of Ansible and win_workman, created now with
+    # the ACL pkg_utils/remote_tmp.yaml sets: Ansible would otherwise create them on
+    # the first run readable by the connecting user alone, and SYSTEM could not use
+    # them. SYSTEM and Administrators only, no inheritance from C:\Windows\Temp.
+{% for tmp in [win_workman_remote_tmp, ansible_remote_tmp | default('')] | select('match', '^[A-Za-z]:\\\\') | unique %}
+    New-Item -Path '{{ tmp }}' -ItemType Directory -Force | Out-Null
+    icacls.exe '{{ tmp }}' /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "icacls exit code $LASTEXITCODE on {{ tmp }}" }
+{% endfor %}
+
     # Hibernation keeps fast startup on: a "shut down" PC is then hibernated, and
     # Wake-on-LAN and disk maintenance work less reliably.
     powercfg.exe /hibernate off

@@ -1,0 +1,55 @@
+---
+# Give the remote temporary directories the ACL every role expects: SYSTEM and
+# Administrators full control, inherited by what is created inside, inheritance from
+# C:\Windows\Temp off, nothing else. Run once per play by the dispatcher; reports a
+# change only when the ACL was different.
+#
+# Ansible creates its remote_tmp, when missing, readable by the connecting user alone
+# (Ansible.Basic.cs, "create the remote_tmp dir with the correct permissions
+# manually"), and win_workman_remote_tmp is the same directory by default. With that
+# ACL, whatever does not run as ansible_user fails there: become to SYSTEM, a SYSTEM
+# scheduled task or the Windows Installer service reading a staged file, another
+# ansible_user connecting to the same PC later.
+#
+# Users get nothing: installers run as SYSTEM from here, and a user able to replace
+# one would run code as SYSTEM. The ansible-moduletmp-* directories Ansible creates
+# for each module keep their own ACL, private to the connecting user.
+- name: Set the ACL of the remote temporary directories
+  ansible.windows.win_powershell:
+    parameters:
+      Paths: "{{ [win_workman_remote_tmp, ansible_remote_tmp | default('')] | select('match', '^[A-Za-z]:\\\\') | unique | list }}"
+    script: |
+      param([string[]]$Paths)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $fixed = @()
+      foreach ($path in $Paths) {
+        if (-not (Test-Path -LiteralPath $path)) {
+          New-Item -ItemType Directory -Path $path | Out-Null
+        }
+        $acl = Get-Acl -LiteralPath $path
+        $rules = @($acl.Access | Where-Object { -not $_.IsInherited } | ForEach-Object {
+          '{0}|{1}|{2}|{3}|{4}' -f $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value,
+            $_.FileSystemRights, $_.InheritanceFlags, $_.PropagationFlags, $_.AccessControlType
+        } | Sort-Object)
+        $want = @(
+          'S-1-5-18|FullControl|ContainerInherit, ObjectInherit|None|Allow',
+          'S-1-5-32-544|FullControl|ContainerInherit, ObjectInherit|None|Allow'
+        )
+        if ($acl.AreAccessRulesProtected -and (($rules -join ';') -eq ($want -join ';'))) { continue }
+        # /reset would let C:\Windows\Temp grant Users; /inheritance:r and the two
+        # grants, then the removal of every other explicit entry, leave exactly $want.
+        $null = icacls $path /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F'
+        if ($LASTEXITCODE -ne 0) { throw "icacls failed on $path with exit code $LASTEXITCODE" }
+        # icacls rather than Set-Acl, which writes the owner back too and can be refused.
+        $others = @((Get-Acl -LiteralPath $path).Access | Where-Object { -not $_.IsInherited } |
+          ForEach-Object { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } |
+          Where-Object { $_ -notin 'S-1-5-18', 'S-1-5-32-544' } | Sort-Object -Unique)
+        foreach ($sid in $others) {
+          $null = icacls $path /remove:g "*$sid"
+          if ($LASTEXITCODE -ne 0) { throw "icacls /remove:g *$sid failed on $path with exit code $LASTEXITCODE" }
+        }
+        $fixed += $path
+      }
+      $Ansible.Changed = $fixed.Count -gt 0
+      $Ansible.Result = @{ fixed = $fixed }

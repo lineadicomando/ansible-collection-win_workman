@@ -131,7 +131,7 @@ The collection has two distinct role families:
 | [roles/management/domain.md](roles/management/domain.md) | `domain` — Active Directory domain join, leave and status |
 | [roles/management/file_copy.md](roles/management/file_copy.md) | `file_copy` — copy files and folders to and from the hosts, per-user folders included |
 | [roles/management/win_iso.md](roles/management/win_iso.md) | `win_iso` — Windows installation ISO with unattended Setup and OpenSSH Server, built on the controller |
-| [roles/management/openssh.md](roles/management/openssh.md) | `openssh` — OpenSSH Server installation info and hardening; replaces `secure_ssh` |
+| [roles/management/openssh.md](roles/management/openssh.md) | `openssh` — OpenSSH Server installation info, MSI upgrade and hardening; replaces `secure_ssh` |
 | [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
 
 ---

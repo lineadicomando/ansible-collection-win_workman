@@ -6,3 +6,6 @@ win_workman_openssh_manage_authorized_keys: "{{ win_workman_secure_ssh_manage_au
 win_workman_openssh_enable_pubkey_auth: "{{ win_workman_secure_ssh_enable_pubkey_auth | default(true) }}"
 win_workman_openssh_disable_password_auth: "{{ win_workman_secure_ssh_disable_password_auth | default(true) }}"
 win_workman_openssh_manage_allow_users: "{{ win_workman_secure_ssh_manage_allow_users | default(true) }}"
+
+# update: seconds to wait for sshd and the outcome of the upgrade once it has started.
+win_workman_openssh_update_up_timeout: 600

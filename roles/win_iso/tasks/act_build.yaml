@@ -5,6 +5,10 @@
 # PowerShell as its shell and port 22 open from the first boot, either from the
 # Win32-OpenSSH MSI (ssh=msi) or as the Windows capability added by DISM on the
 # target host (ssh=dism).
+- name: Load the Win32-OpenSSH MSI of the openssh role
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../openssh/vars/main/msi.yaml"
+
 - name: Check the request
   ansible.builtin.import_tasks: check.yaml
 

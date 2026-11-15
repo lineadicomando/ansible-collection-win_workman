@@ -1,0 +1,16 @@
+---
+# Win32-OpenSSH MSI that update installs and that win_iso puts on the installation ISO
+# with ssh=msi: win_iso loads this file, so the version is set here only. Bump the
+# release tag, the MSI file name and its sha256 together. The ProductVersion of the
+# MSI, compared with DisplayVersion on the host, is the tag without its suffix.
+win_workman_openssh_release: 10.4.0.0p1-Preview
+win_workman_openssh_msi: OpenSSH-Win64-v10.4.0.0.msi
+win_workman_openssh_msi_sha256: 788d8643464a01eb63640a2fd746f9ed23d106b5a901a35f88dc8cd40e446ac9
+win_workman_openssh_version: "{{ win_workman_openssh_release | regex_replace('p\\d.*$', '') }}"
+
+# Downloaded into win_workman_storage_path by pkg_utils/download.
+win_workman_openssh_files:
+  - filename: "{{ win_workman_openssh_msi }}"
+    url: >-
+      https://github.com/PowerShell/Win32-OpenSSH/releases/download/{{ win_workman_openssh_release }}/{{ win_workman_openssh_msi }}
+    checksum: "sha256:{{ win_workman_openssh_msi_sha256 }}"

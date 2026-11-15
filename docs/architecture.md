@@ -120,7 +120,7 @@ Some roles extend the standard set with their own actions or support a subset:
 | `autoshutdown` | `on` *(default)*, `off`, `info` |
 | `domain` | `status` *(default)*, `join`, `leave`, `on` *(alias for `join`)*, `off` *(alias for `leave`)* |
 | `file_copy` | `push` *(default)*, `pull`, `status`, `remove`, `on` *(alias for `push`)*, `off` *(alias for `remove`)* |
-| `openssh` | `info` *(default)*, `harden`, `unharden`, `on` *(alias for `harden`)*, `off` *(alias for `unharden`)* |
+| `openssh` | `info` *(default)*, `update`, `harden`, `unharden`, `on` *(alias for `harden`)*, `off` *(alias for `unharden`)* |
 | `secure_ssh` | *(deprecated alias of `openssh`)* `on`, `off` |
 | `ms_account` | `on`, `off` |
 | `oobe` | `on`, `off` |
@@ -204,7 +204,7 @@ These variables are meaningful across the whole collection.
 |---|---|---|
 | `win_workman_tasks` | `[]` | List of task strings for the dispatcher |
 | `win_workman_storage_path` | `~/win_workman_storage` | Path (controller-side) where installers are stored |
-| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Temp directory on the Windows target |
+| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Staging directory on the Windows target; the dispatcher gives it an ACL SYSTEM can use (`docs/roles/core/pkg_utils.md`) |
 | `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |
 | `win_workman_restart_timeout` | `600` | Seconds to wait after a reboot |
 | `win_workman_restart` | `true` | Whether schema roles may trigger a reboot |

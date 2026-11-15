@@ -3,6 +3,12 @@ display_name: OpenSSH Server
 custom_actions:
   - name: info
     description: "Default. Report how OpenSSH Server is installed (msi, capability), its version and the state of the sshd service; changes nothing"
+  - name: update
+    description: >-
+      Upgrade an MSI installation of OpenSSH Server to the release in vars/main/msi.yaml.
+      Checks the current sshd_config with the new sshd first, runs msiexec from a SYSTEM
+      scheduled task outside the SSH session, reconnects and reads the outcome. Refuses
+      a capability installation (updated by Windows Update)
   - name: harden
     description: Apply the hardened OpenSSH configuration (authorized keys, pubkey auth on, password and keyboard-interactive auth off, AllowUsers), test it with sshd -t and restart sshd if it changed
   - name: unharden
@@ -12,6 +18,10 @@ custom_actions:
   - name: "off"
     description: Alias for unharden; it never uninstalls OpenSSH
 defaults:
+  - var: win_workman_openssh_update_up_timeout
+    type: int
+    default: 600
+    description: "update: seconds to wait for sshd and for the outcome of the upgrade once it has started"
   - var: win_workman_openssh_manage_authorized_keys
     type: bool
     default: true
@@ -29,7 +39,8 @@ defaults:
     default: true
     description: Restrict SSH access to ansible_user (AllowUsers)
 notes: >
-  Requires OpenSSH Server to be already installed. Replaces the secure_ssh role, which
+  Requires OpenSSH Server to be already installed. Roll out update on one host first,
+  then the lab: a host whose sshd does not come back needs console access. Replaces the secure_ssh role, which
   is kept as a deprecated alias: secure_ssh and secure_ssh-on run openssh-harden,
   secure_ssh-off runs openssh-unharden, and the win_workman_secure_ssh_* variables are
   still honoured as fallbacks.

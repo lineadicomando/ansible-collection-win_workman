@@ -1,4 +1,12 @@
 ---
+# Before any role: the remote temporary directories must be usable by SYSTEM too
+# (pkg_utils/remote_tmp.yaml explains why). Once per host and play.
+- name: Set the ACL of the remote temporary directories
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: remote_tmp
+  when: _win_workman_tasks_parsed | length > 0
+
 - name: Dispatch each task to its schema role
   ansible.builtin.include_role:
     name: "lineadicomando.win_workman.{{ _wm_item.schema }}"
