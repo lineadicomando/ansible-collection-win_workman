@@ -1,0 +1,10 @@
+---
+- name: Revert the OpenSSH configuration to the defaults
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.openssh
+    tasks_from: harden_handler
+  vars:
+    win_workman_openssh_manage_authorized_keys: false
+    win_workman_openssh_enable_pubkey_auth: false
+    win_workman_openssh_disable_password_auth: false
+    win_workman_openssh_manage_allow_users: false

@@ -1,0 +1,24 @@
+---
+win_workman_openssh_schema:
+  name: OpenSSH Server
+  role: lineadicomando.win_workman.openssh
+  default_action: !!str info
+
+win_workman_openssh_auth_keys_path: C:\ProgramData\ssh\administrators_authorized_keys
+win_workman_openssh_config_path: C:\ProgramData\ssh\sshd_config
+
+# The sshd_config directives harden manages. enabled: true writes the line, false
+# removes it, so unharden only needs to set the flags to false.
+win_workman_openssh_directives:
+  - name: PubkeyAuthentication
+    value: !!str yes
+    enabled: "{{ win_workman_openssh_enable_pubkey_auth }}"
+  - name: PasswordAuthentication
+    value: !!str no
+    enabled: "{{ win_workman_openssh_disable_password_auth }}"
+  - name: KbdInteractiveAuthentication
+    value: !!str no
+    enabled: "{{ win_workman_openssh_disable_password_auth }}"
+  - name: AllowUsers
+    value: "{{ ansible_user }}"
+    enabled: "{{ win_workman_openssh_manage_allow_users }}"

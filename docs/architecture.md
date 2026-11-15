@@ -120,7 +120,8 @@ Some roles extend the standard set with their own actions or support a subset:
 | `autoshutdown` | `on` *(default)*, `off`, `info` |
 | `domain` | `status` *(default)*, `join`, `leave`, `on` *(alias for `join`)*, `off` *(alias for `leave`)* |
 | `file_copy` | `push` *(default)*, `pull`, `status`, `remove`, `on` *(alias for `push`)*, `off` *(alias for `remove`)* |
-| `secure_ssh` | `on`, `off` |
+| `openssh` | `info` *(default)*, `harden`, `unharden`, `on` *(alias for `harden`)*, `off` *(alias for `unharden`)* |
+| `secure_ssh` | *(deprecated alias of `openssh`)* `on`, `off` |
 | `ms_account` | `on`, `off` |
 | `oobe` | `on`, `off` |
 | `seb` | `on`, `off`, `deploy`, `undeploy`, `config_key` |

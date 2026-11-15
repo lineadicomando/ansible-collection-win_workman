@@ -1044,7 +1044,7 @@ Four roles have no page in `docs/roles/`: `googledrive`, `tinycad`, `winmerge`,
 `winrar` (re-checked 2026-10-31 on 86 roles; `winmerge` is only named in passing
 in `docs/roles/core/pkg_utils.md`). The roles added since 2026-10-01
 (`autoshutdown`, `goldendict`, `domain`, `file_copy`) all have a page. `chkdsk`,
-`logoff`, `ms_account`, `oobe`, `ping`, `secure_ssh`, `sfc`, `shutdown`,
+`logoff`, `ms_account`, `oobe`, `ping`, `sfc`, `shutdown`,
 `widgets`, `wim` and `wol` are covered collectively by
 `docs/roles/management/system-tools.md`; that page still carries the draft
 banner, so it is checked under *Audit the catalog drafts*.

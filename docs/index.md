@@ -131,7 +131,8 @@ The collection has two distinct role families:
 | [roles/management/domain.md](roles/management/domain.md) | `domain` — Active Directory domain join, leave and status |
 | [roles/management/file_copy.md](roles/management/file_copy.md) | `file_copy` — copy files and folders to and from the hosts, per-user folders included |
 | [roles/management/win_iso.md](roles/management/win_iso.md) | `win_iso` — Windows installation ISO with unattended Setup and OpenSSH Server, built on the controller |
-| [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `secure_ssh`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
+| [roles/management/openssh.md](roles/management/openssh.md) | `openssh` — OpenSSH Server installation info and hardening; replaces `secure_ssh` |
+| [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
 
 ---
 
@@ -166,7 +167,7 @@ The collection has two distinct role families:
 [`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown) · [`autoshutdown`](roles/management/autoshutdown.md)
 
 ### Management — Network & Security
-[`domain`](roles/management/domain.md) · [`secure_ssh`](roles/management/system-tools.md#secure_ssh) · [`wol`](roles/management/system-tools.md#wol) · [`ping`](roles/management/system-tools.md#ping)
+[`domain`](roles/management/domain.md) · [`openssh`](roles/management/openssh.md) · [`wol`](roles/management/system-tools.md#wol) · [`ping`](roles/management/system-tools.md#ping)
 
 ### Management — Files
 [`file_copy`](roles/management/file_copy.md)

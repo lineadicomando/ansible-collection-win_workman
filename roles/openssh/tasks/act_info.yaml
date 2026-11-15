@@ -1,0 +1,36 @@
+---
+- name: Read the OpenSSH installation
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $keys = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+      )
+      $msi = Get-ItemProperty -Path $keys -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -eq 'OpenSSH' -and $_.PSChildName -match '^\{' } |
+        Select-Object -First 1
+      $cap = Get-WindowsCapability -Online -Name 'OpenSSH.Server*' |
+        Where-Object { $_.State -eq 'Installed' } | Select-Object -First 1
+      $svc = Get-CimInstance Win32_Service -Filter "Name='sshd'"
+      $exe = if ($svc) { $svc.PathName.Trim('"') } else { $null }
+      $fileVersion = if ($exe -and (Test-Path -LiteralPath $exe)) {
+        (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion
+      } else { $null }
+      $source = if ($msi) { 'msi' } elseif ($cap) { 'capability' } elseif ($svc) { 'unknown' } else { 'none' }
+      $Ansible.Result = [ordered]@{
+        source = $source
+        version = if ($msi) { $msi.DisplayVersion } else { $fileVersion }
+        file_version = $fileVersion
+        product_code = if ($msi) { $msi.PSChildName } else { $null }
+        capability = if ($cap) { $cap.Name } else { $null }
+        service_state = if ($svc) { $svc.State } else { $null }
+        service_start_mode = if ($svc) { $svc.StartMode } else { $null }
+        binary = $exe
+      }
+  register: win_workman_openssh_info
+
+- name: Show the OpenSSH installation
+  ansible.builtin.debug:
+    msg: "{{ win_workman_openssh_info.result }}"

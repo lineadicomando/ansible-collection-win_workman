@@ -1,0 +1,114 @@
+---
+# Shared by harden and unharden: each win_workman_openssh_* flag set to true writes
+# its setting, set to false removes it. sshd reads sshd_config only when it starts, so
+# the service is restarted whenever something changed; the session the play runs on
+# survives the restart.
+- name: Check auth_keys_path
+  ansible.builtin.assert:
+    that:
+      - not (win_workman_openssh_manage_authorized_keys | bool) or ansible_ssh_pub_key_path is defined
+    fail_msg: "Public key not found"
+
+- name: Load public key
+  ansible.builtin.set_fact:
+    win_workman_ssh_pub_key: >-
+      {{
+        lookup('file', ansible_ssh_pub_key_path)
+        if (win_workman_openssh_manage_authorized_keys | bool)
+        else ''
+      }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Check the authorized keys file
+  ansible.windows.win_stat:
+    path: "{{ win_workman_openssh_auth_keys_path }}"
+  register: win_workman_openssh_auth_keys_stat
+
+- name: Import key
+  community.windows.win_lineinfile:
+    path: "{{ win_workman_openssh_auth_keys_path }}"
+    create: true
+    regex: "^{{ win_workman_ssh_pub_key | regex_escape }}$"
+    line: "{{ win_workman_ssh_pub_key }}"
+    backup: true
+    state: present
+  register: win_workman_openssh_key_result
+  when: win_workman_openssh_manage_authorized_keys | bool
+
+- name: Remove key
+  community.windows.win_lineinfile:
+    path: "{{ win_workman_openssh_auth_keys_path }}"
+    regex: "^{{ lookup('file', ansible_ssh_pub_key_path) | regex_escape }}$"
+    backup: true
+    state: absent
+  register: win_workman_openssh_key_removed
+  when:
+    - not (win_workman_openssh_manage_authorized_keys | bool)
+    - win_workman_openssh_auth_keys_stat.stat.exists
+    - ansible_ssh_pub_key_path is defined
+
+# A global directive written after a Match line belongs to that Match block: the old
+# secure_ssh role appended AllowUsers at the end of the file, inside
+# "Match Group administrators", where it only restricted administrators. Take the
+# managed directives out of every Match block before writing them again above it.
+- name: Move the managed directives out of the Match blocks
+  ansible.windows.win_powershell:
+    parameters:
+      Path: "{{ win_workman_openssh_config_path }}"
+      Names: "{{ win_workman_openssh_directives | map(attribute='name') | list }}"
+    script: |
+      param([string]$Path, [string[]]$Names)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $lines = @(Get-Content -LiteralPath $Path)
+      $pattern = '^\s*(' + (($Names | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')\s'
+      $inMatch = $false
+      $keep = foreach ($line in $lines) {
+        if ($line -match '^\s*Match\s') { $inMatch = $true }
+        if ($inMatch -and $line -match $pattern) { continue }
+        $line
+      }
+      if (@($keep).Count -ne $lines.Count) {
+        Copy-Item -LiteralPath $Path -Destination ($Path + '.' + (Get-Date -Format 'yyyyMMddHHmmss') + '.bak')
+        Set-Content -LiteralPath $Path -Value $keep -Encoding ascii
+        $Ansible.Changed = $true
+      }
+  register: win_workman_openssh_moved
+
+- name: Write the sshd_config directives
+  community.windows.win_lineinfile:
+    path: "{{ win_workman_openssh_config_path }}"
+    regex: "^\\s*{{ item.name }}\\s"
+    insertbefore: "^\\s*Match\\s"
+    line: "{{ item.name }} {{ item.value }}"
+    backup: true
+    state: "{{ 'present' if (item.enabled | bool) else 'absent' }}"
+  loop: "{{ win_workman_openssh_directives }}"
+  loop_control:
+    label: "{{ item.name }}: {{ 'present' if (item.enabled | bool) else 'absent' }}"
+  register: win_workman_openssh_directives_result
+
+# An sshd_config that sshd rejects (a directive this version does not know) would keep
+# the service from starting again, and the host would be out of reach: check it first.
+- name: Test the configuration before restarting sshd
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $exe = (Get-CimInstance Win32_Service -Filter "Name='sshd'").PathName.Trim('"')
+      $out = & $exe -t 2>&1 | Out-String
+      if ($LASTEXITCODE -ne 0) {
+        throw "sshd -t rejects the configuration, sshd not restarted: $out"
+      }
+  when: >-
+    (win_workman_openssh_moved is changed)
+    or (win_workman_openssh_directives_result is changed)
+
+- name: Restart sshd to load the new configuration
+  ansible.windows.win_service:
+    name: sshd
+    state: restarted
+  when: >-
+    (win_workman_openssh_moved is changed)
+    or (win_workman_openssh_directives_result is changed)

@@ -1,0 +1,7 @@
+---
+# Alias: off reverts the hardening. It never uninstalls OpenSSH, which would cut off
+# the connection the play runs on.
+- name: Dispatch action unharden
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.openssh
+    tasks_from: act_unharden

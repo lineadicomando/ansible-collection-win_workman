@@ -1,4 +1,13 @@
 ---
+# Deprecated alias of the openssh role, kept so that playbooks and inventories written
+# for secure_ssh keep working. Remove it in a later release.
+- name: Warn that secure_ssh is deprecated
+  ansible.builtin.debug:
+    msg: >-
+      DEPRECATED: secure_ssh is now openssh. Use openssh-harden instead of secure_ssh or
+      secure_ssh-on, openssh-unharden instead of secure_ssh-off, and the
+      win_workman_openssh_* variables instead of win_workman_secure_ssh_*.
+
 - name: Dispatch action {{ win_workman_action or win_workman_secure_ssh_schema.default_action }}
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.secure_ssh

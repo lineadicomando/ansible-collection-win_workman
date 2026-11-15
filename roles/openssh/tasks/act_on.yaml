@@ -1,0 +1,7 @@
+---
+# Alias: on hardens the configuration. It never installs anything, since a host this
+# role can reach over SSH already has OpenSSH.
+- name: Dispatch action harden
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.openssh
+    tasks_from: act_harden

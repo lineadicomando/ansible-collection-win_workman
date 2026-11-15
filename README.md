@@ -218,7 +218,7 @@ dispatcher interface.
 | Role | Actions | Description |
 |---|---|---|
 | `domain` | `status` *(default)*, `join`, `leave`, `on`, `off` | Active Directory domain membership |
-| `secure_ssh` | `on`, `off` | Harden OpenSSH server |
+| `openssh` | `info` *(default)*, `harden`, `unharden`, `on`, `off` | OpenSSH Server: installation info and hardening (`secure_ssh` is a deprecated alias) |
 | `veyon` | `on`, `off`, `config` | Veyon classroom agent (install + key/network config) |
 | `ping` | `on` | Connectivity test |
 | `wol` | `on` | Send Wake-on-LAN magic packets |

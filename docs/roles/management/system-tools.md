@@ -3,7 +3,7 @@
 > **Work in progress** — preliminary draft.
 
 Reference for roles that perform targeted system configuration with no or
-minimal variables: `oobe`, `widgets`, `secure_ssh`, `wim`, `ms_account`,
+minimal variables: `oobe`, `widgets`, `wim`, `ms_account`,
 `chkdsk`, `sfc`, `logoff`, `restart`, `shutdown`, `ping`, `wol`.
 
 ---
@@ -36,30 +36,6 @@ sessions so the change takes effect immediately.
 
 No variables. Logoff is automatic — active user sessions are terminated before
 the registry key is written.
-
----
-
-## secure_ssh
-
-Hardens the OpenSSH server (`sshd`) installed on Windows. Intended for
-workstations managed exclusively via SSH (no WinRM).
-
-| Action | Description |
-|---|---|
-| `on` | Apply hardened SSH configuration: enable public-key auth, disable password auth, manage `authorized_keys`, restrict `AllowUsers` |
-| `off` | Revert to default SSH configuration |
-
-Internally, `on` calls `secure_ssh_handler` with these flags set:
-
-| Flag | Value |
-|---|---|
-| `win_workman_secure_ssh_manage_authorized_keys` | `true` |
-| `win_workman_secure_ssh_enable_pubkey_auth` | `true` |
-| `win_workman_secure_ssh_disable_password_auth` | `true` |
-| `win_workman_secure_ssh_manage_allow_users` | `true` |
-
-No user-facing defaults file — all configuration is derived from
-`ansible_ssh_pub_key_path` and inventory user variables (see collection README).
 
 ---
 

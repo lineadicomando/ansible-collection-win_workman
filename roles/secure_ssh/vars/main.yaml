@@ -1,8 +1,5 @@
 ---
 win_workman_secure_ssh_schema:
-  name: Secure SSH Connection
+  name: Secure SSH Connection (deprecated, see openssh)
   role: lineadicomando.win_workman.secure_ssh
   default_action: !!str on
-
-win_workman_secure_ssh_auth_keys_path: C:\ProgramData\ssh\administrators_authorized_keys
-win_workman_secure_ssh_config_path: C:\ProgramData\ssh\sshd_config

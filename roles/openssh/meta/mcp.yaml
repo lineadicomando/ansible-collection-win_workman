@@ -1,0 +1,35 @@
+---
+display_name: OpenSSH Server
+custom_actions:
+  - name: info
+    description: "Default. Report how OpenSSH Server is installed (msi, capability), its version and the state of the sshd service; changes nothing"
+  - name: harden
+    description: Apply the hardened OpenSSH configuration (authorized keys, pubkey auth on, password and keyboard-interactive auth off, AllowUsers), test it with sshd -t and restart sshd if it changed
+  - name: unharden
+    description: Revert the OpenSSH configuration to the defaults
+  - name: "on"
+    description: Alias for harden; it installs nothing
+  - name: "off"
+    description: Alias for unharden; it never uninstalls OpenSSH
+defaults:
+  - var: win_workman_openssh_manage_authorized_keys
+    type: bool
+    default: true
+    description: Deploy authorized_keys from ansible_ssh_pub_key_path
+  - var: win_workman_openssh_enable_pubkey_auth
+    type: bool
+    default: true
+    description: Enable public key authentication
+  - var: win_workman_openssh_disable_password_auth
+    type: bool
+    default: true
+    description: Disable password-based SSH authentication
+  - var: win_workman_openssh_manage_allow_users
+    type: bool
+    default: true
+    description: Restrict SSH access to ansible_user (AllowUsers)
+notes: >
+  Requires OpenSSH Server to be already installed. Replaces the secure_ssh role, which
+  is kept as a deprecated alias: secure_ssh and secure_ssh-on run openssh-harden,
+  secure_ssh-off runs openssh-unharden, and the win_workman_secure_ssh_* variables are
+  still honoured as fallbacks.

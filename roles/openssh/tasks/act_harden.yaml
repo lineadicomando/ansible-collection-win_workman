@@ -1,0 +1,5 @@
+---
+- name: Apply the hardened OpenSSH configuration
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.openssh
+    tasks_from: harden_handler
