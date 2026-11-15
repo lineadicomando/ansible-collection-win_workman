@@ -26,7 +26,7 @@ almost always the expensive way to answer a question that a doc already answers.
 | What a specific role does, its actions and variables | `docs/roles/{catalog,management}/<role>.md` |
 | A role's actions/defaults as the MCP server sees them | `roles/<role>/meta/mcp.yaml` |
 | The package schema fields | `docs/roles/core/pkg_utils.md` |
-| What is planned but not built, and why | `TODO.md` — entries carry status and rationale |
+| What is planned but not built, and why | `TODO.md` — index with priority and next step; full entries in `docs/todo/` |
 
 Prefer the `win-workman` MCP server's `get_role_info` over reading files when the
 question is "what actions does X support": it returns exactly that, already

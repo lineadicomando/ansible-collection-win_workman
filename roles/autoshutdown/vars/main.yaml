@@ -17,7 +17,7 @@ win_workman_autoshutdown_weekdays:
   - saturday
   - sunday
 
-# always is the only mode implemented; nouser is reserved, see TODO.md.
+# always is the only mode implemented; nouser is reserved, see docs/todo/management.md.
 win_workman_autoshutdown_modes_known:
   - always
   - nouser
