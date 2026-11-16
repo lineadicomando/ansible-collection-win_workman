@@ -6,6 +6,12 @@ win_workman_win_iso_root: "{{ win_workman_storage_path }}/win_iso"
 win_workman_win_iso_source: ""
 # The output ISO, relative to the root or absolute. Empty: <source>-unattended.iso.
 win_workman_win_iso_output: ""
+# Controller folder in which the private build directory is made: it holds the
+# extracted ISO and the answer file with the password in clear, about twice the
+# size of the ISO, and is removed at the end. Absolute; empty: the folder of the
+# output. Point it elsewhere when the folder of the output is shared, or is
+# collected as it is even after a run that was killed.
+win_workman_win_iso_work_dir: ""
 
 # How OpenSSH Server gets on the PCs: msi (Win32-OpenSSH MSI installed during
 # Setup, not updated by Windows Update), dism (the Windows capability added to the

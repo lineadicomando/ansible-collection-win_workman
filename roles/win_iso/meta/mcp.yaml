@@ -27,6 +27,12 @@ defaults:
     type: str
     default: ""
     description: Output ISO, relative to the root or absolute. Empty means <source>-unattended.iso.
+  - var: win_workman_win_iso_work_dir
+    type: str
+    default: ""
+    description: >-
+      Absolute controller folder for the private build directory (about twice the
+      ISO, password in clear, removed at the end). Empty means the folder of the output.
   - var: win_workman_win_iso_ssh
     type: str
     default: msi

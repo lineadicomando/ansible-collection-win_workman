@@ -11,9 +11,16 @@
         state: directory
         mode: "0755"
 
-    - name: Create a private build directory next to the output
+    - name: Create the work directory
+      ansible.builtin.file:
+        path: "{{ win_workman_win_iso_work_path }}"
+        state: directory
+        mode: "0700"
+      when: win_workman_win_iso_work_dir | length > 0
+
+    - name: Create a private build directory in the work directory
       ansible.builtin.tempfile:
-        path: "{{ win_workman_win_iso_output_path | dirname }}"
+        path: "{{ win_workman_win_iso_work_path }}"
         state: directory
         prefix: .win_iso_build.
       register: win_workman_win_iso_tmp

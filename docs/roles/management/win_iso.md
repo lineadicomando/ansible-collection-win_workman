@@ -77,7 +77,8 @@ ansible-playbook lineadicomando.win_workman.win_workman -l teacher \
 
 Steps of `build`:
 
-1. extract the source ISO into a private directory next to the output;
+1. extract the source ISO into a private directory in the work directory
+   (`win_workman_win_iso_work_dir`, by default the folder of the output);
 2. keep the chosen editions with `wimlib-imagex export` (an `install.esd` is
    converted to `install.wim` here, recompressed, which is slow);
 3. with `dism`: copy `install.wim` and the OpenSSH Server package to the host,
@@ -89,7 +90,10 @@ Steps of `build`:
 
 The private directory, which holds the password in clear, is removed at the end
 whatever happens; with `dism` the working folder on the host is removed too,
-after discarding any image left mounted.
+after discarding any image left mounted. A run killed outright (SIGKILL, power
+loss) cannot remove it: if the folder of the output is shared or collected as it
+is, set `win_workman_win_iso_work_dir` to a private folder on the same file
+system, so that the output is only renamed into place.
 
 ---
 
@@ -124,6 +128,7 @@ async task, so the SSH session does not have to stay busy for the whole job.
 | `win_workman_win_iso_root` | `{{ win_workman_storage_path }}/win_iso` | Controller folder of the ISOs |
 | `win_workman_win_iso_source` | `""` | The Microsoft ISO, relative to the root or absolute. Required by `build` |
 | `win_workman_win_iso_output` | `""` | Output ISO, relative to the root or absolute. Empty: `<source>-unattended.iso` |
+| `win_workman_win_iso_work_dir` | `""` | Absolute controller folder for the private build directory (about twice the ISO, password in clear, removed at the end). Empty: the folder of the output |
 | `win_workman_win_iso_ssh` | `msi` | `msi`, `dism` or `none`; a task argument wins |
 | `win_workman_win_iso_fod_source` | `""` | `dism`: the Languages and Optional Features ISO, relative to the root or absolute |
 | `win_workman_win_iso_dism_dir` | `C:\win_iso` | `dism`: working folder on the host, removed at the end |
@@ -151,7 +156,7 @@ async task, so the SSH session does not have to stay busy for the whole job.
 
 - Controller: `7z`, `genisoimage`, `wimlib-imagex` (Fedora: `dnf install 7zip
   genisoimage wimlib-utils`; Debian: `apt install 7zip genisoimage wimtools`),
-  and twice the size of the ISO free next to the output. With `msi`, network
+  and twice the size of the ISO free in the work directory. With `msi`, network
   access to GitHub the first time: the MSI is downloaded into the storage by
   `pkg_utils/download` and verified against its sha256.
 - The ISO holds the account password in clear in `autounattend.xml`: it is

@@ -12,13 +12,15 @@
       - win_workman_win_iso_user | length > 0
       - win_workman_win_iso_password | length > 0
       - win_workman_win_iso_editions is sequence and win_workman_win_iso_editions is not string
+      - win_workman_win_iso_work_path is abs
     fail_msg: >-
       win_iso build needs: a single host in the run ({{ ansible_play_hosts_all | length }} given);
       ssh one of msi, dism, none ({{ win_workman_win_iso_ssh_mode }});
       win_workman_win_iso_source naming an ISO in {{ win_workman_win_iso_root }} or an absolute path
       ({{ win_workman_win_iso_source_path }});
       an output other than the source; ansible_user and ansible_password for the host (vault);
-      win_workman_win_iso_editions as a list.
+      win_workman_win_iso_editions as a list; win_workman_win_iso_work_dir absolute
+      ({{ win_workman_win_iso_work_path }}).
     quiet: true
   run_once: true
 

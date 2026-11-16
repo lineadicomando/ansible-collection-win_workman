@@ -20,8 +20,8 @@
     win_workman_schema: "{{ win_workman_win_iso_schema }}"
   when: win_workman_win_iso_ssh_mode == 'msi'
 
-# The tree holds the password in clear: a private directory next to the output,
-# removed at the end whatever happens.
+# The tree holds the password in clear: a private directory in the work directory
+# (by default the folder of the output), removed at the end whatever happens.
 - name: Build the ISO
   vars:
     win_workman_win_iso_tree: "{{ win_workman_win_iso_tmp.path }}/iso"

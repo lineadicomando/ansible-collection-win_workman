@@ -27,6 +27,10 @@ win_workman_win_iso_output_path: >-
       else win_workman_win_iso_root ~ '/' ~ win_workman_win_iso_output)
      if win_workman_win_iso_output | length > 0
      else win_workman_win_iso_source_path | regex_replace('(?i)\.iso$', '') ~ '-unattended.iso' }}
+win_workman_win_iso_work_path: >-
+  {{ win_workman_win_iso_work_dir | expanduser
+     if win_workman_win_iso_work_dir | length > 0
+     else win_workman_win_iso_output_path | dirname }}
 win_workman_win_iso_fod_path: >-
   {{ win_workman_win_iso_fod_source | expanduser
      if win_workman_win_iso_fod_source is match('[/~]')
