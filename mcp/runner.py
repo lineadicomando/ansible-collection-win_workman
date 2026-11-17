@@ -3,6 +3,8 @@ import os
 import re
 from pathlib import Path
 
+from jsonschema import Draft202012Validator
+
 import yaml
 
 from runlog import NotifyFn, RunStatus, await_run, read_log, redactor, run_logged_async, secret_strings, start_logged
@@ -168,3 +170,34 @@ def format_command(cmd: list[str], redact: list[str] | None = None) -> str:
             parts.append(token)
             i += 1
     return " \\\n  ".join(parts)
+
+
+def validate_arguments(tools, name: str, arguments: dict) -> str | None:
+    """Check a tool call against the tool's inputSchema; return an error message, else None.
+
+    The client is not trusted to have validated it: an argument with a wrong
+    name used to be dropped in silence, so the run went ahead on a default
+    (a misspelt limit ran on the whole default group), and a string where a
+    list was expected was iterated one character at a time. Arguments not in
+    the schema are refused, whatever the schema itself says.
+    """
+    tool = next((t for t in tools if t.name == name), None)
+    if tool is None:
+        return None
+    declared = getattr(tool, "input_schema", None) or getattr(tool, "inputSchema")
+    schema = {**declared, "additionalProperties": False}
+    errors = sorted(Draft202012Validator(schema).iter_errors(arguments), key=lambda e: list(e.absolute_path))
+    if not errors:
+        return None
+    valid = ", ".join(sorted(schema.get("properties", {})))
+    messages = []
+    for error in errors:
+        if error.validator == "additionalProperties" and not error.absolute_path:
+            unexpected = ", ".join(sorted(set(arguments) - set(schema.get("properties", {}))))
+            messages.append(f"unexpected argument(s) {unexpected}; valid arguments: {valid}")
+        elif error.absolute_path:
+            path = ".".join(str(p) for p in error.absolute_path)
+            messages.append(f"argument '{path}': {error.message}")
+        else:
+            messages.append(error.message)
+    return f"invalid arguments for {name}: " + "; ".join(messages)

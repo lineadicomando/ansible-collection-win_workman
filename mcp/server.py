@@ -8,7 +8,7 @@ from mcp.types import TextContent, Tool, CallToolResult, ListToolsResult, Pagina
 
 from roles import get_role_info, list_roles, pkg_actions
 from runlog import NotifyFn, done_path, format_status
-from runner import MAX_FORKS, build_wm_command, default_limit, format_command, merge_sensitive_vars, validate_extra_vars, validate_forks, run_command, run_status, start_run, wait_run
+from runner import MAX_FORKS, build_wm_command, validate_arguments, default_limit, format_command, merge_sensitive_vars, validate_extra_vars, validate_forks, run_command, run_status, start_run, wait_run
 
 app = Server("win-workman")
 
@@ -59,7 +59,8 @@ def _get_tools() -> list[Tool]:
                 "properties": {
                     "t": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {"type": "string", "minLength": 1},
+                        "minItems": 1,
                         "description": (
                             "List of tasks to run. "
                             "E.g. [\"chrome\"] or [\"chrome-info\", \"chrome-on\"]"
@@ -247,13 +248,11 @@ async def handle_call_tool(ctx: ServerRequestContext, params: CallToolRequestPar
     name = params.name
     arguments = params.arguments or {}
 
+    error = validate_arguments(_get_tools(), name, arguments)
+    if error:
+        return CallToolResult(content=[TextContent(type="text", text=f"Error: {error}")], isError=True)
+
     if name == "get_role_info":
-        unexpected = sorted(set(arguments) - {"role"})
-        if unexpected:
-            return CallToolResult(content=[TextContent(
-                type="text",
-                text=f"Error: unexpected argument(s) {', '.join(unexpected)}; the only argument is 'role'",
-            )])
         role = arguments.get("role", "")
         if not role:
             return CallToolResult(content=[TextContent(type="text", text="Error: role is required")])
