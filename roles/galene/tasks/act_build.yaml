@@ -1,0 +1,4 @@
+---
+# Only the controller side: download the source and WinSW, build galene.exe.
+- name: Build Galène on the controller
+  ansible.builtin.include_tasks: build.yaml

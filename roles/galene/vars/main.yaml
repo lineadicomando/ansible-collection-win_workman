@@ -1,0 +1,95 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Galène
+#      - Homepage:    https://galene.org
+#      - Source:      https://github.com/jech/galene
+#      - Wrapper:     https://github.com/winsw/winsw (WinSW 2.12.0, MIT)
+#
+#  Upstream ships no Windows binary: galene.exe is cross-compiled on the
+#  controller from the release tag (tasks/build.yaml). With the Go toolchain
+#  pinned the build is reproducible, so its sha256 is pinned here as for any
+#  downloaded installer. Galène does not speak the Service Control Manager
+#  protocol, so WinSW runs it as a service.
+#
+#  Version bump: update version, source checksum and exe checksum together;
+#  the exe checksum comes from a build with the pinned toolchain (the build
+#  fails and prints the new value when it differs).
+# ==============================================================================
+---
+win_workman_galene_version: "1.2.2"
+win_workman_galene_go_toolchain: go1.26.11
+win_workman_galene_exe_checksum: 8a7edf3b10c0ee600583e3056e6622af6dcd4d1b6c5f6e618ea2c69bb6e5fd5c
+
+win_workman_galene_source_file: "galene-{{ win_workman_galene_version }}.tar.gz"
+win_workman_galene_winsw_file: WinSW-2.12.0.NET461.exe
+
+win_workman_galene_schema:
+  name: Galène
+  role: lineadicomando.win_workman.galene
+  default_action: !!str on
+  files:
+    - filename: "{{ win_workman_galene_source_file }}"
+      url: "https://github.com/jech/galene/archive/refs/tags/galene-{{ win_workman_galene_version }}.tar.gz"
+      checksum: sha256:daf2c4b170a9c786775914cfaa0063e8374492b28b6a25feb29381cfbcfbc46c
+    - filename: "{{ win_workman_galene_winsw_file }}"
+      url: https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW.NET461.exe
+      checksum: sha256:b5066b7bbdfba1293e5d15cda3caaea88fbeab35bd5b38c41c913d492aadfc4f
+
+# Controller: the build for this version, galene.exe and the web client.
+win_workman_galene_build_dir: "{{ win_workman_storage_path }}/galene/{{ win_workman_galene_version }}"
+win_workman_galene_build_src: "{{ win_workman_storage_path }}/galene/src-{{ win_workman_galene_version }}"
+
+win_workman_galene_is_master: >-
+  {{
+    ('master' in (win_workman_task_argv | default([])))
+    or (win_workman_galene_master | bool)
+  }}
+
+# Windows paths, kept as plain YAML: a backslash literal inside a Jinja
+# expression stays doubled.
+win_workman_galene_exe: '{{ win_workman_galene_install_dir }}\galene.exe'
+win_workman_galene_wrapper: '{{ win_workman_galene_install_dir }}\galene-service.exe'
+win_workman_galene_wrapper_xml: '{{ win_workman_galene_install_dir }}\galene-service.xml'
+win_workman_galene_static_dir: '{{ win_workman_galene_install_dir }}\static\'
+win_workman_galene_groups_dir: '{{ win_workman_galene_install_dir }}\groups'
+win_workman_galene_group_file: '{{ win_workman_galene_install_dir }}\groups\{{ win_workman_galene_group }}.json'
+win_workman_galene_tokens_file: '{{ win_workman_galene_install_dir }}\data\var\tokens.jsonl'
+win_workman_galene_version_file: '{{ win_workman_galene_install_dir }}\VERSION'
+win_workman_galene_master_shortcut_path: '%PUBLIC%\Desktop\{{ win_workman_galene_master_shortcut }}.lnk'
+win_workman_galene_client_shortcut_path: '%PUBLIC%\Desktop\{{ win_workman_galene_client_shortcut }}.lnk'
+win_workman_galene_install_subdirs:
+  - ''
+  - '\static'
+  - '\groups'
+  - '\data'
+  - '\data\var'
+  - '\logs'
+
+win_workman_galene_rules:
+  - name: Galene HTTP (win_workman)
+    protocol: tcp
+    port: "{{ win_workman_galene_http_port }}"
+  - name: Galene media (win_workman)
+    protocol: udp
+    port: "{{ win_workman_galene_udp_port }}"
+
+# The URL the client shortcuts open: the master's address from the inventory.
+win_workman_galene_master_address: >-
+  {{
+    hostvars[win_workman_galene_master_host].ansible_host
+    | default(win_workman_galene_master_host)
+    if win_workman_galene_master_host in hostvars
+    else win_workman_galene_master_host
+  }}
+win_workman_galene_group_path: "/group/{{ win_workman_galene_group }}/"
+win_workman_galene_master_url: >-
+  http://localhost:{{ win_workman_galene_http_port }}{{ win_workman_galene_group_path
+  }}?token={{ win_workman_galene_master_token }}
+win_workman_galene_client_url: >-
+  http://{{ win_workman_galene_master_address }}:{{ win_workman_galene_http_port
+  }}{{ win_workman_galene_group_path }}?token={{ win_workman_galene_client_token }}
+
+# Tokens derived from the secret (tasks/secret.yaml): the master's has op, the
+# clients' carry only the host name.
+win_workman_galene_master_token: "{{ ((win_workman_galene_secret ~ '-master') | hash('sha256'))[:32] }}"
+win_workman_galene_client_token: "{{ ((win_workman_galene_secret ~ '-' ~ inventory_hostname) | hash('sha256'))[:32] }}"

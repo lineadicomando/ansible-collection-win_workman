@@ -1,0 +1,44 @@
+---
+# Master (teacher PC): the Galène server as a Windows service, its firewall rules
+# and a shortcut that opens the group on localhost. Client (student PC): only a
+# shortcut to the master. A host is the master when this is true or when the task
+# string carries the master argument (galene-on-master).
+win_workman_galene_master: false
+
+# Inventory host the client shortcuts point to. Its ansible_host is used in the
+# URL, the host name when it has none.
+win_workman_galene_master_host: "{{ groups['teachers'] | default([]) | first | default('') }}"
+
+# Inventory group whose hosts get a token on the master: each one joins with its
+# own host name and can only watch and listen.
+win_workman_galene_clients_group: students
+
+# Galène group (room) and its title in the client.
+win_workman_galene_group: lab
+win_workman_galene_group_display_name: Ascolto docente
+win_workman_galene_max_clients: 60
+# Name the master joins with, shown to the clients.
+win_workman_galene_master_username: Docente
+
+win_workman_galene_http_port: 8443
+# One UDP port for all the media (ICE UDP mux).
+win_workman_galene_udp_port: 8444
+
+win_workman_galene_install_dir: 'C:\Program Files\Galene'
+win_workman_galene_service_name: Galene
+
+# Remote addresses allowed by the firewall rules: LocalSubnet, Any, or a list of
+# addresses/ranges.
+win_workman_galene_firewall_remoteip: LocalSubnet
+win_workman_galene_firewall_profiles: [domain, private, public]
+
+# Secret the access tokens are derived from, kept on the controller and created
+# on first use; one per inventory, so the tokens stay the same across runs.
+win_workman_galene_secret_file: "{{ win_workman_storage_path }}/galene/{{ inventory_dir | basename }}_secret"
+win_workman_galene_token_expires: "2099-12-31T23:59:59Z"
+
+win_workman_galene_browser: 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+win_workman_galene_master_shortcut: Ascolto docente - Trasmetti
+win_workman_galene_master_shortcut_description: Trasmetti schermo e audio agli studenti
+win_workman_galene_client_shortcut: Ascolto docente
+win_workman_galene_client_shortcut_description: Guarda e ascolta lo schermo del docente

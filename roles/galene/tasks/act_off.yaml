@@ -1,0 +1,31 @@
+---
+# One cleanup for master and client: every step is a no-op where there is
+# nothing to remove.
+- name: Read the Galène service
+  ansible.windows.win_service_info:
+    name: "{{ win_workman_galene_service_name }}"
+  register: win_workman_galene_service_before
+
+- name: Stop and remove the Galène service
+  ansible.windows.win_service:
+    name: "{{ win_workman_galene_service_name }}"
+    state: absent
+  when: win_workman_galene_service_before.exists
+
+- name: Remove the Galène firewall rules
+  ansible.builtin.include_tasks: firewall.yaml
+  vars:
+    win_workman_galene_fw_state: absent
+
+- name: Remove the Galène directory
+  ansible.windows.win_file:
+    path: "{{ win_workman_galene_install_dir }}"
+    state: absent
+
+- name: Remove the Galène shortcuts
+  community.windows.win_shortcut:
+    dest: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ win_workman_galene_master_shortcut_path }}"
+    - "{{ win_workman_galene_client_shortcut_path }}"

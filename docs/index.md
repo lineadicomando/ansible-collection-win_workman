@@ -114,6 +114,7 @@ The collection has two distinct role families:
 | [roles/catalog/rustdesk.md](roles/catalog/rustdesk.md) | `rustdesk` — open-source remote desktop |
 | [roles/catalog/seb.md](roles/catalog/seb.md) | `seb` — Safe Exam Browser install and client settings generation |
 | [roles/catalog/veyon.md](roles/catalog/veyon.md) | `veyon` — classroom management agent |
+| [roles/catalog/galene.md](roles/catalog/galene.md) | `galene` — teacher screen and audio broadcast (Galène server + student shortcuts) |
 | [roles/catalog/gcpw.md](roles/catalog/gcpw.md) | `gcpw` — Google Credential Provider for Windows install and domain configuration |
 | [roles/catalog/patchcleaner.md](roles/catalog/patchcleaner.md) | `patchcleaner` — WinSxS / superseded update cleanup |
 | [roles/catalog/driver_reviver.md](roles/catalog/driver_reviver.md) | `driver_reviver` — ReviverSoft driver updater |
@@ -158,7 +159,7 @@ The collection has two distinct role families:
 [`adobe_reader_dc`](roles/catalog/adobe_reader_dc.md) · [`foxit_pdf_reader`](roles/catalog/foxit_pdf_reader.md) · [`p7zip`](roles/catalog/p7zip.md) · [`peazip`](roles/catalog/peazip.md) · [`powertoys`](roles/catalog/powertoys.md) · [`windirstat`](roles/catalog/windirstat.md) · [`ntop`](roles/catalog/ntop.md) · [`nircmd`](roles/catalog/nircmd.md) · [`winfsp`](roles/catalog/winfsp.md) · [`putty`](roles/catalog/putty.md) · [`winscp`](roles/catalog/winscp.md) · [`filezilla`](roles/catalog/filezilla.md) · [`vcredist14`](roles/catalog/vcredist14.md) · [`virtiogt`](roles/catalog/virtiogt.md) · [`patchcleaner`](roles/catalog/patchcleaner.md) · [`rustdesk`](roles/catalog/rustdesk.md) · [`driver_reviver`](roles/catalog/driver_reviver.md)
 
 ### Catalog — Classroom & Lab
-[`veyon`](roles/catalog/veyon.md) · [`gcpw`](roles/catalog/gcpw.md)
+[`veyon`](roles/catalog/veyon.md) · [`galene`](roles/catalog/galene.md) · [`gcpw`](roles/catalog/gcpw.md)
 
 ### Management — System & OS
 [`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`scoobe`](roles/management/scoobe.md) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim) · [`win_iso`](roles/management/win_iso.md) · [`ps_policy`](roles/management/ps_policy.md)

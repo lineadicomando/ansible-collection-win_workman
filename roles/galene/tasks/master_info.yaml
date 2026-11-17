@@ -1,0 +1,115 @@
+---
+# Read-only: service, listening sockets, HTTP answer, firewall rules and the
+# rules that would defeat them, version, tokens, link speed. Every problem found
+# goes into issues; nothing fails.
+- name: Check the Galène master
+  ansible.windows.win_powershell:
+    # Nested results (firewall rules, links) need more than the default depth 2.
+    depth: 5
+    parameters:
+      ServiceName: "{{ win_workman_galene_service_name }}"
+      Exe: "{{ win_workman_galene_exe }}"
+      VersionFile: "{{ win_workman_galene_version_file }}"
+      TokensFile: "{{ win_workman_galene_tokens_file }}"
+      Shortcut: "{{ win_workman_galene_master_shortcut_path }}"
+      HttpPort: "{{ win_workman_galene_http_port | int }}"
+      UdpPort: "{{ win_workman_galene_udp_port | int }}"
+      Version: "{{ win_workman_galene_version }}"
+      Rules: "{{ win_workman_galene_rules | map(attribute='name') | list }}"
+      ExpectedTokens: "{{ (groups[win_workman_galene_clients_group] | default([]) | length) + 1 }}"
+      MbitPerClient: 2.5
+    script: |
+      param(
+          [string]$ServiceName, [string]$Exe, [string]$VersionFile, [string]$TokensFile,
+          [string]$Shortcut, [int]$HttpPort, [int]$UdpPort, [string]$Version,
+          [string[]]$Rules, [int]$ExpectedTokens, [double]$MbitPerClient
+      )
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $issues = [System.Collections.Generic.List[string]]::new()
+
+      $svc = Get-CimInstance Win32_Service -Filter "Name='$ServiceName'"
+      if (-not $svc) { $issues.Add("service $ServiceName not installed") }
+      else {
+          if ($svc.State -ne 'Running') { $issues.Add("service $ServiceName is $($svc.State)") }
+          if ($svc.StartMode -ne 'Auto') { $issues.Add("service $ServiceName start mode is $($svc.StartMode)") }
+      }
+
+      $proc = @(Get-CimInstance Win32_Process -Filter "Name='galene.exe'" |
+          Where-Object { $_.ExecutablePath -ieq $Exe }) | Select-Object -First 1
+      $procId = if ($proc) { [int]$proc.ProcessId } else { $null }
+      if (-not $proc) { $issues.Add("galene.exe is not running") }
+
+      $tcp = @(Get-NetTCPConnection -LocalPort $HttpPort -State Listen -ErrorAction SilentlyContinue |
+          Where-Object { $_.OwningProcess -eq $procId })
+      if (-not $tcp) { $issues.Add("nothing from galene.exe listening on TCP $HttpPort") }
+      $udp = @(Get-NetUDPEndpoint -LocalPort $UdpPort -ErrorAction SilentlyContinue |
+          Where-Object { $_.OwningProcess -eq $procId })
+      if (-not $udp) { $issues.Add("galene.exe not bound to UDP $UdpPort") }
+
+      $http = $null
+      try {
+          $http = (Invoke-WebRequest "http://localhost:$HttpPort/" -UseBasicParsing -TimeoutSec 5).StatusCode
+      } catch { $http = $_.Exception.Message }
+      if ($http -ne 200) { $issues.Add("http://localhost:$HttpPort/ answered: $http") }
+
+      $fw = foreach ($name in $Rules) {
+          $rule = Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $rule) { $issues.Add("firewall rule '$name' missing"); continue }
+          $port = $rule | Get-NetFirewallPortFilter
+          $addr = $rule | Get-NetFirewallAddressFilter
+          if ($rule.Enabled -ne 'True') { $issues.Add("firewall rule '$name' disabled") }
+          if ($rule.Action -ne 'Allow') { $issues.Add("firewall rule '$name' action is $($rule.Action)") }
+          [ordered]@{
+              name = $name; enabled = "$($rule.Enabled)"; action = "$($rule.Action)"
+              profile = "$($rule.Profile)"; protocol = "$($port.Protocol)"
+              local_port = "$($port.LocalPort)"; remote_address = "$($addr.RemoteAddress -join ',')"
+          }
+      }
+      $blocking = @(Get-NetFirewallApplicationFilter -PolicyStore ActiveStore |
+          Where-Object { $_.Program -and [Environment]::ExpandEnvironmentVariables($_.Program) -ieq $Exe } |
+          Get-NetFirewallRule |
+          Where-Object { $_.Direction -eq 'Inbound' -and $_.Enabled -eq 'True' -and $_.Action -eq 'Block' } |
+          ForEach-Object { $_.DisplayName })
+      foreach ($b in $blocking) { $issues.Add("inbound block rule on galene.exe: $b") }
+
+      $installed = if (Test-Path -LiteralPath $VersionFile) { (Get-Content -LiteralPath $VersionFile -Raw).Trim() } else { $null }
+      if ($installed -ne $Version) { $issues.Add("installed version '$installed', role version $Version") }
+
+      $tokens = if (Test-Path -LiteralPath $TokensFile) {
+          @(Get-Content -LiteralPath $TokensFile | Where-Object { $_.Trim() }).Count } else { 0 }
+      if ($tokens -ne $ExpectedTokens) {
+          $issues.Add("$tokens tokens, $ExpectedTokens expected from the inventory: run galene-on-master again")
+      }
+
+      $lnk = [Environment]::ExpandEnvironmentVariables($Shortcut)
+      if (-not (Test-Path -LiteralPath $lnk)) { $issues.Add("shortcut missing: $lnk") }
+
+      # Galène sends one stream per client: compare their sum with the link.
+      $links = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' |
+          ForEach-Object { [ordered]@{ name = $_.Name; mbps = [math]::Round($_.ReceiveLinkSpeed / 1e6) } })
+      $need = [math]::Round(($ExpectedTokens - 1) * $MbitPerClient)
+      $fastest = ($links | ForEach-Object { $_.mbps } | Measure-Object -Maximum).Maximum
+      if ($fastest -and $need -gt 0.8 * $fastest) {
+          $issues.Add("about $need Mbit/s for $($ExpectedTokens - 1) clients at $MbitPerClient Mbit/s on a $fastest Mbit/s link")
+      }
+
+      [ordered]@{
+          ok = $issues.Count -eq 0
+          issues = @($issues)
+          service = if ($svc) { [ordered]@{ state = $svc.State; start_mode = $svc.StartMode; account = $svc.StartName } } else { $null }
+          process_id = $procId
+          tcp_listen = @($tcp | ForEach-Object { '{0}:{1}' -f $_.LocalAddress, $_.LocalPort })
+          udp_bound = @($udp | ForEach-Object { '{0}:{1}' -f $_.LocalAddress, $_.LocalPort })
+          http_status = $http
+          firewall = @($fw)
+          blocking_rules = $blocking
+          version = $installed
+          tokens = $tokens
+          links = $links
+      }
+  register: win_workman_galene_master_check
+
+- name: Show the Galène master state
+  ansible.builtin.debug:
+    msg: "{{ win_workman_galene_master_check.output[-1] | default({}) }}"

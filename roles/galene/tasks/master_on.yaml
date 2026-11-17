@@ -1,0 +1,131 @@
+---
+- name: Build Galène on the controller
+  ansible.builtin.include_tasks: build.yaml
+
+- name: Read the installed galene.exe
+  ansible.windows.win_stat:
+    path: "{{ win_workman_galene_exe }}"
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: win_workman_galene_exe_stat
+
+- name: Read the Galène service
+  ansible.windows.win_service_info:
+    name: "{{ win_workman_galene_service_name }}"
+  register: win_workman_galene_service_before
+
+# A running galene.exe is locked: it has to stop before it can be replaced.
+- name: Stop Galène before replacing galene.exe
+  ansible.windows.win_service:
+    name: "{{ win_workman_galene_service_name }}"
+    state: stopped
+  when:
+    - win_workman_galene_service_before.exists
+    - win_workman_galene_exe_stat.stat.exists
+    - win_workman_galene_exe_stat.stat.checksum != win_workman_galene_exe_checksum
+
+- name: Create the Galène directories
+  ansible.windows.win_file:
+    path: "{{ win_workman_galene_install_dir }}{{ item }}"
+    state: directory
+  loop: "{{ win_workman_galene_install_subdirs }}"
+
+- name: Copy galene.exe
+  ansible.windows.win_copy:
+    src: "{{ win_workman_galene_build_dir }}/galene.exe"
+    dest: "{{ win_workman_galene_exe }}"
+  register: win_workman_galene_bin
+
+- name: Copy the web client
+  ansible.windows.win_copy:
+    src: "{{ win_workman_galene_build_dir }}/static/"
+    dest: "{{ win_workman_galene_static_dir }}"
+
+- name: Copy the licence
+  ansible.windows.win_copy:
+    src: "{{ win_workman_galene_build_dir }}/LICENCE"
+    dest: '{{ win_workman_galene_install_dir }}\LICENCE'
+
+- name: Copy the service wrapper
+  ansible.windows.win_copy:
+    src: "{{ win_workman_storage_path }}/{{ win_workman_galene_winsw_file }}"
+    dest: "{{ win_workman_galene_wrapper }}"
+  register: win_workman_galene_wrapper_copy
+
+- name: Write the service configuration
+  ansible.windows.win_template:
+    src: galene-service.xml.j2
+    dest: "{{ win_workman_galene_wrapper_xml }}"
+  register: win_workman_galene_wrapper_conf
+
+- name: Write the group description
+  ansible.windows.win_copy:
+    dest: "{{ win_workman_galene_group_file }}"
+    content: >-
+      {{ {'displayName': win_workman_galene_group_display_name,
+          'max-clients': win_workman_galene_max_clients | int} | to_nice_json }}
+
+# Galène reloads both files when they change: no restart needed.
+- name: Write the access tokens
+  ansible.windows.win_copy:
+    dest: "{{ win_workman_galene_tokens_file }}"
+    content: |
+      {{ {'token': win_workman_galene_master_token, 'group': win_workman_galene_group,
+          'username': win_workman_galene_master_username,
+          'permissions': ['op', 'present', 'message'],
+          'expires': win_workman_galene_token_expires} | to_json }}
+      {% for client in groups[win_workman_galene_clients_group] | default([]) %}
+      {{ {'token': ((win_workman_galene_secret ~ '-' ~ client) | hash('sha256'))[:32],
+          'group': win_workman_galene_group, 'username': client, 'permissions': [],
+          'expires': win_workman_galene_token_expires} | to_json }}
+      {% endfor %}
+  no_log: true
+
+- name: Record the installed version
+  ansible.windows.win_copy:
+    dest: "{{ win_workman_galene_version_file }}"
+    content: "{{ win_workman_galene_version }}"
+
+- name: Register the Galène service
+  ansible.windows.win_command:
+    argv: ["{{ win_workman_galene_wrapper }}", install]
+    chdir: "{{ win_workman_galene_install_dir }}"
+  when: not win_workman_galene_service_before.exists
+
+- name: Start the Galène service
+  ansible.windows.win_service:
+    name: "{{ win_workman_galene_service_name }}"
+    start_mode: auto
+    state: started
+  register: win_workman_galene_service
+
+- name: Restart Galène for the new binary or configuration
+  ansible.windows.win_service:
+    name: "{{ win_workman_galene_service_name }}"
+    state: restarted
+  when:
+    - win_workman_galene_service_before.exists
+    - not win_workman_galene_service.changed
+    - >-
+      win_workman_galene_bin.changed
+      or win_workman_galene_wrapper_copy.changed
+      or win_workman_galene_wrapper_conf.changed
+
+- name: Manage the Galène firewall rules
+  ansible.builtin.include_tasks: firewall.yaml
+  vars:
+    win_workman_galene_fw_state: present
+
+- name: Master shortcut on the public desktop
+  community.windows.win_shortcut:
+    src: "{{ win_workman_galene_browser }}"
+    arguments: "--new-window {{ win_workman_galene_master_url }}"
+    dest: "{{ win_workman_galene_master_shortcut_path }}"
+    icon: "{{ win_workman_galene_browser }},0"
+    description: "{{ win_workman_galene_master_shortcut_description }}"
+    state: present
+
+- name: Wait for Galène to answer
+  ansible.windows.win_wait_for:
+    port: "{{ win_workman_galene_http_port | int }}"
+    timeout: 30

@@ -1,0 +1,44 @@
+---
+- name: Check the Galène client
+  ansible.windows.win_powershell:
+    depth: 5
+    parameters:
+      Shortcut: "{{ win_workman_galene_client_shortcut_path }}"
+      Expected: "--app={{ win_workman_galene_client_url }}"
+      Master: "{{ win_workman_galene_master_address }}"
+      Port: "{{ win_workman_galene_http_port | int }}"
+    script: |
+      param([string]$Shortcut, [string]$Expected, [string]$Master, [int]$Port)
+      $ErrorActionPreference = 'Stop'
+      $Ansible.Changed = $false
+      $issues = [System.Collections.Generic.List[string]]::new()
+
+      $lnk = [Environment]::ExpandEnvironmentVariables($Shortcut)
+      $arguments = $null
+      if (Test-Path -LiteralPath $lnk) {
+          $arguments = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).Arguments
+          if ($arguments -ne $Expected) { $issues.Add("shortcut points elsewhere: $arguments") }
+      } else { $issues.Add("shortcut missing: $lnk") }
+
+      $reachable = $false
+      if ($Master) {
+          $client = [System.Net.Sockets.TcpClient]::new()
+          try { $reachable = $client.ConnectAsync($Master, $Port).Wait(3000) -and $client.Connected }
+          catch { $reachable = $false }
+          finally { $client.Dispose() }
+          if (-not $reachable) { $issues.Add("master $Master not reachable on TCP $Port") }
+      } else { $issues.Add("no master configured") }
+
+      [ordered]@{
+          ok = $issues.Count -eq 0
+          issues = @($issues)
+          master = "${Master}:$Port"
+          master_reachable = $reachable
+          shortcut = $lnk
+          shortcut_arguments = $arguments
+      }
+  register: win_workman_galene_client_check
+
+- name: Show the Galène client state
+  ansible.builtin.debug:
+    msg: "{{ win_workman_galene_client_check.output[-1] | default({}) }}"

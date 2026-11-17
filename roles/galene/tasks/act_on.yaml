@@ -1,0 +1,11 @@
+---
+- name: Derive the Galène secret
+  ansible.builtin.include_tasks: secret.yaml
+
+- name: Install the Galène master
+  ansible.builtin.include_tasks: master_on.yaml
+  when: win_workman_galene_is_master | bool
+
+- name: Install the Galène client
+  ansible.builtin.include_tasks: client_on.yaml
+  when: not (win_workman_galene_is_master | bool)

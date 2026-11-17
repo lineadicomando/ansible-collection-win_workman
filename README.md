@@ -41,6 +41,8 @@ regardless of what the task actually does.
 | `community.general` | >= 8.0.0 |
 
 Target hosts must run Windows 11. WinRM or SSH connectivity is required.
+The `galene` role builds its Windows binary on the controller and needs Go there
+(any version from 1.21; the pinned toolchain is downloaded by Go itself).
 
 ---
 
@@ -220,6 +222,7 @@ dispatcher interface.
 | `domain` | `status` *(default)*, `join`, `leave`, `on`, `off` | Active Directory domain membership |
 | `openssh` | `info` *(default)*, `update`, `harden`, `unharden`, `on`, `off` | OpenSSH Server: installation info, MSI upgrade and hardening (`secure_ssh` is a deprecated alias) |
 | `veyon` | `on`, `off`, `config` | Veyon classroom agent (install + key/network config) |
+| `galene` | `on`, `off`, `info`, `build` | Galène server on the teacher PC (service + firewall) and shortcuts to it on the students |
 | `ping` | `on` | Connectivity test |
 | `wol` | `on` | Send Wake-on-LAN magic packets |
 

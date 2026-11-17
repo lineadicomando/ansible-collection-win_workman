@@ -1,0 +1,11 @@
+---
+- name: Derive the Galène secret
+  ansible.builtin.include_tasks: secret.yaml
+
+- name: Check the Galène master
+  ansible.builtin.include_tasks: master_info.yaml
+  when: win_workman_galene_is_master | bool
+
+- name: Check the Galène client
+  ansible.builtin.include_tasks: client_info.yaml
+  when: not (win_workman_galene_is_master | bool)

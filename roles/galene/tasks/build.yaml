@@ -1,0 +1,126 @@
+---
+# galene.exe is cross-compiled on the controller: upstream publishes no Windows
+# binary. Go downloads the pinned toolchain itself (GOTOOLCHAIN), whatever Go the
+# controller has, and the result must match the pinned checksum. Nothing runs
+# when this version is already built.
+- name: Download the Galène source and WinSW
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: download
+  vars:
+    win_workman_schema: "{{ win_workman_galene_schema }}"
+
+- name: Check the Galène build in storage
+  ansible.builtin.stat:
+    path: "{{ win_workman_galene_build_dir }}/galene.exe"
+    checksum_algorithm: sha256
+  delegate_to: localhost
+  run_once: true
+  register: win_workman_galene_build_stat
+
+- name: Check the Galène web client in storage
+  ansible.builtin.stat:
+    path: "{{ win_workman_galene_build_dir }}/static/galene.js"
+  delegate_to: localhost
+  run_once: true
+  register: win_workman_galene_static_stat
+
+- name: Build Galène
+  when: >-
+    not (win_workman_galene_build_stat.stat.exists | default(false))
+    or win_workman_galene_build_stat.stat.checksum != win_workman_galene_exe_checksum
+    or not (win_workman_galene_static_stat.stat.exists | default(false))
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Find the Go compiler on the controller
+      ansible.builtin.command: go env GOVERSION
+      register: win_workman_galene_go
+      changed_when: false
+      failed_when: false
+
+    - name: Require Go on the controller
+      ansible.builtin.fail:
+        msg: >-
+          Galène {{ win_workman_galene_version }} has to be built on the controller and
+          'go' was not found there ({{ win_workman_galene_go.msg | default(win_workman_galene_go.stderr) }}).
+          Install Go (e.g. 'dnf install golang' or 'apt install golang-go'): any version
+          from 1.21 on, the pinned {{ win_workman_galene_go_toolchain }} is downloaded by Go itself.
+      when: win_workman_galene_go.rc | default(1) != 0
+
+    - name: Clear the previous source tree
+      ansible.builtin.file:
+        path: "{{ win_workman_galene_build_src }}"
+        state: absent
+
+    - name: Create the source directory
+      ansible.builtin.file:
+        path: "{{ win_workman_galene_build_src }}"
+        state: directory
+        mode: "0755"
+
+    - name: Extract the Galène source
+      ansible.builtin.unarchive:
+        src: "{{ win_workman_storage_path }}/{{ win_workman_galene_source_file }}"
+        dest: "{{ win_workman_galene_build_src }}"
+        remote_src: true
+        extra_opts: [--strip-components=1]
+
+    # GOPROXY and GOSUMDB are set explicitly: some distributions default to
+    # GOPROXY=direct, with which neither the toolchain nor the modules resolve.
+    - name: Compile galene.exe for Windows
+      ansible.builtin.command:
+        argv: [go, build, -trimpath, -buildvcs=false, "-ldflags=-s -w", -o, galene.exe, .]
+        chdir: "{{ win_workman_galene_build_src }}"
+      environment:
+        CGO_ENABLED: "0"
+        GOOS: windows
+        GOARCH: amd64
+        GOTOOLCHAIN: "{{ win_workman_galene_go_toolchain }}"
+        GOFLAGS: -mod=readonly
+        GOPROXY: https://proxy.golang.org,direct
+        GOSUMDB: sum.golang.org
+      changed_when: true
+
+    - name: Read the checksum of the new build
+      ansible.builtin.stat:
+        path: "{{ win_workman_galene_build_src }}/galene.exe"
+        checksum_algorithm: sha256
+      register: win_workman_galene_new_build
+
+    - name: Require the pinned checksum
+      ansible.builtin.assert:
+        that: win_workman_galene_new_build.stat.checksum == win_workman_galene_exe_checksum
+        fail_msg: >-
+          galene.exe {{ win_workman_galene_version }} built with {{ win_workman_galene_go_toolchain }}
+          has sha256 {{ win_workman_galene_new_build.stat.checksum }}, the role pins
+          {{ win_workman_galene_exe_checksum }}. Either the source or the toolchain is not
+          the one the role was written for: check both before updating
+          win_workman_galene_exe_checksum.
+        quiet: true
+
+    - name: Create the build directory
+      ansible.builtin.file:
+        path: "{{ win_workman_galene_build_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Store galene.exe
+      ansible.builtin.copy:
+        src: "{{ win_workman_galene_build_src }}/galene.exe"
+        dest: "{{ win_workman_galene_build_dir }}/galene.exe"
+        remote_src: true
+        mode: "0644"
+
+    - name: Store the web client and the licence
+      ansible.builtin.copy:
+        src: "{{ win_workman_galene_build_src }}/{{ item }}"
+        dest: "{{ win_workman_galene_build_dir }}/{{ item }}"
+        remote_src: true
+        mode: preserve
+      loop: [static/, LICENCE]
+
+    - name: Remove the source tree
+      ansible.builtin.file:
+        path: "{{ win_workman_galene_build_src }}"
+        state: absent

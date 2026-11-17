@@ -1,0 +1,59 @@
+---
+display_name: Galène
+custom_actions:
+  - name: "on"
+    description: >-
+      Default action. On the master (galene-on-master, or win_workman_galene_master true):
+      build galene.exe on the controller if needed, install it as the Galene service with
+      WinSW, open the firewall, write group and tokens, add the teacher shortcut. On any
+      other host: only the shortcut to the master
+  - name: "off"
+    description: Remove service, firewall rules, directory and both shortcuts (master or client)
+  - name: info
+    description: >-
+      Master: service, listening sockets, HTTP answer, firewall rules and block rules on
+      galene.exe, version, tokens vs inventory, link speed vs clients. Client: shortcut and
+      reachability of the master. Reports issues, changes nothing
+  - name: build
+    description: Only download the source and WinSW and build galene.exe on the controller
+defaults:
+  - var: win_workman_galene_master
+    type: bool
+    default: false
+    description: This host runs the server (teacher PC); same as the master task argument
+  - var: win_workman_galene_master_host
+    type: str
+    default: "first host of the teachers group"
+    description: Inventory host the client shortcuts point to
+  - var: win_workman_galene_clients_group
+    type: str
+    default: students
+    description: Inventory group whose hosts get a token on the master
+  - var: win_workman_galene_group
+    type: str
+    default: lab
+    description: Galène group (room) name
+  - var: win_workman_galene_http_port
+    type: int
+    default: 8443
+    description: TCP port of the web server
+  - var: win_workman_galene_udp_port
+    type: int
+    default: 8444
+    description: UDP port for all the media
+  - var: win_workman_galene_firewall_remoteip
+    type: str
+    default: LocalSubnet
+    description: Remote addresses allowed by the firewall rules (LocalSubnet, Any or a list)
+  - var: win_workman_galene_secret_file
+    type: str
+    default: "{{ win_workman_storage_path }}/galene/<inventory>_secret"
+    description: Controller file of the secret the tokens are derived from, created on first use
+notes: >
+  The master must be the teacher PC: the teacher opens http://localhost, a secure context,
+  so screen and audio sharing work without a certificate. In the browser choose the whole
+  screen and "share system audio". galene.exe is built on the controller, which needs Go
+  (any version from 1.21; the pinned toolchain is downloaded by Go). The tokens on the
+  master list the hosts of the clients group: after adding a client run galene-on-master
+  again. Galène sends one stream per client: about 2.5 Mbit/s each, so a teacher PC on a
+  100 Mbit/s port is at its limit with 30 students (info warns about it).

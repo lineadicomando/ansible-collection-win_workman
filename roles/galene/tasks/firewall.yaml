@@ -1,0 +1,39 @@
+---
+- name: Set the Galène firewall rules
+  community.windows.win_firewall_rule:
+    name: "{{ item.name }}"
+    description: Galène, managed by lineadicomando.win_workman.galene
+    direction: in
+    action: allow
+    protocol: "{{ item.protocol }}"
+    localport: "{{ item.port }}"
+    remoteip: "{{ win_workman_galene_firewall_remoteip
+                  if win_workman_galene_firewall_remoteip is string
+                  else win_workman_galene_firewall_remoteip | join(',') }}"
+    profiles: "{{ win_workman_galene_firewall_profiles }}"
+    enabled: true
+    state: "{{ win_workman_galene_fw_state }}"
+  loop: "{{ win_workman_galene_rules }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# The "Windows Defender Firewall has blocked some features" prompt leaves
+# "Query User" rules for the program, and a block rule wins over any allow rule:
+# remove them, as the nodejs26 role does for node.exe.
+- name: Remove the prompt and block rules for galene.exe
+  ansible.windows.win_powershell:
+    parameters:
+      Program: "{{ win_workman_galene_exe }}"
+    script: |
+      param([string]$Program)
+      $ErrorActionPreference = 'Stop'
+      $rules = @(Get-NetFirewallApplicationFilter -PolicyStore PersistentStore |
+        Where-Object { $_.Program -and
+          [Environment]::ExpandEnvironmentVariables($_.Program) -ieq $Program } |
+        Get-NetFirewallRule |
+        Where-Object { $_.Direction -eq 'Inbound' -and
+          ($_.Action -eq 'Block' -or $_.Name -like '*Query User{*}*') })
+      $rules | Remove-NetFirewallRule
+      $Ansible.Changed = $rules.Count -gt 0
+      @($rules | ForEach-Object { '{0} ({1})' -f $_.DisplayName, $_.Action })
+  when: win_workman_galene_fw_state == 'present'
