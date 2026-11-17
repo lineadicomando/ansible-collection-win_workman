@@ -10,13 +10,13 @@ win_workman_vlc_schema:
   role: lineadicomando.win_workman.vlc
   default_action: !!str on
   package:
-    setup_file: vlc-3.0.23-win64.exe
+    setup_file: vlc-3.0.24-win64.exe
     searchName: "VLC media player"
-    version: "3.0.23"
+    version: "3.0.24"
     install_args: /S
     uninstall_args: /S
     uninstall_via_helper: true
   files:
-    - filename: vlc-3.0.23-win64.exe
-      url: https://www.sooftware.com/mirrors/VLC/vlc/3.0.23/win64/vlc-3.0.23-win64.exe
-      checksum: sha256:20ad191348684b470ddc4e05204316f3d8e39655f412b3e392a0eef97639daaf
+    - filename: vlc-3.0.24-win64.exe
+      url: https://www.sooftware.com/mirrors/VLC/vlc/3.0.24/win64/vlc-3.0.24-win64.exe
+      checksum: sha256:d711e1e1fe52052748c39080c7dce63f6b7e4c315efedf1774a3f1957b782ff3
