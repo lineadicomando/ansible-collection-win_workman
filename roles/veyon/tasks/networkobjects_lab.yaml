@@ -1,30 +1,47 @@
 ---
-- name: Normalize win_workman_veyon_labs to list
+# Each entry of win_workman_veyon_labs is an inventory group, either as a plain
+# string (the Veyon location takes the group's name) or as {group, name} when the
+# location already has a name of its own on the master, e.g.
+#   - group: win_managed
+#     name: Lab A
+- name: Normalize win_workman_veyon_labs to a list of {group, name}
   ansible.builtin.set_fact:
     win_workman_veyon_labs_list: >-
-      {{
-        [win_workman_veyon_labs]
-        if win_workman_veyon_labs is string
-        else (win_workman_veyon_labs | list)
-      }}
+      {%- set raw = [win_workman_veyon_labs] if win_workman_veyon_labs is string
+                    else (win_workman_veyon_labs | list) -%}
+      {%- set labs = [] -%}
+      {%- for entry in raw -%}
+        {%- if entry is mapping -%}
+          {%- set _ = labs.append({'group': entry.group | default('') | string,
+                                   'name': entry.name | default(entry.group | default(''), true) | string}) -%}
+        {%- else -%}
+          {%- set _ = labs.append({'group': entry | string, 'name': entry | string}) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ labs }}
 
-- name: Assert lab groups exist in inventory
+- name: Assert lab groups exist in inventory and location names are unique
   ansible.builtin.assert:
     that:
-      - item in groups
-      - (groups[item] | default([])) | length > 0
+      - item.group | length > 0
+      - item.group in groups
+      - (groups[item.group] | default([])) | length > 0
+      - win_workman_veyon_labs_list | selectattr('name', 'equalto', item.name) | list | length == 1
     fail_msg: >-
-      Inventory group '{{ item }}' not found or has no hosts.
+      Veyon lab '{{ item.name }}': inventory group '{{ item.group }}' not found or has no hosts,
+      or the location name is used by more than one entry of win_workman_veyon_labs.
   loop: "{{ win_workman_veyon_labs_list }}"
+  loop_control:
+    label: "{{ item.name }} <- {{ item.group }}"
 
 - name: Build lab-host pairs for validation
   ansible.builtin.set_fact:
     win_workman_veyon_lab_host_pairs: >-
       {%- set pairs = [] -%}
       {%- for lab in win_workman_veyon_labs_list -%}
-        {%- for host in (groups[lab] | default([])) -%}
+        {%- for host in (groups[lab.group] | default([])) -%}
           {%- if not (hostvars[host].win_workman_veyon_master | default(false) | bool) -%}
-            {%- set _ = pairs.append({'lab': lab, 'host': host}) -%}
+            {%- set _ = pairs.append({'lab': lab.name, 'host': host}) -%}
           {%- endif -%}
         {%- endfor -%}
       {%- endfor -%}
@@ -33,10 +50,12 @@
 - name: Assert each lab has at least one agent host
   ansible.builtin.assert:
     that:
-      - win_workman_veyon_lab_host_pairs | selectattr('lab', 'equalto', item) | list | length > 0
+      - win_workman_veyon_lab_host_pairs | selectattr('lab', 'equalto', item.name) | list | length > 0
     fail_msg: >-
-      Lab '{{ item }}' has no agent hosts after excluding masters.
+      Lab '{{ item.name }}' has no agent hosts after excluding masters.
   loop: "{{ win_workman_veyon_labs_list }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Validate lab host inventory data
   ansible.builtin.assert:
@@ -58,109 +77,134 @@
 
 - name: Build desired Veyon lab CSV files on target
   ansible.windows.win_copy:
-    dest: "{{ win_workman_remote_tmp }}\\veyon\\lab_{{ item }}_desired.csv"
+    dest: "{{ win_workman_remote_tmp }}\\veyon\\lab_{{ idx }}_desired.csv"
     content: |
-      {% for host in (groups[item] | default([])) %}
+      {% for host in (groups[item.group] | default([])) %}
       {% if not (hostvars[host].win_workman_veyon_master | default(false) | bool) %}
       {{ host }};{{ hostvars[host].ansible_host }};{{ hostvars[host].ansible_mac }}
       {% endif %}
       {% endfor %}
   loop: "{{ win_workman_veyon_labs_list }}"
+  loop_control:
+    index_var: idx
+    label: "{{ item.name }}"
 
+# Veyon gives imported objects a UUID derived from all their fields, and objects
+# made in the Configurator a random one: re-importing a computer whose address
+# changed, or one created by hand, adds a second object with the same name.
+# So the location is reconciled field by field: matching computers are kept,
+# stale or duplicate ones are removed by UUID, and only the missing are imported.
 - name: Reconcile Veyon lab network objects
   ansible.windows.win_powershell:
+    parameters:
+      CliPath: "{{ win_workman_veyon_cli_path | default('', true) | trim }}"
+      LabName: "{{ win_workman_veyon_current_lab.name }}"
+      DesiredPath: "{{ win_workman_remote_tmp }}\\veyon\\lab_{{ idx }}_desired.csv"
+      MissingPath: "{{ win_workman_remote_tmp }}\\veyon\\lab_{{ idx }}_missing.csv"
+      ForceReplace: "{{ win_workman_veyon_lab_force_replace | bool }}"
+      Prune: "{{ win_workman_veyon_lab_prune | bool }}"
     script: |
-      $veyonCli = "{{ win_workman_veyon_cli_path | default('', true) | trim }}"
+      param([string]$CliPath, [string]$LabName, [string]$DesiredPath, [string]$MissingPath, [bool]$ForceReplace, [bool]$Prune)
+      $ErrorActionPreference = 'Stop'
+
+      $veyonCli = $CliPath
       if (-not $veyonCli) {
-        $found = Get-Command 'veyon-cli.exe', 'veyon-cli' -ErrorAction SilentlyContinue |
-                 Select-Object -First 1
+        $found = Get-Command 'veyon-cli.exe', 'veyon-cli' -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($found) { $veyonCli = $found.Source }
       }
-      foreach ($c in "$env:ProgramFiles\Veyon\veyon-cli.exe",
-                     "${env:ProgramFiles(x86)}\Veyon\veyon-cli.exe") {
+      foreach ($c in "$env:ProgramFiles\Veyon\veyon-cli.exe", "${env:ProgramFiles(x86)}\Veyon\veyon-cli.exe") {
         if (-not $veyonCli -and (Test-Path -LiteralPath $c)) { $veyonCli = $c; break }
       }
       if (-not $veyonCli) { throw "veyon-cli not found. Set win_workman_veyon_cli_path." }
 
-      $labName            = "{{ win_workman_veyon_current_lab }}"
-      $desiredPath        = "{{ win_workman_remote_tmp }}\veyon\lab_{{ win_workman_veyon_current_lab }}_desired.csv"
-      $currentPath        = "{{ win_workman_remote_tmp }}\veyon\lab_{{ win_workman_veyon_current_lab }}_current.csv"
-      $removeBeforeImport = {{ (win_workman_veyon_lab_force_replace | default(false) | bool) | ternary('$true', '$false') }}
-
-      function Normalize-Host([string]$v) { $v.Trim().ToLowerInvariant() }
-      function Normalize-Mac([string]$v)  { ($v.Trim().ToLowerInvariant()) -replace '[^0-9a-f]', '' }
-
-      function Read-NormalizedRows([string]$p) {
-        if (-not (Test-Path -LiteralPath $p)) { return @() }
-        $rows = @()
-        foreach ($line in (Get-Content -LiteralPath $p -ErrorAction SilentlyContinue)) {
-          if ([string]::IsNullOrWhiteSpace($line)) { continue }
-          $parts = $line.Split(';')
-          if ($parts.Length -lt 3) { continue }
-          $rows += ("{0};{1};{2}" -f $parts[0].Trim(), (Normalize-Host $parts[1]), (Normalize-Mac $parts[2]))
-        }
-        return @($rows | Sort-Object -Unique)
-      }
-
-      if (-not (Test-Path -LiteralPath $desiredPath)) {
-        throw "Desired Veyon lab file not found: $desiredPath"
-      }
-
-      if (Test-Path -LiteralPath $currentPath) {
-        Remove-Item -LiteralPath $currentPath -Force -ErrorAction SilentlyContinue
-      }
-
-      $global:LASTEXITCODE = 0
-      $exportOut = ''
-      try {
-        $exportOut = (& $veyonCli networkobjects export $currentPath location $labName format '%name%;%host%;%mac%' 2>&1 | Out-String).Trim()
-      } catch { $exportOut = ($_ | Out-String).Trim() }
-
-      $notFoundPattern = '(?i)does not exist|not exist|not found|posizione.+non trovata|non trovata|non trovato'
-      $locationExists = ($LASTEXITCODE -eq 0)
-      if ((-not $locationExists) -and ($exportOut -notmatch $notFoundPattern)) {
-        throw "Failed to export current lab '${labName}': $exportOut"
-      }
-
-      $desiredRows = Read-NormalizedRows -p $desiredPath
-      $currentRows = Read-NormalizedRows -p $currentPath
-
-      if (($desiredRows -join "`n") -eq ($currentRows -join "`n")) {
-        $Ansible.Changed = $false
-        $Ansible.Result = @{ status = 'already'; lab = $labName; count = $desiredRows.Count }
-        return
-      }
-
-      if ($removeBeforeImport -and $locationExists) {
+      # veyon-cli writes Qt warnings on stderr: keep them out of the error stream.
+      function Invoke-VeyonCli([string[]]$CliArgs) {
         $global:LASTEXITCODE = 0
-        $out = ''
-        try { $out = (& $veyonCli networkobjects remove $labName 2>&1 | Out-String).Trim() }
-        catch { $out = ($_ | Out-String).Trim() }
-        if ($LASTEXITCODE -ne 0) { throw "Failed to remove lab '${labName}': $out" }
-        $locationExists = $false
-      }
-
-      if (-not $locationExists) {
-        $global:LASTEXITCODE = 0
-        $out = ''
-        try { $out = (& $veyonCli networkobjects add location $labName 2>&1 | Out-String).Trim() }
-        catch { $out = ($_ | Out-String).Trim() }
-        if (($LASTEXITCODE -ne 0) -and ($out -notmatch '(?i)already|exists|esist')) {
-          throw "Failed to create lab '${labName}': $out"
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { $out = @(& $veyonCli @CliArgs 2>&1 | ForEach-Object { "$_" }) }
+        finally { $ErrorActionPreference = $prev }
+        [pscustomobject]@{
+          Code  = $LASTEXITCODE
+          Lines = @($out | Where-Object { $_ -notmatch 'qt\.qpa|DPI awareness' })
         }
       }
+      function Assert-VeyonCli($r, [string]$what) {
+        if ($r.Code -ne 0) { throw "veyon-cli $what failed: $($r.Lines -join ' ')" }
+      }
 
-      $global:LASTEXITCODE = 0
-      $out = ''
-      try { $out = (& $veyonCli networkobjects import $desiredPath location $labName format '%name%;%host%;%mac%' 2>&1 | Out-String).Trim() }
-      catch { $out = ($_ | Out-String).Trim() }
-      if ($LASTEXITCODE -ne 0) { throw "Failed to import lab '${labName}': $out" }
+      $rootId = '00000000-0000-0000-0000-000000000000'
+      function Get-NetworkObjects {
+        $r = Invoke-VeyonCli @('networkobjects', 'dump')
+        Assert-VeyonCli $r 'networkobjects dump'
+        foreach ($line in $r.Lines) {
+          if ($line -notmatch '^\|\s*[0-9a-fA-F]{8}-') { continue }
+          $c = $line.Trim().Trim('|').Split('|') | ForEach-Object { $_.Trim() }
+          [pscustomobject]@{ Id = $c[0]; Parent = $c[1]; Name = $c[3]; Host = $c[4]; Mac = $c[5] }
+        }
+      }
+      function Get-Location($objects) {
+        $l = @($objects | Where-Object { $_.Parent -eq $rootId -and $_.Name -eq $LabName })
+        if ($l.Count -gt 1) { throw "More than one Veyon location named '$LabName': fix it in the Configurator" }
+        $l | Select-Object -First 1
+      }
+      function Get-Key([string]$name, [string]$hostAddr, [string]$mac) {
+        '{0};{1};{2}' -f $name.Trim(), $hostAddr.Trim().ToLowerInvariant(), ($mac.ToLowerInvariant() -replace '[^0-9a-f]', '')
+      }
 
-      $Ansible.Changed = $true
-      $Ansible.Result = @{ status = 'reconciled'; lab = $labName; count = $desiredRows.Count }
+      $desired = @(Get-Content -LiteralPath $DesiredPath | Where-Object { $_ -match '\S' } | ForEach-Object {
+        $p = $_.Split(';')
+        [pscustomobject]@{ Name = $p[0].Trim(); Host = $p[1].Trim(); Mac = $p[2].Trim(); Key = Get-Key $p[0] $p[1] $p[2] }
+      })
+      $desiredKeys  = [Collections.Generic.HashSet[string]]::new([string[]]@($desired.Key))
+      $desiredNames = [Collections.Generic.HashSet[string]]::new([string[]]@($desired.Name), [StringComparer]::OrdinalIgnoreCase)
+
+      $result = [ordered]@{ lab = $LabName; created = $false; replaced = $false; added = @(); removed = @(); unmanaged = @() }
+
+      $location = Get-Location (Get-NetworkObjects)
+      if ($location -and $ForceReplace) {
+        Assert-VeyonCli (Invoke-VeyonCli @('networkobjects', 'remove', $location.Id)) "networkobjects remove $LabName"
+        $location = $null
+        $result.replaced = $true
+      }
+      if (-not $location) {
+        Assert-VeyonCli (Invoke-VeyonCli @('networkobjects', 'add', 'location', $LabName)) "networkobjects add location $LabName"
+        $location = Get-Location (Get-NetworkObjects)
+        if (-not $location) { throw "Veyon location '$LabName' not found after creating it" }
+        $result.created = -not $result.replaced
+      }
+
+      $kept = [Collections.Generic.HashSet[string]]::new()
+      foreach ($o in @(Get-NetworkObjects | Where-Object { $_.Parent -eq $location.Id })) {
+        $key = Get-Key $o.Name $o.Host $o.Mac
+        if ($desiredKeys.Contains($key) -and $kept.Add($key)) { continue }
+        if ($desiredNames.Contains($o.Name) -or $kept.Contains($key) -or $Prune) {
+          Assert-VeyonCli (Invoke-VeyonCli @('networkobjects', 'remove', $o.Id)) "networkobjects remove $($o.Name)"
+          $result.removed += "$($o.Name) $($o.Host) $($o.Mac)"
+        } else {
+          $result.unmanaged += "$($o.Name) $($o.Host) $($o.Mac)"
+        }
+      }
+
+      $missing = @($desired | Where-Object { -not $kept.Contains($_.Key) })
+      if ($missing.Count -gt 0) {
+        Set-Content -LiteralPath $MissingPath -Encoding Ascii -Value @($missing | ForEach-Object { '{0};{1};{2}' -f $_.Name, $_.Host, $_.Mac })
+        $r = Invoke-VeyonCli @('networkobjects', 'import', $MissingPath, 'location', $LabName, 'format', '%name%;%host%;%mac%')
+        Remove-Item -LiteralPath $MissingPath -Force -ErrorAction SilentlyContinue
+        Assert-VeyonCli $r "networkobjects import into $LabName"
+        $result.added = @($missing | ForEach-Object { "$($_.Name) $($_.Host) $($_.Mac)" })
+      }
+
+      $Ansible.Changed = $result.created -or $result.replaced -or $result.added.Count -gt 0 -or $result.removed.Count -gt 0
+      $Ansible.Result = $result
   loop: "{{ win_workman_veyon_labs_list }}"
   loop_control:
     loop_var: win_workman_veyon_current_lab
-    label: "{{ win_workman_veyon_current_lab }}"
-  no_log: "{{ win_workman_veyon_no_log | bool }}"
+    index_var: idx
+    label: "{{ win_workman_veyon_current_lab.name }}"
+  register: win_workman_veyon_lab_reconcile
   notify: Restart Veyon Service
+
+- name: Report Veyon lab reconciliation
+  ansible.builtin.debug:
+    msg: "{{ win_workman_veyon_lab_reconcile.results | map(attribute='result') | list }}"

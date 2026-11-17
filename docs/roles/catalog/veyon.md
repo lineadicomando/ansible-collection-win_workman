@@ -78,14 +78,41 @@ reconciliation when `win_workman_veyon_labs` is non-empty.
 
 | Variable | Default | Description |
 |---|---|---|
-| `win_workman_veyon_labs` | `[]` | List of inventory group names to configure as Veyon network object locations |
-| `win_workman_veyon_lab_force_replace` | `false` | Remove and recreate the location entry before importing, instead of reconciling in place |
+| `win_workman_veyon_labs` | `[]` | Inventory groups to configure as Veyon locations: a group name, or `{group, name}` to give the location a name of its own |
+| `win_workman_veyon_lab_force_replace` | `false` | Remove and recreate the location before importing, instead of reconciling in place |
+| `win_workman_veyon_lab_prune` | `false` | Also remove computers of the location that are not in the group; by default they are kept and reported as unmanaged |
 
 Network object reconciliation runs on master hosts only when
 `win_workman_veyon_labs` is non-empty. Each group listed becomes a location
 in Veyon; every non-master host in the group is added as a computer. The
 hosts in those groups must have `ansible_host` (IP/FQDN) and `ansible_mac`
 (MAC address) set in their inventory variables.
+
+A plain group name is also the name of the location. When the master already
+has the lab under another name (created in the Configurator, say), give it
+explicitly, or the role creates a second location named after the group:
+
+```yaml
+win_workman_veyon_labs:
+  - group: win_managed
+    name: Lab A
+```
+
+The location is reconciled field by field, not re-imported wholesale. Veyon
+derives the UUID of an imported object from all its fields, and gives objects
+made in the Configurator a random one, so a plain import would add a second
+computer with the same name whenever its address changed, or next to one
+created by hand. Instead:
+
+- a computer whose name, address and MAC match the inventory is kept as it is,
+  whoever created it;
+- a computer with an inventory name but another address or MAC, and any
+  duplicate, is removed by UUID;
+- the computers missing from the location are imported;
+- a computer whose name is not in the group is left alone and reported as
+  `unmanaged`, unless `win_workman_veyon_lab_prune` is true.
+
+The run reports, per location, what it added, removed and left unmanaged.
 
 ---
 
@@ -134,6 +161,7 @@ ansible_mac: "aa:bb:cc:dd:ee:01"
 4. **Import key** — fingerprint-compares the staged key against the installed
    key; imports only if absent or mismatched.
 5. **Reconcile network objects** (master only, when `win_workman_veyon_labs`
-   is set) — exports the current location from Veyon, diffs against the
-   inventory, and imports the desired state.
+   is set) — dumps the network objects, keeps the computers that match the
+   inventory, removes stale and duplicate ones by UUID, and imports only the
+   missing (see *Lab network objects* above).
 6. **Clean up** — removes staged key files from the Windows target.

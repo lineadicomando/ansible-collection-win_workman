@@ -11,7 +11,10 @@ defaults:
   - var: win_workman_veyon_labs
     type: list
     default: []
-    description: List of lab names whose network objects are configured on this host
+    description: >-
+      Inventory groups whose hosts become Veyon locations on this master: a group name
+      (the location takes its name) or {group, name} to keep the location's own name,
+      e.g. {group: win_managed, name: Lab A}
   - var: win_workman_veyon_keypairs_dir
     type: str
     default: "{{ win_workman_storage_path }}/veyon"
@@ -19,7 +22,11 @@ defaults:
   - var: win_workman_veyon_lab_force_replace
     type: bool
     default: false
-    description: Force replacement of existing Veyon network objects on the host
+    description: Remove and recreate each location instead of reconciling it in place
+  - var: win_workman_veyon_lab_prune
+    type: bool
+    default: false
+    description: Also remove computers of the location that are not in the inventory group (by default they are kept and reported as unmanaged)
 notes: >
   Use the dedicated 'veyon' playbook (run_playbook) for full lab setup including key generation.
   Use run_tasks with 'veyon-config' only to push config/key updates to already-provisioned hosts.
