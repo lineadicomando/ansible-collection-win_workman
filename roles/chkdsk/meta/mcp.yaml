@@ -8,4 +8,11 @@ defaults:
     type: list
     default: ["C"]
     description: Drive letters to scan
-notes: "The scan runs at once with the volume in use: no restart, and nothing is scheduled for the next boot. It only detects: a volume with errors fails the task and still needs an offline repair (chkdsk /spotfix or /f)."
+notes: >
+  The scan runs at once with the volume in use: no restart, and nothing is scheduled
+  for the next boot. Errors it can fix are repaired online and the task reports changed.
+  The exit code is a Volume.RepairStatus value (5 = fixed online, 13 = needs an offline
+  scan and fix), cross-checked against the volume's dirty bit and health; Repair-Volume
+  -Scan decides only an unknown code or a contradiction. The task fails only when an
+  offline repair is still needed (chkdsk /spotfix or /f), with a msg naming the volume,
+  the status and the files involved.

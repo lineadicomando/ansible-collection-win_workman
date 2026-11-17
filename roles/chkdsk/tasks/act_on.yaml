@@ -1,4 +1,10 @@
 ---
+# The exit code of chkdsk /scan is a Volume.RepairStatus value (the enum of
+# Repair-Volume in the Storage module's Volume.cdxml), not only the 0-3 of the
+# classic documentation: 5 is "errors found and fixed online", 13 "needs an offline
+# scan and fix". The script classifies it, cross-checks the volume's dirty bit and
+# health, and returns the verdict; the host fails in a separate task, with a
+# readable msg, only when an offline repair is still needed.
 - name: Chkdsk
   ansible.windows.win_powershell:
     script: |
@@ -9,81 +15,151 @@
       )
 
       $Ansible.Changed = $false
-      $Ansible.Failed  = $false
+      $drive = "$($DriveLetter.ToUpper()):"
 
-      $psi = New-Object System.Diagnostics.ProcessStartInfo
-      $psi.FileName = "chkdsk.exe"
-      $psi.Arguments = "$DriveLetter`: /scan"
-      $psi.RedirectStandardOutput = $true
-      $psi.RedirectStandardError  = $true
-      $psi.UseShellExecute = $false
-      $psi.CreateNoWindow = $true
-      # Without a console, as over SSH, chkdsk writes in the ANSI code page,
-      # not the OEM one
-      $ansi = [System.Text.Encoding]::GetEncoding((Get-Culture).TextInfo.ANSICodePage)
-      $psi.StandardOutputEncoding = $ansi
-      $psi.StandardErrorEncoding  = $ansi
+      # Volume.RepairStatus: name and class of each value.
+      # Clean = nothing to do, Fixed = repaired online, Offline = needs
+      # chkdsk /spotfix or /f, Retry = the scan did not complete,
+      # Unknown = let Repair-Volume -Scan decide
+      $status = @{
+        0  = @('NoErrorsFound', 'Clean')
+        1  = @('ErrorsFixed', 'Fixed')
+        2  = @('MinorErrorsFixedOrCleanup', 'Fixed')
+        3  = @('Failed', 'Offline')
+        4  = @('ScanNoErrorsFound', 'Clean')
+        5  = @('ScanErrorsFoundAndFixedOnline', 'Fixed')
+        6  = @('ScanErrorsFixedOnlineAlsoNeedSpotFix', 'Offline')
+        7  = @('ScanErrorsFoundNeedSpotFix', 'Offline')
+        8  = @('ScanNeedsRetry', 'Retry')
+        10 = @('ScanTransientSnapshotError', 'Retry')
+        11 = @('ScanFatalSnapshotError', 'Retry')
+        12 = @('ScanNeedsMetaDataRetry', 'Retry')
+        13 = @('NeedOfflineScanAndFix', 'Offline')
+        16 = @('ScanFoundAndFixedLeaks', 'Fixed')
+      }
+      $statusByName = @{}
+      foreach ($k in $status.Keys) { $statusByName[$status[$k][0]] = $status[$k] }
 
-      $process = New-Object System.Diagnostics.Process
+      function Get-Status([int]$Code) {
+        if ($status.ContainsKey($Code)) { return $status[$Code] }
+        return @("$Code", 'Unknown')
+      }
 
-      try {
+      # Get-Volume gives HealthStatus as the enum name (Healthy, Warning,
+      # Unhealthy), the same in every display language
+      function Get-VolumeState {
+        $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='$drive'"
+        $volume = Get-Volume -DriveLetter $DriveLetter -ErrorAction SilentlyContinue
+        $health = 'Unknown'
+        if ($volume) { $health = "$($volume.HealthStatus)" }
+        [pscustomobject]@{
+          Dirty  = [bool]($disk -and $disk.VolumeDirty)
+          Health = $health
+        }
+      }
+
+      function Invoke-Chkdsk {
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = "chkdsk.exe"
+        $psi.Arguments = "$drive /scan"
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError  = $true
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        # Without a console, as over SSH, chkdsk writes in the ANSI code page,
+        # not the OEM one
+        $ansi = [System.Text.Encoding]::GetEncoding((Get-Culture).TextInfo.ANSICodePage)
+        $psi.StandardOutputEncoding = $ansi
+        $psi.StandardErrorEncoding  = $ansi
+
+        $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $psi
         $process.Start() | Out-Null
         $stdOut = $process.StandardOutput.ReadToEnd()
         $stdErr = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
-        $exitCode = $process.ExitCode
-
-        $resultMap = @{
-          0 = "OK"
-          1 = "FIXED"
-          2 = "UNRESOLVED"
-          3 = "UNRESOLVED"
-        }
-        $resultType = $resultMap[$exitCode]
-        if (-not $resultType) { $resultType = "UNKNOWN" }
-
-        switch ($resultType) {
-          "OK" {
-            $Ansible.Changed = $false
-            $Ansible.Failed  = $false
-          }
-          "FIXED" {
-            $Ansible.Changed = $true
-          }
-          "UNRESOLVED" {
-            $Ansible.Failed  = $true
-          }
-          default {
-            $Ansible.Failed  = $true
-          }
-        }
 
         # Progress is redrawn in place with carriage returns: of each line
         # only what was left on screen is kept
-        $lines = ($stdOut -split "`n") | ForEach-Object {
+        $lines = @(($stdOut -split "`n") | ForEach-Object {
           $shown = @(($_ -split "`r") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
           if ($shown.Count -gt 0) { $shown[-1] }
-        }
-        $cleanStdOut = ($lines -join ' - ') -replace '\s{2,}', ' '
-
-        $Ansible.Result = @{
-          ExitCode = $exitCode
-          Drive    = "$DriveLetter`:"
-          StdOut   = $cleanStdOut
+        })
+        [pscustomobject]@{
+          ExitCode = $process.ExitCode
+          Lines    = $lines
           StdErr   = $stdErr
         }
       }
-      catch {
-        $Ansible.Failed = $true
+
+      try {
+        $run = Invoke-Chkdsk
+        $attempts = 1
+        if ((Get-Status $run.ExitCode)[1] -eq 'Retry') {
+          $run = Invoke-Chkdsk
+          $attempts = 2
+        }
+        $exitStatus = Get-Status $run.ExitCode
+        $state = Get-VolumeState
+
+        # Repair-Volume -Scan is a second full online scan: only when the exit code
+        # cannot be classified, or the volume contradicts a good one
+        $verdict = $null
+        $verdictError = $null
+        $doubt = $exitStatus[1] -in 'Unknown', 'Retry' -or
+          ($exitStatus[1] -in 'Clean', 'Fixed' -and ($state.Dirty -or $state.Health -ne 'Healthy'))
+        if ($doubt) {
+          try {
+            $verdict = [string](Repair-Volume -DriveLetter $DriveLetter -Scan -ErrorAction Stop)
+            $state = Get-VolumeState
+          }
+          catch {
+            $verdictError = $_.Exception.Message
+          }
+        }
+
+        $outcome = $exitStatus[1]
+        if ($verdict) {
+          $outcome = 'Unknown'
+          if ($statusByName.ContainsKey($verdict)) { $outcome = $statusByName[$verdict][1] }
+          # A good verdict after a repairing exit code still means it was repaired
+          if ($outcome -eq 'Clean' -and $exitStatus[1] -eq 'Fixed') { $outcome = 'Fixed' }
+        }
+        elseif ($doubt -and $outcome -in 'Clean', 'Fixed') {
+          # No verdict, and the volume still dirty or unhealthy
+          $outcome = 'Offline'
+        }
+
+        $Ansible.Changed = $outcome -eq 'Fixed'
+
+        # Lines naming a file carry its id as <0x1,0x24> in every language
+        $findings = @($run.Lines | Where-Object { $_ -match '<0x[0-9a-fA-F]+,0x[0-9a-fA-F]+>' })
+
         $Ansible.Result = @{
-          Output   = "$($_.Exception.Message)"
+          Drive        = $drive
+          ExitCode     = $run.ExitCode
+          Status       = $exitStatus[0]
+          Attempts     = $attempts
+          Dirty        = $state.Dirty
+          Health       = $state.Health
+          Verdict      = $verdict
+          VerdictError = $verdictError
+          Outcome      = $outcome
+          Findings     = $findings
+          StdOut       = ($run.Lines -join ' - ') -replace '\s{2,}', ' '
+          StdErr       = $run.StdErr
+        }
+      }
+      catch {
+        $Ansible.Result = @{
+          Drive    = $drive
           ExitCode = -1
-          Drive    = "$DriveLetter`:"
+          Outcome  = 'Error'
+          Error    = $_.Exception.Message
+          Findings = @()
           StdOut   = ""
           StdErr   = ""
         }
-        return
       }
     parameters:
       DriveLetter: "{{ win_workman_chkdsk_volume }}"
@@ -94,7 +170,33 @@
 
 - name: Show chkdsk results
   ansible.builtin.debug:
-    msg: "{{ item.result.Drive }} exit={{ item.result.ExitCode }} | {{ item.result.StdOut | default('no output', true) }}"
+    msg: >-
+      {{ item.result.Drive }} {{ item.result.Outcome }}
+      (exit {{ item.result.ExitCode }} {{ item.result.Status | default('') }},
+      health {{ item.result.Health | default('?') }}, dirty {{ item.result.Dirty | default('?') }}
+      {{- (', Repair-Volume ' ~ item.result.Verdict) if item.result.Verdict | default('') else '' }})
+      | {{ item.result.StdOut | default(item.result.Error | default('no output'), true) }}
   loop: "{{ win_workman_chkdsk.results }}"
   loop_control:
     label: "{{ item.result.Drive }}"
+
+# One task, no loop: a failed loop item would print the whole result again
+- name: Fail on volumes that still need an offline repair
+  ansible.builtin.fail:
+    msg: >-
+      {%- for v in win_workman_chkdsk_bad -%}
+      {%- if v.Outcome == 'Error' -%}
+      chkdsk could not run on {{ v.Drive }}: {{ v.Error }}.
+      {%- else -%}
+      {{ v.Drive }} needs an offline repair: run chkdsk {{ v.Drive }} /spotfix (or /f)
+      when the host can restart (exit {{ v.ExitCode }} {{ v.Status }},
+      {{ ('Repair-Volume ' ~ (v.Verdict or v.VerdictError) ~ ', ') if (v.Verdict or v.VerdictError) else '' -}}
+      health {{ v.Health }}, dirty {{ v.Dirty }}).
+      {{- (' Findings: ' ~ (v.Findings | join(' - ')) ~ '.') if v.Findings else '' }}
+      {%- endif %}{{ ' ' if not loop.last else '' }}
+      {%- endfor %}
+  when: win_workman_chkdsk_bad | length > 0
+  vars:
+    win_workman_chkdsk_bad: >-
+      {{ win_workman_chkdsk.results | map(attribute='result')
+         | rejectattr('Outcome', 'in', ['Clean', 'Fixed']) | list }}

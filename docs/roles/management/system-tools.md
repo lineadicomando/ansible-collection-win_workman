@@ -99,7 +99,8 @@ No variables.
 
 ## chkdsk
 
-Runs an online Check Disk scan (`chkdsk /scan`) to detect file system errors.
+Runs an online Check Disk scan (`chkdsk /scan`) to detect file system errors and
+repair online those it can.
 
 | Action | Description |
 |---|---|
@@ -109,9 +110,28 @@ Runs an online Check Disk scan (`chkdsk /scan`) to detect file system errors.
 |---|---|---|
 | `win_workman_chkdsk_volumes` | `["C"]` | Drive letters to scan |
 
-No restart, and nothing is scheduled for the next boot. The scan only detects:
-a volume with errors fails the task and still needs an offline repair
-(`chkdsk /spotfix` or `/f`).
+No restart, and nothing is scheduled for the next boot. Findings that can be
+fixed with the volume in use (unneeded index links, lost files under temporary
+folders) are repaired online and the task reports `changed`.
+
+The exit code of `chkdsk /scan` is a `Volume.RepairStatus` value, the enum of
+`Repair-Volume` (in the Storage module's `Volume.cdxml`), not only the 0–3 of the
+classic documentation. The role classifies it, then cross-checks the volume's dirty
+bit and health; `Repair-Volume -Scan`, a second full scan, runs only for an unknown
+code, a scan that needed a retry twice, or a volume that contradicts a good code.
+
+| Exit | `RepairStatus` | Result |
+|---|---|---|
+| 0, 4 | `NoErrorsFound`, `ScanNoErrorsFound` | ok |
+| 1, 2, 5, 16 | `ErrorsFixed`, `MinorErrorsFixedOrCleanup`, `ScanErrorsFoundAndFixedOnline`, `ScanFoundAndFixedLeaks` | changed |
+| 3, 6, 7, 13 | `Failed`, `…NeedSpotFix`, `NeedOfflineScanAndFix` | failed |
+| 8, 10, 11, 12 | `ScanNeedsRetry`, snapshot errors | scan repeated once; if it still does not complete, `Repair-Volume -Scan` decides |
+
+On failure the `msg` names the volume, the status, and the lines of the output that
+name a file (they carry its id as `<0x1,0x24>` in every language).
+
+A failure means the volume needs `chkdsk <X>: /spotfix` (or `/f`), which runs at
+the next restart.
 
 ---
 
