@@ -5,16 +5,30 @@
 #      - Download:    https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
 # ==============================================================================
 ---
+# Pinned instead of the evergreen https://aka.ms/vc14/vc_redist.x64.exe: with no
+# version the install runs at every play, and every role that depends on this one
+# reinstalls it. The permalink below is where aka.ms pointed for this version; its
+# path carries the sha256 of the file. To bump, follow the redirect again and read
+# the version from the installer (ProductVersion), which is also the DisplayVersion
+# of the bundle's uninstall entry.
+win_workman_vcredist14_version: 14.52.37029.0
+
+win_workman_vcredist14_setup_filename: "vc_redist.x64-{{ win_workman_vcredist14_version }}.exe"
+
 win_workman_vcredist14_schema:
   name: VC Redist 14
   role: lineadicomando.win_workman.vcredist14
   default_action: !!str on
   package:
-    setup_file: vc_redist.x64.exe
-    searchName: "Microsoft Visual C++*Redistributable*"
+    setup_file: "{{ win_workman_vcredist14_setup_filename }}"
+    # x64 only: the x86 redistributable matches a looser pattern and, being
+    # picked when its version is higher, would hide a missing or older x64 one
+    searchName: "Microsoft Visual C++*Redistributable (x64)*"
+    version: "{{ win_workman_vcredist14_version }}"
     install_args: "/quiet /norestart"
     uninstall_args: "/quiet /norestart"
     provider: registry
   files:
-    - filename: vc_redist.x64.exe
-      url: https://aka.ms/vc14/vc_redist.x64.exe
+    - filename: "{{ win_workman_vcredist14_setup_filename }}"
+      url: https://download.visualstudio.microsoft.com/download/pr/78d061c5-9ef3-42ab-98ed-3309d1095dc4/9C02C9ED120F671B900E6B9471D890E3B2414117A7E53F4AE2E855466FA2B7C9/VC_redist.x64.exe
+      checksum: "sha256:9c02c9ed120f671b900e6b9471d890e3b2414117a7e53f4ae2e855466fa2b7c9"
