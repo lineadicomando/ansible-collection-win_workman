@@ -19,9 +19,9 @@ win_workman_veyon_schema:
   role: lineadicomando.win_workman.veyon
   default_action: !!str on
   package:
-    setup_file: veyon-4.11.4.0-win64-setup.exe
+    setup_file: veyon-4.11.5.0-win64-setup.exe
     searchName: "Veyon"
-    version: "4.11.4.0"
+    version: "4.11.5.0"
     product_id: Veyon
     provider: registry
     uninstall_before_upgrade: true
@@ -39,9 +39,9 @@ win_workman_veyon_schema:
     cleanup_paths:
       - '%ProgramFiles%\Veyon'
   files:
-    - filename: veyon-4.11.4.0-win64-setup.exe
-      url: https://github.com/veyon/veyon/releases/download/v4.11.4/veyon-4.11.4.0-win64-setup.exe
-      checksum: sha256:bb428d1779a4e54055c8439c069e824904377ddc2e76b5e273cabd9d867f43ed
+    - filename: veyon-4.11.5.0-win64-setup.exe
+      url: https://github.com/veyon/veyon/releases/download/v4.11.5/veyon-4.11.5.0-win64-setup.exe
+      checksum: sha256:ba972b412075d3313db5016fe0a857daa5dd594f7dda158fde704d96f700931e
   services:
     - name: VeyonService
       start_mode: auto
