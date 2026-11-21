@@ -34,12 +34,12 @@ win_workman_edge_setup_file:
   32bit: MicrosoftEdgeEnterpriseX86.msi
 
 win_workman_edge_url:
-  64bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/069ec728-7a8c-465b-80d4-f8be3bee5728/MicrosoftEdgeEnterpriseX64.msi
-  32bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/22f530ad-44e0-42ee-9737-79432beb1de7/MicrosoftEdgeEnterpriseX86.msi
+  64bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/12946913-9fc9-450d-a43e-5eee4a0f6819/MicrosoftEdgeEnterpriseX64.msi
+  32bit: https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/5ac0afa1-b766-4f65-a09f-70085b8f8c83/MicrosoftEdgeEnterpriseX86.msi
 
 win_workman_edge_checksum:
-  64bit: sha256:0bdba24e2d64a4de639468cb1b196d2540d2b50adf198b637f43cf563852bb58
-  32bit: sha256:6ead76da9a27c8a8cf5788f684810e5e70780abf0f5d4734512ffe098fbcdbd4
+  64bit: sha256:54eeab6848e54294ca9c5ae62032304bf2f078dbd76eda8efd4c05791335c4ec
+  32bit: sha256:ca496183f955ce026db1e6b11b1ed862b2a50baf75b81a1e4e386780dd56fbd6
 
 # Edge installs under the x86 program directory on 64-bit Windows whatever the
 # installer architecture: the x64 MSI still lands in
@@ -72,7 +72,7 @@ win_workman_edge_schema:
   package:
     setup_file: "{{ win_workman_edge_setup_file[win_workman_edge_arch] }}"
     searchName: "Microsoft Edge"
-    version: 157.0.4341.46
+    version: 158.0.4370.33
     # Edge updates itself past the pinned MSI; with no uninstall entry left,
     # compare against msedge.exe rather than reinstalling an older build.
     version_file: "{{ win_workman_edge_program_file[win_workman_edge_arch] }}\\Microsoft\\Edge\\Application\\msedge.exe"
