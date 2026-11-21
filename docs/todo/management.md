@@ -122,3 +122,47 @@ To check when implementing: hosts booted an hour earlier that still showed
 "Local CMOS Clock" while the NtpClient logged samples received (event 37) but
 no sync (event 35). Find out whether this is normal before the first poll or
 a configuration that never syncs, and make `info` say which.
+
+## `veyon`: manage the predefined applications and websites
+
+**Priority:** P3 — the lists are filled by hand today, one teacher profile at a time  
+**Status:** proposed 2026-11-21
+
+The *Start application* and *Open website* menus of Veyon Master read two lists:
+
+- the global configuration, `HKLM\SOFTWARE\Veyon Solutions\Veyon\DesktopServices`,
+  values `PredefinedApplications` and `PredefinedWebsites`. This is the only list
+  the Veyon Configurator shows, and it applies to every user of the master;
+- the per-user file `%APPDATA%\Veyon\Config\VeyonMaster.json`, section
+  `DesktopServices`, where the entries a teacher adds from the master end up.
+  The master rewrites this file when it closes.
+
+An entry visible in the master but missing from the Configurator is therefore a
+per-user one, and other accounts on the same teacher PC do not see it. Moving
+such an entry to the global list was done by hand: write the value, then remove
+the entry from the profile with the master closed.
+
+The registry value is a string `@@JsonValue(<base64>)`, where the base64 encodes
+UTF-8 JSON `{"a":[...]}`, the same form as `BuiltinDirectory/NetworkObjects`. Each
+item is `{"Name", "Path", "Type", "Uid"}`: `Type` 1 is an application (`Path` is
+the command line run on the clients), 2 a website (`Path` is the URL); `Uid` is
+a braced GUID. `veyon-cli config get DesktopServices/PredefinedApplications`
+reads it back as a plain JSON array.
+
+Proposed:
+
+- variables `win_workman_veyon_predefined_applications` and
+  `win_workman_veyon_predefined_websites`, lists of `{name, path}` (default
+  undefined: leave the lists alone, so that existing hand-made entries survive);
+- written by `veyon-config` on master hosts, with a `Uid` derived from the
+  name (a name-based UUID) so that reruns are idempotent and do not reorder
+  entries in the menu;
+- optionally, `veyon-config` reports the per-user entries it finds under
+  `C:\Users\*\AppData\Roaming\Veyon\Config\VeyonMaster.json`, without
+  removing them: the master shows both lists, so a per-user copy of a global
+  entry appears twice.
+
+To check when implementing: whether the master deduplicates a global and a
+per-user entry with the same `Uid`, and whether writing the value with
+`veyon-cli config set` accepts a JSON array or needs the import of a whole
+configuration file.

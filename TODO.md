@@ -41,6 +41,7 @@ section; when you touch one, update its **Status** line with the date.
 | P3 | `scoobe`: confirm that `off` keeps the page away after a cumulative | [management](docs/todo/management.md) | Observe a lab PC after the next cumulative update |
 | P3 | `wim-repair`: the folder form of the source, only partly exercised | [management](docs/todo/management.md) | Document it as the way to repair cumulative payloads |
 | P3 | `w32time`: a role for the Windows time service | [management](docs/todo/management.md) | Proposed role, design in the entry |
+| P3 | `veyon`: manage the predefined applications and websites | [management](docs/todo/management.md) | Variables for both lists, written to the global configuration by `veyon-config` |
 | P3 | Remove the `secure_ssh` alias | [openssh](docs/todo/openssh.md) | At the next release, with the variable fallbacks |
 | P3 | Roles with no documentation at all | [documentation](docs/todo/documentation.md) | Pages for `googledrive`, `tinycad`, `winmerge`, `winrar` |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` | [mcp-server](docs/todo/mcp-server.md) | Pass `timeout` to `start_run` (project repo `mcp/`) |
