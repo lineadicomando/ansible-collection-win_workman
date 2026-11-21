@@ -1,0 +1,25 @@
+---
+# One task of the list. Schemas in _win_workman_controller_schemas run on the
+# controller only and leave the remote temporary directories alone.
+- name: Set the ACL of the remote temporary directories
+  when:
+    - _wm_item.schema not in _win_workman_controller_schemas
+    - not _win_workman_remote_tmp_done
+  block:
+    - name: Set the ACL of the remote temporary directories
+      ansible.builtin.include_role:
+        name: lineadicomando.win_workman.pkg_utils
+        tasks_from: remote_tmp
+
+    - name: Record that the remote temporary directories are ready
+      ansible.builtin.set_fact:
+        _win_workman_remote_tmp_done: true
+
+- name: Run {{ _wm_item.task }}
+  ansible.builtin.include_role:
+    name: "lineadicomando.win_workman.{{ _wm_item.schema }}"
+  vars:
+    win_workman_action: "{{ _wm_item.act }}"
+    win_workman_task_argv: "{{ _wm_item.argv }}"
+    win_workman_task_argc: "{{ _wm_item.argc }}"
+    win_workman_task: "{{ _wm_item }}"

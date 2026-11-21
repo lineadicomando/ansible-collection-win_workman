@@ -1,3 +1,8 @@
 ---
 _win_workman_tasks_parsed: >-
   {{ win_workman_tasks | lineadicomando.win_workman.parse_tasks }}
+
+# Schemas whose actions run entirely on the controller (delegate_to: localhost):
+# the dispatcher does not connect to the host for them, so a wol can wake it.
+_win_workman_controller_schemas:
+  - wol

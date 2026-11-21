@@ -145,9 +145,11 @@ there, and a user able to replace one would run code as SYSTEM. The
 `ansible-moduletmp-*` directories Ansible creates for each module keep their own ACL,
 private to the connecting user.
 
-The dispatcher runs it once per host before the first role, so a PC whose directory
-still has the old ACL is fixed on its next run; it reports a change only when the
-ACL was different. `win_iso` creates the directory with this ACL during Setup, so it
+The dispatcher runs it once per host before the first task that connects to the
+host, so a PC whose directory still has the old ACL is fixed on its next run.
+Controller-only tasks (`wol`) do not trigger it, so `wol,chrome` wakes a powered-off
+PC before anything tries to reach it. It reports a change only when the ACL was
+different. `win_iso` creates the directory with this ACL during Setup, so it
 is right from the first run. Roles included without the dispatcher can call it
 themselves:
 
