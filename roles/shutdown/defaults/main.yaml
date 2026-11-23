@@ -1,2 +1,15 @@
 ---
+# Seconds between the shutdown command and the shutdown itself, shown to the
+# logged-on user, who can cancel it with shutdown /a meanwhile.
 win_workman_shutdown_timeout: 30
+
+# After on and if-nouser, wait from the controller until the host goes offline,
+# and fail if it does not. false gives the old fire-and-forget behaviour.
+win_workman_shutdown_wait: true
+
+# Seconds the wait allows on top of win_workman_shutdown_timeout. The SSH port
+# closes when sshd stops, which can come after Windows has installed the pending
+# updates (TrustedInstaller holds the shutdown in its preshutdown phase): the
+# margin is for those hosts. A host that goes down returns as soon as the port
+# closes, so the value only sets how long an aborted shutdown takes to fail.
+win_workman_shutdown_wait_timeout: 900

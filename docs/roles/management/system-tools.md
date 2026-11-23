@@ -188,16 +188,39 @@ for the host to come back online.
 
 ## shutdown
 
-Initiates a controlled system shutdown with configurable delay. Supports
-aborting a pending shutdown and waiting for the host to go offline.
+Initiates a controlled system shutdown with configurable delay, then waits
+until the host goes offline. Supports aborting a pending shutdown.
 
 | Action | Description |
 |---|---|
-| `on` *(default)* | Shut down the system after `win_workman_shutdown_timeout` seconds; skipped if the SSH port is not reachable |
+| `on` *(default)* | Shut down the system after `win_workman_shutdown_timeout` seconds and wait until it goes offline; skipped if the connection port is not reachable |
 | `abort` | Abort a pending shutdown previously scheduled with `on` |
 | `a` | Alias for `abort` |
-| `wait` | Shut down the system and block until the host goes offline |
+| `wait` | As `on`, but waits even with `win_workman_shutdown_wait: false` |
+| `no_wait` | As `on`, but returns as soon as the command is sent, even with `win_workman_shutdown_wait: true` |
 | `if-nouser` | Shut down as `on` only if no user session is open; otherwise leave the host on and report who is logged on |
+
+| Variable | Default | Description |
+|---|---|---|
+| `win_workman_shutdown_timeout` | `30` | Seconds between the command and the shutdown; the logged-on user sees a notice and can cancel it with `shutdown /a` |
+| `win_workman_shutdown_wait` | `true` | After `on` and `if-nouser`, wait for the host to go offline and fail if it does not; `false` returns as soon as the command is sent |
+| `win_workman_shutdown_wait_timeout` | `900` | Seconds the wait allows after the delay |
+
+The wait runs on the controller and watches the port of the Ansible connection
+(22 for SSH, 5985/5986 for WinRM) until it closes, so it needs no connection to
+the host going down. A closed port means the connection service has stopped: the
+host is on its way down, not yet powered off, and ICMP is not checked, since
+many lab PCs do not answer it. A host that goes down returns as soon as the
+port closes; the timeout only decides how long a host that stays on takes to
+fail. It is long because Windows installs the pending updates in the
+preshutdown phase, before sshd is stopped. A host that stays on fails with:
+
+```
+PC05 still answers on port 22 900 s after the shutdown delay: shutdown cancelled (shutdown /a) or stuck
+```
+
+A `shutdown.exe` that refuses the command fails the task too; exit code 1190,
+a shutdown already scheduled, counts as success.
 
 `if-nouser` counts every session that carries a user, in any state: a locked
 workstation (Active) and a user switched away from or dropped from RDP

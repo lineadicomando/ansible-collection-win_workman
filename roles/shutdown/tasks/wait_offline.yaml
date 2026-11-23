@@ -1,0 +1,18 @@
+---
+# Polls from the controller, so it needs no connection to the host going down.
+# The port closes when the connection service stops: the host is on its way
+# down, not yet powered off. A shutdown cancelled during the delay (shutdown /a)
+# leaves the port open and fails here.
+- name: Wait for the host to go offline
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    port: "{{ _win_workman_shutdown_port }}"
+    state: stopped
+    delay: "{{ win_workman_shutdown_timeout | int }}"
+    # wait_for counts the delay inside the timeout
+    timeout: "{{ win_workman_shutdown_timeout | int + win_workman_shutdown_wait_timeout | int }}"
+    msg: >-
+      {{ inventory_hostname }} still answers on port {{ _win_workman_shutdown_port }}
+      {{ win_workman_shutdown_wait_timeout | int }} s after the shutdown delay:
+      shutdown cancelled (shutdown /a) or stuck
+  delegate_to: localhost

@@ -1,19 +1,29 @@
 ---
-- name: Check whether target is reachable on SSH port
+- name: Check whether target is reachable
   ansible.builtin.wait_for:
-    host: "{{ ansible_host }}"
-    port: 22
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    port: "{{ _win_workman_shutdown_port }}"
     timeout: 5
   register: win_workman_shutdown_ssh_check
   delegate_to: localhost
   failed_when: false
-  ignore_errors: true
 
 - name: Shutdown system if reachable
   ansible.windows.win_powershell:
     script: |
-      shutdown /s /t {{ win_workman_shutdown_timeout }} /f
+      shutdown.exe /s /t {{ win_workman_shutdown_timeout | int }} /f
+      $code = $LASTEXITCODE
+      $Ansible.Result = $code
+      # 1190: a shutdown is already scheduled, the host goes down all the same
+      if ($code -notin 0, 1190) { throw "shutdown.exe exited with $code" }
+  register: win_workman_shutdown_cmd
+  when: win_workman_shutdown_ssh_check.state is defined
+
+- name: Wait for the host to go offline
+  ansible.builtin.include_tasks: wait_offline.yaml
   when:
-    - win_workman_shutdown_ssh_check is defined
-    - win_workman_shutdown_ssh_check.state is defined
-  failed_when: false
+    - win_workman_shutdown_cmd is not skipped
+    # Set by the wait and no_wait actions; otherwise the variable decides
+    - >-
+      _win_workman_shutdown_wait_mode | default('') == 'always'
+      or (_win_workman_shutdown_wait_mode | default('') != 'never' and win_workman_shutdown_wait | bool)

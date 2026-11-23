@@ -1,0 +1,9 @@
+---
+# Same as on, but returns as soon as the command is sent, even when
+# win_workman_shutdown_wait is true.
+- name: Shut down without waiting for the host to go offline
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.shutdown
+    tasks_from: act_on
+  vars:
+    _win_workman_shutdown_wait_mode: never
