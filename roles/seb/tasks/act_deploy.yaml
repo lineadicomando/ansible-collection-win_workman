@@ -1,7 +1,7 @@
 ---
 - name: Ensure SafeExamBrowser program data directory exists
   ansible.windows.win_file:
-    path: '{{ win_workman_seb_client_settings_dest | regex_replace("\\\\[^\\\\]+$", "") }}'
+    path: '{{ win_workman_seb_client_settings_dest | regex_replace("[\\\\]+[^\\\\]+$", "") }}'
     state: directory
 
 - name: Build and deploy SEB client settings file
