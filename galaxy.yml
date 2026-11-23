@@ -32,6 +32,7 @@ build_ignore:
   - .gitea
   - .github
   - .gitignore
+  - tools
   - "*.retry"
   - "**/__pycache__"
   - "**/*.pyc"

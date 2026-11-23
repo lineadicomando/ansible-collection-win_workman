@@ -60,6 +60,10 @@ collections:
 ansible-galaxy collection install -r requirements.yml
 ```
 
+`main` follows every commit. To choose when an update reaches your hosts, pin a
+release tag instead (`version: v0.7.0`): package versions change often, and each
+batch of them is released as a patch version.
+
 ---
 
 ## Quick start

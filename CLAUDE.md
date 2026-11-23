@@ -103,6 +103,22 @@ something sensible, and `on`/`off` mean enable/disable across the whole
 collection. When a role's natural verbs are different (`set`/`reset`), still wire
 `on`/`off` as aliases rather than leaving them undefined.
 
+### 6. Release often, with tools/release.sh
+
+Projects pin a tag, not `main`, so a commit reaches them only through a
+release. Release after a package version update or a fix (`patch`), and after a
+new role, a new action or a change of default behaviour (`minor`); several
+commits of the same day can share one release. `tools/release.sh` bumps
+`galaxy.yml`, tags, and pushes branch and tag in one atomic push; `--pin FILE`
+then moves the requirements file of a project to the new tag and pushes it.
+Never push branch and tag separately: two pushes in a row start two runs of
+the GitHub push mirror, one is rejected and the tag never reaches GitHub.
+
+```bash
+tools/release.sh patch --dry-run
+tools/release.sh patch --pin ../other-project/requirements.yaml
+```
+
 ## PowerShell traps already paid for
 
 Both of these fail **silently**, which is why they are here rather than in a doc.
