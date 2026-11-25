@@ -45,7 +45,7 @@ win_workman_tasks:
 
 Software name: `Audacity`  
 Provider: `msi`  
-Installer: `audacity-win-4.0.0-x86_64.msi`  
+Installer: `audacity-win-4.0.2-x86_64.msi`  
 Homepage: https://www.audacityteam.org
 
 ---
