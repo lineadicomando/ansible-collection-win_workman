@@ -10,11 +10,11 @@ win_workman_geogebra_schema:
   role: lineadicomando.win_workman.geogebra
   default_action: !!str on
   package:
-    setup_file: GeoGebra-Windows-Installer-6-0-929-3.msi
+    setup_file: GeoGebra-Windows-Installer-6-0-937-0.msi
     searchName: "GeoGebra Classic"
-    version: "6.0.929.3"
+    version: "6.0.937.0"
     install_args: "ALLUSERS=2 /qn"
   files:
-    - filename: GeoGebra-Windows-Installer-6-0-929-3.msi
-      url: https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-929-3.msi
-      checksum: sha256:7b30f1f24cc9bf3d87c743949c3b3eda557e56c14f6cfc97b3cdeb7d5c7f0f31
+    - filename: GeoGebra-Windows-Installer-6-0-937-0.msi
+      url: https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-937-0.msi
+      checksum: sha256:1faaee8072741d4c4c5cc80fa9395a8f9539c6b266ee8e423a818767c237e7d1
