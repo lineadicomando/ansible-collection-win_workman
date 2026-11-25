@@ -37,7 +37,7 @@ win_workman_tasks:
 
 Software name: `PuTTY`
 Provider: `msi`
-Installer: `putty-64bit-0.83-installer.msi`
+Installer: `putty-64bit-0.85-installer.msi`
 Homepage: https://www.chiark.greenend.org.uk/~sgtatham/putty/
 
 ---
