@@ -47,7 +47,7 @@ runtime. Use `goldendict-on-nodep` to skip it.
 
 Software name: `GoldenDict-ng`  
 Provider: `registry`  
-Installer: `GoldenDict-ng-26.8.0-Qt6.8.3-Windows-installer.exe`  
+Installer: `GoldenDict-ng-26.11.0-Qt6.8.3-Windows-installer.exe`  
 Homepage: https://xiaoyifang.github.io/goldendict-ng/
 
 ---
