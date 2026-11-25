@@ -1,0 +1,187 @@
+---
+# package.bundle_parts: a WiX Burn bundle (the python.org installer is one)
+# installs its MSI packages machine-wide but registers the bundle itself only in
+# HKCU of the account that ran it, even with InstallAllUsers=1. A schema for such
+# a bundle detects one of its MSIs (searchName), so any account sees it, and
+# names the rest with the bundle_parts glob.
+#
+# Two passes, around the uninstall of the detected MSI in pkg_act_off:
+# - parts (before): every machine-wide Windows Installer entry matching the
+#   glob (and version_like), except the detected one, with msiexec /x. Order
+#   matters: Python's MSIs locate their directory in AppSearch through the
+#   python.exe component of the Executables MSI, with two DrLocator rows that
+#   name each other as parent; once that component is gone the search loops and
+#   msiexec dies with a stack overflow (0xc00000fd, rc 1603). The parts matching
+#   a bundle_parts_last glob therefore go after the others, in the order of that
+#   list, and the detected MSI goes last of all.
+# - registration (after): what Burn would have removed with the bundle. The
+#   bundle entry of the connecting account, when its DisplayName matches the
+#   glob (uninstall key, its Package Cache copy, dependency provider key); the
+#   ProgramData Package Cache copies of the MSIs removed; the registry keys
+#   listed in bundle_cleanup_keys. Registrations in other profiles are left
+#   alone: they point at packages that are gone.
+- name: "Remove the other packages of bundle '{{ win_workman_schema.name }}'"
+  ansible.windows.win_powershell:
+    parameters:
+      NameLike: "{{ win_workman_schema.package.bundle_parts }}"
+      VersionLike: "{{ win_workman_schema.package.version_like | default('*', true) }}"
+      ExcludeId: "{{ win_workman_product_id | default('', true) }}"
+      LastJson: >-
+        {{
+          (
+            [win_workman_schema.package.bundle_parts_last]
+            if win_workman_schema.package.bundle_parts_last is string
+            else (win_workman_schema.package.bundle_parts_last | default([]))
+          ) | to_json
+        }}
+    script: |
+      param(
+        [Parameter(Mandatory=$true)] [string]$NameLike,
+        [string]$VersionLike = '*',
+        [string]$ExcludeId = '',
+        [string]$LastJson = '[]'
+      )
+      # foreach unrolls the array ConvertFrom-Json returns as one object.
+      $last = New-Object System.Collections.Generic.List[string]
+      foreach ($l in (ConvertFrom-Json -InputObject $LastJson)) { $last.Add([string]$l) }
+      $Ansible.Changed = $false
+      $removed = New-Object System.Collections.Generic.List[string]
+      $removedIds = New-Object System.Collections.Generic.List[string]
+      # 0 done, 1605 already gone, 3010 done with reboot pending
+      $okRc = @(0, 1605, 3010)
+      $machineHives = @(
+        'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+      )
+      $found = foreach ($h in $machineHives) {
+        Get-ChildItem -Path $h -ErrorAction SilentlyContinue | ForEach-Object {
+          $p = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
+          if ($p -and $p.WindowsInstaller -eq 1 -and $p.DisplayName -like $NameLike -and
+              $p.DisplayVersion -like $VersionLike -and
+              $_.PSChildName -match '^\{[0-9A-Fa-f-]{36}\}$' -and
+              $_.PSChildName -ne $ExcludeId) {
+            [pscustomobject]@{ Id = $_.PSChildName; Name = [string]$p.DisplayName }
+          }
+        }
+      }
+      $found = @($found | Sort-Object Id -Unique)
+      # Rank 0: parts matching no bundle_parts_last glob; rank n: the n-th glob.
+      $ordered = $found | Sort-Object @{ Expression = {
+        $rank = 0
+        for ($k = 0; $k -lt $last.Count; $k++) { if ($_.Name -like $last[$k]) { $rank = $k + 1; break } }
+        $rank } }, Name
+      foreach ($part in $ordered) {
+        $proc = Start-Process -FilePath "$env:WINDIR\System32\msiexec.exe" `
+          -ArgumentList "/x $($part.Id) /qn /norestart" -Wait -PassThru
+        if ($proc.ExitCode -notin $okRc) {
+          $Ansible.Failed = $true
+          $Ansible.Result = @{ removed = $removed; failed = $part.Name; rc = $proc.ExitCode }
+          return
+        }
+        $removed.Add($part.Name)
+        $removedIds.Add($part.Id)
+        $Ansible.Changed = $true
+      }
+      $Ansible.Result = @{ removed = $removed; removed_ids = $removedIds }
+  register: win_workman_bundle_parts_result
+  when: win_workman_bundle_parts_pass == 'parts'
+
+# Kept in a fact: in the registration pass the task above is skipped, and its
+# register would overwrite the result with a skipped one.
+- name: Remember the packages removed from the bundle
+  ansible.builtin.set_fact:
+    win_workman_bundle_removed_ids: "{{ win_workman_bundle_parts_result.result.removed_ids | default([]) }}"
+  when: win_workman_bundle_parts_pass == 'parts'
+
+- name: "Remove the bundle registration of '{{ win_workman_schema.name }}'"
+  ansible.windows.win_powershell:
+    parameters:
+      NameLike: "{{ win_workman_schema.package.bundle_parts }}"
+      CacheIdsJson: >-
+        {{
+          (
+            (win_workman_bundle_removed_ids | default([]))
+            + ([win_workman_product_id] if win_workman_product_id | default('', true) | length > 0 else [])
+          ) | to_json
+        }}
+      KeysJson: "{{ win_workman_schema.package.bundle_cleanup_keys | default([]) | to_json }}"
+      CacheVersionLike: "{{ win_workman_schema.package.bundle_cache_version_like | default('', true) }}"
+    script: |
+      param(
+        [Parameter(Mandatory=$true)] [string]$NameLike,
+        [string]$CacheIdsJson = '[]',
+        [string]$KeysJson = '[]',
+        [string]$CacheVersionLike = ''
+      )
+      $Ansible.Changed = $false
+      $removed = New-Object System.Collections.Generic.List[string]
+
+      # The bundle entry of the connecting account.
+      $userKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+      Get-ChildItem -Path $userKey -ErrorAction SilentlyContinue | ForEach-Object {
+        $p = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
+        if ($p -and $p.DisplayName -like $NameLike -and $p.BundleCachePath) {
+          $cacheDir = Split-Path -Parent ([string]$p.BundleCachePath)
+          if ($cacheDir -and (Test-Path -LiteralPath $cacheDir)) {
+            Remove-Item -LiteralPath $cacheDir -Recurse -Force -ErrorAction SilentlyContinue
+          }
+          if ($p.BundleProviderKey) {
+            $dep = "HKCU:\Software\Classes\Installer\Dependencies\$($p.BundleProviderKey)"
+            if (Test-Path -LiteralPath $dep) { Remove-Item -LiteralPath $dep -Recurse -Force }
+          }
+          Remove-Item -LiteralPath $_.PSPath -Recurse -Force
+          $removed.Add([string]$p.DisplayName)
+          $Ansible.Changed = $true
+        }
+      }
+
+      # Burn caches every MSI under ProgramData\Package Cache\{ProductCode}v<version>
+      # and drops the copy when it uninstalls the package; msiexec /x does not.
+      $cacheRoot = Join-Path $env:ProgramData 'Package Cache'
+      foreach ($id in (ConvertFrom-Json -InputObject $CacheIdsJson)) {
+        Get-ChildItem -LiteralPath $cacheRoot -Directory -Filter "$($id)v*" -ErrorAction SilentlyContinue | ForEach-Object {
+          Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+          $removed.Add($_.FullName)
+          $Ansible.Changed = $true
+        }
+      }
+      # Copies orphaned by an upgrade: the bundle that replaced the old MSIs was
+      # run by an account that did not own the old bundle, so Burn kept their
+      # cache. Only {ProductCode}v<version> directories whose version matches
+      # bundle_cache_version_like and whose product is no longer installed.
+      if ($CacheVersionLike) {
+        Get-ChildItem -LiteralPath $cacheRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+          if ($_.Name -match '^(\{[0-9A-Fa-f-]{36}\})v(.+)$' -and $Matches[2] -like $CacheVersionLike) {
+            $code = $Matches[1]
+            $installed = (Test-Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$code") -or
+                         (Test-Path "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$code")
+            if (-not $installed) {
+              Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+              $removed.Add($_.FullName)
+              $Ansible.Changed = $true
+            }
+          }
+        }
+      }
+
+      # Keys the bundle writes itself, outside its MSIs. Their parents are then
+      # pruned while empty (no values, no subkeys), stopping below the second
+      # level (HKLM:\SOFTWARE\<vendor> is the highest one that can go).
+      foreach ($key in (ConvertFrom-Json -InputObject $KeysJson)) {
+        if (Test-Path -LiteralPath $key) {
+          Remove-Item -LiteralPath $key -Recurse -Force
+          $removed.Add([string]$key)
+          $Ansible.Changed = $true
+        }
+        $parent = Split-Path -Parent $key
+        while ($parent -and ($parent -split '\\').Count -gt 2 -and (Test-Path -LiteralPath $parent)) {
+          $item = Get-Item -LiteralPath $parent
+          if ($item.SubKeyCount -gt 0 -or $item.ValueCount -gt 0) { break }
+          Remove-Item -LiteralPath $parent -Force
+          $removed.Add([string]$parent)
+          $parent = Split-Path -Parent $parent
+        }
+      }
+      $Ansible.Result = @{ removed = $removed }
+  register: win_workman_bundle_registration_result
+  when: win_workman_bundle_parts_pass == 'registration'

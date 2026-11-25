@@ -12,10 +12,22 @@ win_workman_python311_schema:
   package:
     setup_file: python-3.11.9-amd64.exe
     version: "3.11.9150.0"
-    provider: registry
-    searchName: "Python 3.11.9 (64-bit)"
+    # The python.org installer is a WiX Burn bundle: its MSIs are installed
+    # machine-wide, but the bundle entry "Python 3.11.x (64-bit)" lands only in
+    # HKCU of the account that ran it, even with InstallAllUsers=1. Detect the
+    # Core Interpreter MSI instead, which every account sees; off uninstalls it
+    # and bundle_parts removes the other MSIs and the bundle registration.
+    searchName: "Python 3.11.* Core Interpreter (64-bit)"
+    bundle_parts: "Python 3.11.* (64-bit)"
+    # The other MSIs find their directory through python.exe: remove them first.
+    bundle_parts_last: "Python 3.11.* Executables (64-bit)"
+    # Written by the bundle itself, not by its MSIs.
+    bundle_cleanup_keys:
+      - 'HKLM:\SOFTWARE\Python\PythonCore\3.11\InstalledFeatures'
+    # Package Cache copies of 3.11 MSIs replaced by an upgrade.
+    bundle_cache_version_like: "3.11.*"
     install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0
-    uninstall_args: /quiet
+    uninstall_args: /qn /norestart
     cleanup_paths:
       - '%ProgramFiles%\Python311'
       - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.11'

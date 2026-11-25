@@ -30,6 +30,10 @@ win_workman_<schema>_schema:
     version_file: "%ProgramFiles%\\App\\app.exe"  # optional, see below
     version_like: "26.*"            # optional: match only these DisplayVersions, see below
     exclusive: false                # optional: remove other versions before installing
+    bundle_parts: "App 1.* (64-bit)" # optional: Burn bundle, see below
+    bundle_parts_last: "App 1.* Core (64-bit)" # optional: removed after the other parts
+    bundle_cleanup_keys: []         # optional: registry keys the bundle writes itself
+    bundle_cache_version_like: ""   # optional: orphaned Package Cache copies to drop
 
   files:                            # list of downloadable assets
     - filename: installer.exe
@@ -87,6 +91,53 @@ role per major line (`nodejs26`, `nodejs27`, …) then needs two fields:
 `<role>-on` then means "this major line is the one on the host", in either
 direction. Listing two such roles in the same run makes them replace each other
 at every run.
+
+### Burn bundles registered per user (`bundle_parts`)
+
+A WiX Burn bundle can install its MSI packages machine-wide while registering
+the bundle itself per user: the python.org installer does, even with
+`InstallAllUsers=1` (its log says *bundle scope: PerUser, package scope:
+PerMachine*). The entry the user sees under Apps then lives only in HKCU of the
+account that ran the install, so a schema that detects it works only for that
+account: connecting as anyone else, `info` reports the package absent, `on`
+reinstalls it at every run and `off` finds nothing to remove.
+
+Such a schema detects one of the bundle's MSIs instead, through `searchName`
+(Python: `Python 3.14.* Core Interpreter (64-bit)`), and sets `bundle_parts` to
+a `DisplayName` glob that matches every package of the bundle and the bundle
+entry itself (`Python 3.14.* (64-bit)`). `off` then works in two steps
+(`bundle_parts_off.yaml`):
+
+1. before the usual uninstall, every other machine-wide Windows Installer entry
+   matching the glob (and `version_like`) is removed with `msiexec /x`; the
+   parts matching a `bundle_parts_last` glob (a string or a list) go after the
+   others, in the order of that list;
+2. the detected MSI is uninstalled as usual, last of all.
+
+The order is not cosmetic. Python's MSIs locate their directory in AppSearch
+through the `python.exe` component of the *Executables* MSI, with two
+`DrLocator` rows that name each other as parent: while the component is
+installed the search ends there, once it is gone the search loops and msiexec
+dies with a stack overflow (`0xc00000fd`, rc 1603), leaving the part installed.
+The Python roles therefore set `bundle_parts_last` to the Executables MSI. The
+Core Interpreter and Executables MSIs have no AppSearch of their own.
+
+Then comes what Burn would have removed with the bundle, and `msiexec /x` does
+not: the bundle registration of the connecting account, when it matches the
+glob (the uninstall key, the Package Cache copy named by `BundleCachePath`, the
+dependency provider key); the `ProgramData\Package Cache\{ProductCode}v<version>`
+copy of every MSI removed; and the registry keys listed in
+`bundle_cleanup_keys`, with their parents pruned while empty (Python's bundle
+writes `HKLM:\SOFTWARE\Python\PythonCore\3.x\InstalledFeatures` itself).
+
+An upgrade run by an account that does not own the old bundle registration
+leaves the old MSIs' cache copies behind: Burn drops them only when it upgrades
+its own related bundle. With `bundle_cache_version_like` set (Python:
+`"3.14.*"`), `off` also removes every `{ProductCode}v<version>` directory whose
+version matches and whose product is no longer installed.
+
+Registrations in other profiles are left in place: they point at packages that
+are already gone.
 
 ---
 

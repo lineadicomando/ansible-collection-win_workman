@@ -235,6 +235,19 @@
     - win_workman_schema.package.before_uninstall_ps_script is defined
     - win_workman_schema.package.before_uninstall_ps_script is not none
 
+# The detected MSI of a bundle goes last: see bundle_parts_off.yaml.
+- name: Remove the other packages of a bundle
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: bundle_parts_off
+  vars:
+    win_workman_bundle_parts_pass: parts
+  when:
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_needs_action | default(false) | bool
+    - win_workman_schema.package.bundle_parts is defined
+    - win_workman_schema.package.bundle_parts is string
+
 - name: Wait for Windows Installer before uninstalling
   ansible.builtin.include_role:
     name: lineadicomando.win_workman.pkg_utils
@@ -320,6 +333,18 @@
     - win_workman_uninstall_string is not none
     - win_workman_schema.package.uninstall_via_helper is defined
     - win_workman_schema.package.uninstall_via_helper is true
+
+- name: Remove the bundle registration of the connecting account
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: bundle_parts_off
+  vars:
+    win_workman_bundle_parts_pass: registration
+  when:
+    - not (win_workman_pkg_portable | bool)
+    - win_workman_needs_action | default(false) | bool
+    - win_workman_schema.package.bundle_parts is defined
+    - win_workman_schema.package.bundle_parts is string
 
 - name: After uninstall hook
   ansible.builtin.include_role:

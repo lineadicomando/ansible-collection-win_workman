@@ -12,11 +12,22 @@ win_workman_python314_schema:
   package:
     setup_file: python-3.14.7-amd64.exe
     version: "3.14.7150.0"
-    provider: registry
-    product_id: "{97b6de30-6082-48d1-9bb4-9f43296531a4}"
-    searchName: "Python 3.14.7 (64-bit)"
+    # The python.org installer is a WiX Burn bundle: its MSIs are installed
+    # machine-wide, but the bundle entry "Python 3.14.x (64-bit)" lands only in
+    # HKCU of the account that ran it, even with InstallAllUsers=1. Detect the
+    # Core Interpreter MSI instead, which every account sees; off uninstalls it
+    # and bundle_parts removes the other MSIs and the bundle registration.
+    searchName: "Python 3.14.* Core Interpreter (64-bit)"
+    bundle_parts: "Python 3.14.* (64-bit)"
+    # The other MSIs find their directory through python.exe: remove them first.
+    bundle_parts_last: "Python 3.14.* Executables (64-bit)"
+    # Written by the bundle itself, not by its MSIs.
+    bundle_cleanup_keys:
+      - 'HKLM:\SOFTWARE\Python\PythonCore\3.14\InstalledFeatures'
+    # Package Cache copies of 3.14 MSIs replaced by an upgrade.
+    bundle_cache_version_like: "3.14.*"
     install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0 Shortcuts=1
-    uninstall_args: /quiet
+    uninstall_args: /qn /norestart
     cleanup_paths:
       - '%ProgramFiles%\Python314'
       - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.14'

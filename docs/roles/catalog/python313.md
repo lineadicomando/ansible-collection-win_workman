@@ -46,7 +46,7 @@ win_workman_tasks:
 ## Schema details
 
 Software name: `Python 3.13`  
-Provider: `registry`  
+Provider: `registry` (Burn bundle, detected through its Core Interpreter MSI)  
 Installer: `python-3.13.15-amd64.exe`  
 Homepage: https://www.python.org/
 
@@ -54,6 +54,13 @@ Homepage: https://www.python.org/
 
 ## Notes
 
+- **Detection**: the python.org installer is a WiX Burn bundle that registers its
+  `Python 3.13.x (64-bit)` entry only in HKCU of the account that ran it, even for an
+  all-users install. The role detects the machine-wide `Python 3.13.* Core Interpreter
+  (64-bit)` MSI instead, so `info`, `on` and `off` work from any account; `off` also
+  removes the other MSIs of the bundle and the bundle registration of the connecting
+  account (`bundle_parts`, see `pkg_utils`). A registration left in another profile
+  points at packages that are gone.
 - Installation location: `%ProgramFiles%\Python313`
 - Includes IDLE (interactive development environment) and pip package manager
 - Python launcher is not installed; use `python.exe` directly from PATH
