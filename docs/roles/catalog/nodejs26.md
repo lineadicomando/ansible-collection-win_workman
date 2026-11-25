@@ -114,7 +114,7 @@ and tell the teachers.
 
 Software name: `Node.js 26`  
 Provider: MSI (`registry` detection)  
-Installer: `node-v26.13.0-x64.msi`  
+Installer: `node-v26.13.1-x64.msi`  
 Homepage: https://nodejs.org/
 
 ---

@@ -12,12 +12,12 @@ win_workman_nodejs26_schema:
   role: lineadicomando.win_workman.nodejs26
   default_action: !!str on
   package:
-    setup_file: node-v26.13.0-x64.msi
+    setup_file: node-v26.13.1-x64.msi
     # Every Node.js MSI has DisplayName "Node.js" and the same UpgradeCode, so
     # two major lines cannot be installed together: version_like tells this
     # role's line apart, exclusive removes the others before installing.
     searchName: "Node.js"
-    version: "26.13.0"
+    version: "26.13.1"
     version_like: "26.*"
     exclusive: true
     # Left out: DocumentationShortcuts, and EnvironmentPathNpmModules, which
@@ -26,6 +26,6 @@ win_workman_nodejs26_schema:
     cleanup_paths:
       - '%ProgramFiles%\nodejs'
   files:
-    - filename: node-v26.13.0-x64.msi
-      url: https://nodejs.org/dist/v26.13.0/node-v26.13.0-x64.msi
-      checksum: sha256:0e5ee99c7cbf922887f04af268e3665990748945336a44956f47cc0df695b6df
+    - filename: node-v26.13.1-x64.msi
+      url: https://nodejs.org/dist/v26.13.1/node-v26.13.1-x64.msi
+      checksum: sha256:0398ced8446e119478c724d1aa37c5afd6aa1a76fceab12787eb9714c5ed8b45
