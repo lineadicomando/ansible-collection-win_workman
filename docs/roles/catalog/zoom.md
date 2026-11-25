@@ -40,7 +40,7 @@ win_workman_tasks:
 
 Software name: `Zoom`  
 Provider: `registry`  
-Installer: `ZoomInstallerFull64bit.msi`  
+Installer: `ZoomInstallerFull64bit-<version>.msi` (upstream `ZoomInstallerFull.msi`)  
 Homepage: https://www.zoom.us/
 
 ---
