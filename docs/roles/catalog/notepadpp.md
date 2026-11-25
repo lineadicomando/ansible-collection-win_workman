@@ -37,7 +37,7 @@ win_workman_tasks:
 
 Software name: `Notepad++`  
 Provider: `msi`  
-Installer: `npp.8.9.5.Installer.x64.msi`  
+Installer: `npp.8.9.9.1.Installer.x64.msi`  
 Homepage: https://notepad-plus-plus.org/
 
 ---

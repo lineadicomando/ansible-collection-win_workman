@@ -10,11 +10,11 @@ win_workman_notepadpp_schema:
   role: lineadicomando.win_workman.notepadpp
   default_action: !!str on
   package:
-    setup_file: npp.8.9.5.Installer.x64.msi
+    setup_file: npp.8.9.9.1.Installer.x64.msi
     provider: msi
     searchName: "Notepad++ (x64)"
-    version: "8.9.5"
+    version: "8.9.9.1"
   files:
-    - filename: npp.8.9.5.Installer.x64.msi
-      url: https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.5/npp.8.9.5.Installer.x64.msi
-      checksum: sha256:64915e83689ad55ea527bbf6c97c9a6471707b74df48e0acb80d957c669953f5
+    - filename: npp.8.9.9.1.Installer.x64.msi
+      url: https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.9.1/npp.8.9.9.1.Installer.x64.msi
+      checksum: sha256:e3b0607a092ce2604fbdac027db2c94915995e8e568ebd226f8c5493c2f61a80
