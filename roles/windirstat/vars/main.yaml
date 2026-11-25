@@ -10,11 +10,14 @@ win_workman_windirstat_schema:
   role: lineadicomando.win_workman.windirstat
   default_action: !!str on
   package:
-    setup_file: WinDirStat-x64.msi
+    setup_file: WinDirStat-2.9.3-x64.msi
     provider: msi
-    searchName: "WinDirStat"
-    version: "2.2.2"
+    # 2.2.2 registered as "WinDirStat", 2.9.3 as "WinDirStat 2.9.3".
+    searchName: "WinDirStat*"
+    version: "2.9.3"
   files:
-    - filename: WinDirStat-x64.msi
-      url: https://github.com/windirstat/windirstat/releases/download/release/v2.2.2/WinDirStat-x64.msi
-      checksum: sha256:029cc7158d5e2d475243b36ae207921d8205c1296e24c2cab13f142aefba473d
+    # Upstream names the asset WinDirStat-x64.msi in every release: keep the
+    # version in the stored filename so two releases never share one.
+    - filename: WinDirStat-2.9.3-x64.msi
+      url: https://github.com/windirstat/windirstat/releases/download/release/v2.9.3/WinDirStat-x64.msi
+      checksum: sha256:96c4c4beb63c7c5ad6b1a206f96560d7a9a2b6063f3cd175a82f392977a9af5d

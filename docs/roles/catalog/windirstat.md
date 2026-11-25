@@ -39,8 +39,8 @@ win_workman_tasks:
 ## Schema details
 
 Software name: `WinDirStat`  
-Provider: `registry`  
-Installer: `windirstat*.exe` (version varies)  
+Provider: `msi`  
+Installer: `WinDirStat-<version>-x64.msi` (upstream asset `WinDirStat-x64.msi`)  
 Homepage: https://windirstat.net/
 
 ---
