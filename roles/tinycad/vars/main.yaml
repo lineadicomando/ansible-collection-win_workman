@@ -13,9 +13,11 @@ win_workman_tinycad_schema:
     provider: portable
     portable_dir: TinyCAD
   files:
-    - filename: TinyCAD.Windows.Setup.4.0.8.exe
-      url: https://github.com/matt123p/TinyCADv4/releases/download/v4.0.8/TinyCAD.Windows.Setup.4.0.8.exe
-      checksum: sha256:22e35bb35c326837e4b4ea22353a20ae8eac93a0941a3bf52194f72fd12cb0e0
+    # The x64-only installer: the plain one is universal and carries both
+    # app-64.7z and app-arm64.7z, which extract over each other.
+    - filename: TinyCAD.Windows.Setup.4.1.2-x64.exe
+      url: https://github.com/matt123p/TinyCADv4/releases/download/v4.1.2/TinyCAD.Windows.Setup.4.1.2-x64.exe
+      checksum: sha256:6572aacebe1eec70345fbc3db77486271f9f790c121c0cfdcb59368354f6bed9
       extract: 7z
       dest_dir: TinyCAD
   shortcuts:
