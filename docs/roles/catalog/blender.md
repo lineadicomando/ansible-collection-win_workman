@@ -37,8 +37,8 @@ win_workman_tasks:
 
 Software name: `Blender`
 Provider: `msi`
-Installer: `blender-5.2.1-windows-x64.msi`
-Version: `5.2.1`
+Installer: `blender-5.3.0-windows-x64.msi`
+Version: `5.3.0`
 Homepage: https://www.blender.org/
 
 ---
@@ -47,6 +47,18 @@ Homepage: https://www.blender.org/
 
 The MSI installer includes a `product_id` for reliable uninstall detection.
 Silent installation and removal are handled automatically by the `msi` provider.
+
+### One series at a time
+
+Every Blender MSI registers as `Blender`, but its `UpgradeCode` changes with each
+minor series: 5.2.1 carries `{60132683-…}`, 5.3.0 `{F26FE7C6-…}`. A patch release
+replaces the installed one in place, while a new series installs side by side with
+the old one, in its own `Blender Foundation\Blender 5.x` directory.
+
+The schema therefore sets `version_like: "5.3*"` and `exclusive: true` (see
+`pkg_utils`): `on` uninstalls every machine-wide `Blender` entry of another series
+before installing, and `info`, `is_present` and `off` see only the current series.
+At every series bump update `version_like` together with `version` and `product_id`.
 
 Verify that `searchName` matches the `DisplayName` in the Windows Uninstall registry
 before deploying to a new OS version:

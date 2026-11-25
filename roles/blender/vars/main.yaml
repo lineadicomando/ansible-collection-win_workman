@@ -10,11 +10,18 @@ win_workman_blender_schema:
   role: lineadicomando.win_workman.blender
   default_action: !!str on
   package:
-    setup_file: blender-5.2.1-windows-x64.msi
+    setup_file: blender-5.3.0-windows-x64.msi
+    # Every Blender MSI has DisplayName "Blender", but the UpgradeCode changes
+    # with each minor series (5.2 and 5.3 differ), so a new series installs next
+    # to the old one instead of replacing it. version_like tells this series
+    # apart, exclusive removes the other ones before installing. Move it along
+    # with the version at every series bump.
     searchName: "Blender"
-    version: "5.2.1"
-    product_id: "{89F38CAB-6A94-4B76-9839-0AF9118C1E8E}"
+    version: "5.3.0"
+    version_like: "5.3*"
+    exclusive: true
+    product_id: "{BCCBDF6A-9448-4838-944B-2CB9539D572E}"
   files:
-    - filename: blender-5.2.1-windows-x64.msi
-      url: https://ftp.halifax.rwth-aachen.de/blender/release/Blender5.2/blender-5.2.1-windows-x64.msi
-      checksum: sha256:bebb90fc5bf7e3ec7ab4eb34f4c5a5b54e28e582a722152a47fd4ee66ec3c6fa
+    - filename: blender-5.3.0-windows-x64.msi
+      url: https://ftp.halifax.rwth-aachen.de/blender/release/Blender5.3/blender-5.3.0-windows-x64.msi
+      checksum: sha256:3ff4ec8a488be1148aa2bdb2cb229be21b8050e75931da617934cac254dd726c
