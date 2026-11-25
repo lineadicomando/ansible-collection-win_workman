@@ -10,15 +10,15 @@ win_workman_puredata_schema:
   role: lineadicomando.win_workman.puredata
   default_action: !!str on
   package:
-    setup_file: pd-0.56-2.windows-installer.exe
+    setup_file: pd-0.57-0.windows-installer.exe
     searchName: "Pure Data*"
-    version: "0.56-2"
+    version: "0.57-0"
     uninstall_via_helper: true
     provider: registry
     install_args: "/S"
     uninstall_args: "/S"
   files:
-    - filename: pd-0.56-2.windows-installer.exe
-      url: https://msp.ucsd.edu/Software/pd-0.56-2.windows-installer.exe
-      checksum: sha256:e61c908b3954ea4fab44bd23851c8a64cb07116e34fb91fa559a08d2d7f5648f
+    - filename: pd-0.57-0.windows-installer.exe
+      url: https://msp.ucsd.edu/Software/pd-0.57-0.windows-installer.exe
+      checksum: sha256:6c1dc1de251a9e130b8229165ef5932b54f89672376a78ed5fd650c6945439a8
       validate_certs: false
