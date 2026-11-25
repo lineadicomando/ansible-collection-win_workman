@@ -5,15 +5,55 @@
 #      - Download:    https://get.geo.opera.com/pub/opera/desktop/
 # ==============================================================================
 ---
-win_workman_opera_version: "139.0.6053.22"
+win_workman_opera_version: "140.0.6074.36"
 
-win_workman_opera_before_act_ps_script: |
+# The registered UninstallString, "opera.exe /uninstall", exits at once with
+# rc 0 and removes nothing, whatever the arguments: the uninstaller is
+# installer.exe in the versioned subfolder, which installation_status.json
+# names. It is run here, before pkg_utils' own uninstall step, which then
+# finds no entry left; cleanup_paths takes the few files it keeps.
+win_workman_opera_uninstall_ps_script: |
   $Ansible.Changed = $false
-  $process = Get-Process -Name opera -ErrorAction SilentlyContinue
-  if ($process) {
-      Stop-Process -InputObject $process -Force:$true
-      $Ansible.Changed = $true
+  Get-Process -Name opera, opera_autoupdate -ErrorAction SilentlyContinue | Stop-Process -Force
+  $root = Join-Path $env:ProgramFiles 'Opera'
+  $sub = $null
+  $status = Join-Path $root 'installation_status.json'
+  if (Test-Path -LiteralPath $status) {
+    $sub = (Get-Content -LiteralPath $status -Raw | ConvertFrom-Json)._subfolder
   }
+  if (-not $sub) {
+    $sub = Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
+      Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'installer.exe') } |
+      Sort-Object { [version]$_.Name } -ErrorAction SilentlyContinue |
+      Select-Object -Last 1 -ExpandProperty Name
+  }
+  $installer = if ($sub) { Join-Path (Join-Path $root $sub) 'installer.exe' } else { $null }
+  if (-not $installer -or -not (Test-Path -LiteralPath $installer)) {
+    $Ansible.Result = @{ installer = $installer; ran = $false }
+    return
+  }
+  # Not Start-Process -Wait: it waits for the whole job object, and a process
+  # the uninstaller leaves behind kept it waiting until the session dropped.
+  $p = Start-Process -FilePath $installer -ArgumentList '--uninstall --runimmediately --deleteuserprofile=0' -PassThru
+  if (-not $p.WaitForExit(120000)) {
+    $Ansible.Failed = $true
+    $Ansible.Result = @{ installer = $installer; timeout = $true }
+    return
+  }
+  # Wait for the uninstall entry to go before pkg_utils looks again.
+  $hives = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+  for ($i = 0; $i -lt 60; $i++) {
+    $left = Get-ChildItem -Path $hives -ErrorAction SilentlyContinue | Get-ItemProperty -ErrorAction SilentlyContinue |
+      Where-Object { $_.DisplayName -like 'Opera Stable*' }
+    if (-not $left) { break }
+    Start-Sleep -Seconds 1
+  }
+  if ($p.ExitCode -ne 0 -or $left) {
+    $Ansible.Failed = $true
+  } else {
+    $Ansible.Changed = $true
+  }
+  $Ansible.Result = @{ installer = $installer; rc = $p.ExitCode; entry_left = [bool]$left }
 
 win_workman_opera_program_file: "%ProgramFiles%"
 
@@ -51,13 +91,15 @@ win_workman_opera_schema:
     searchName: "Opera Stable*"
     install_args: "/silent /install /launchopera 0 /setdefaultbrowser 0 /allusers=1"
     uninstall_args: "/silent /uninstall /allusers=1"
-    before_uninstall_ps_script: "{{ win_workman_opera_before_act_ps_script }}"
+    before_uninstall_ps_script: "{{ win_workman_opera_uninstall_ps_script }}"
     cleanup_paths:
       - "{{ win_workman_opera_program_file }}\\Opera"
   files:
     - filename: "Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
       url: "https://download5.operacdn.com/ftp/pub/opera/desktop/{{ win_workman_opera_version }}/win/Opera_{{ win_workman_opera_version }}_Setup_x64.exe"
-      checksum: "sha256:83bffc49bf67669be3acee581b028661c9710f802b8f68ccfa4389c3c2ae482b"
+      # Bump it with win_workman_opera_version: Opera publishes it next to the
+      # installer, at the same URL plus ".sha256sum".
+      checksum: "sha256:6f8d0340ebf5f494bf307399e70c8bf727a0e30c6421cc9d1b47bb5df9adc465"
   shortcuts: >-
     {{
       win_workman_opera_shortcuts_schema if (

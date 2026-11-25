@@ -25,7 +25,7 @@ download, and info queries.
 
 | Variable | Default | Description |
 |---|---|---|
-| `win_workman_opera_version` | `"139.0.6053.22"` | Installer version; update when upgrading |
+| `win_workman_opera_version` | `"140.0.6074.36"` | Installer version; update when upgrading |
 | `win_workman_opera_shortcuts` | `false` | Create desktop and Start Menu shortcuts |
 | `win_workman_opera_shortcut_url` | `""` | URL appended to shortcut arguments |
 | `win_workman_opera_shortcut_no_first_run` | `true` | Add `--no-first-run --no-default-browser-check --disable-search-engine-choice-screen` to shortcut |
@@ -62,3 +62,17 @@ Homepage: https://www.opera.com/
   available; update both the variable and verify the download URL is reachable.
 - The installer sha256 is pinned in `files[].checksum` next to the version:
   a version bump needs a new checksum too, or `download` fails.
+
+### Uninstall
+
+The uninstall entry registers `opera.exe /uninstall`, which exits at once with rc 0 and
+removes nothing, whatever the arguments. `off` therefore runs the real uninstaller first,
+`installer.exe --uninstall --runimmediately --deleteuserprofile=0` from the versioned
+subfolder that `installation_status.json` names, waits for the entry to go and lets
+`cleanup_paths` take the few files left in `%ProgramFiles%\Opera`. The scheduled
+autoupdate tasks go with it. The script waits on the installer process only: with
+`Start-Process -Wait` it waited for a process the uninstaller leaves running and never
+returned.
+
+The checksum is pinned next to `win_workman_opera_version` and has to be bumped with it;
+Opera publishes it at the installer URL plus `.sha256sum`.
