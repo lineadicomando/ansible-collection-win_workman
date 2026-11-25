@@ -5,27 +5,41 @@
 #      - Download:    https://www.foxit.com/pdf-reader/
 # ==============================================================================
 ---
+# The installer is a per-machine WiX Burn bundle wrapping an MSI, and both
+# register as "Foxit PDF Reader": the MSI and the bundle, whose uninstaller is
+# its copy under ProgramData\Package Cache. Removing the MSI alone left the
+# bundle entry behind, and with it info and is_present kept reporting Foxit
+# installed after off, so a later on did not reinstall it. The bundle is run
+# with /uninstall /quiet instead: Burn removes the MSI, its own registration
+# and the cache. Without a bundle entry (an MSI installed on its own) the MSI
+# is removed directly. pkg_utils' own uninstall step then finds nothing left.
 win_workman_foxit_pdf_reader_uninstall_script: |
   $Ansible.Changed = $false
-  $process = Get-Process -Name "FoxitPDFReader" -ErrorAction SilentlyContinue
-  if ($process) {
-      Stop-Process -InputObject $process -Force:$true
-  }
-  $reg = Get-ItemProperty `
+  Get-Process -Name "FoxitPDFReader" -ErrorAction SilentlyContinue | Stop-Process -Force
+  $entries = Get-ItemProperty `
       "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*", `
       "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" `
       -ErrorAction SilentlyContinue |
-      Where-Object { $_.DisplayName -eq "Foxit PDF Reader" } |
-      Select-Object -First 1
-  if ($reg) {
-      $productCode = $reg.PSChildName
-      $p = Start-Process "MsiExec.exe" `
-          -ArgumentList "/X$productCode /quiet /norestart" `
-          -Wait -PassThru
-      if ($p.ExitCode -ne 0) {
-          throw "MsiExec /X failed with exit code $($p.ExitCode)"
+      Where-Object { $_.DisplayName -eq "Foxit PDF Reader" }
+  $bundle = $entries | Where-Object { $_.QuietUninstallString -match 'Package Cache' } | Select-Object -First 1
+  if ($bundle) {
+      if ($bundle.QuietUninstallString -notmatch '^\s*"([^"]+)"\s*(.*)$') {
+          throw "Unexpected QuietUninstallString: $($bundle.QuietUninstallString)"
       }
+      # Wait on the bundle process only: Start-Process -Wait waits for the
+      # whole job object, which a leftover child can keep open.
+      $p = Start-Process -FilePath $Matches[1] -ArgumentList $Matches[2] -PassThru
+      if (-not $p.WaitForExit(600000)) { throw "Bundle uninstall did not finish in 10 minutes" }
+      if ($p.ExitCode -notin @(0, 3010)) { throw "Bundle uninstall failed with exit code $($p.ExitCode)" }
       $Ansible.Changed = $true
+  } else {
+      $msi = $entries | Where-Object { $_.PSChildName -match '^\{[0-9A-Fa-f-]{36}\}$' -and $_.WindowsInstaller -eq 1 } | Select-Object -First 1
+      if ($msi) {
+          $p = Start-Process "MsiExec.exe" -ArgumentList "/X$($msi.PSChildName) /quiet /norestart" -PassThru
+          $p.WaitForExit()
+          if ($p.ExitCode -notin @(0, 1605, 3010)) { throw "MsiExec /X failed with exit code $($p.ExitCode)" }
+          $Ansible.Changed = $true
+      }
   }
 
 win_workman_foxit_pdf_reader_schema:
@@ -33,9 +47,9 @@ win_workman_foxit_pdf_reader_schema:
   role: lineadicomando.win_workman.foxit_pdf_reader
   default_action: !!str on
   package:
-    setup_file: FoxitPDFReader20262_L10N_Setup_Prom_x64.exe
+    setup_file: FoxitPDFReader202621_L10N_Setup_Prom_x64.exe
     searchName: "Foxit PDF Reader"
-    version: "2026.2.0.39747"
+    version: "2026.2.1.39815"
     provider: registry
     install_args:
       - /quiet
@@ -45,7 +59,7 @@ win_workman_foxit_pdf_reader_schema:
     cleanup_paths:
       - '%ProgramFiles%\Foxit Software\Foxit PDF Reader'
   files:
-    - filename: FoxitPDFReader20262_L10N_Setup_Prom_x64.exe
-      url: https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.2.0/FoxitPDFReader20262_L10N_Setup_Prom_x64.exe
-      checksum: sha256:3dfd99e7823ea5cc4639b0ee3d242c1ea07d445ae899f29719bcfea93bd69f91
+    - filename: FoxitPDFReader202621_L10N_Setup_Prom_x64.exe
+      url: https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.2.1/FoxitPDFReader202621_L10N_Setup_Prom_x64.exe
+      checksum: sha256:b5436a6c210c6a8b0120e7af7823bcd12747883ce6248dc6c21f5b8688413442
   shortcuts: []
