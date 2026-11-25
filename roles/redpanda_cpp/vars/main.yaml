@@ -28,11 +28,11 @@ win_workman_redpanda_cpp_schema:
   role: lineadicomando.win_workman.redpanda_cpp
   default_action: !!str on
   package:
-    setup_file: RedPanda.C++.3.4.win64.MinGW64_11.5.0.Setup.exe
+    setup_file: RedPanda.C++.3.5.0.win64.MinGW64_15.3.0.Setup.exe
     # The NSIS script writes DisplayName as "<app name> (<arch>)", so the glob
     # is what matches the entry regardless of the arch suffix.
     searchName: "Red Panda C++*"
-    version: "3.4"
+    version: "3.5.0"
     provider: registry
     # REGISTRY_PROGRAM_ID in platform/windows/installer-scripts/redpanda.nsi
     product_id: "RedPanda-C++"
@@ -46,9 +46,9 @@ win_workman_redpanda_cpp_schema:
     uninstall_via_helper: true
     after_uninstall_ps_script: "{{ win_workman_redpanda_cpp_assoc_cleanup_script }}"
   files:
-    - filename: RedPanda.C++.3.4.win64.MinGW64_11.5.0.Setup.exe
-      url: https://github.com/royqh1979/RedPanda-CPP/releases/download/v3.4/RedPanda.C%2B%2B.3.4.win64.MinGW64_11.5.0.Setup.exe
-      checksum: sha256:f2fc1b37b252d0cb417a9c8cef3813d8e032d3d875ce50913063dd7aa6b0f21f
+    - filename: RedPanda.C++.3.5.0.win64.MinGW64_15.3.0.Setup.exe
+      url: https://github.com/royqh1979/RedPanda-CPP/releases/download/v3.5/RedPanda.C%2B%2B.3.5.0.win64.MinGW64_15.3.0.Setup.exe
+      checksum: sha256:a8d0cd5e0eca81f156b2b88e7e11525b9881de42962cc3848ece7728e88db223
   # The installer already creates the all-users desktop and Start Menu shortcuts
   # and its uninstaller removes them, so none are declared here.
   shortcuts: []

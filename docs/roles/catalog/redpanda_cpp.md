@@ -40,7 +40,7 @@ win_workman_tasks:
 
 Software name: `Red Panda C++`  
 Provider: `registry`  
-Installer: `RedPanda.C++.3.4.win64.MinGW64_11.5.0.Setup.exe`  
+Installer: `RedPanda.C++.3.5.0.win64.MinGW64_15.3.0.Setup.exe`  
 Homepage: https://github.com/royqh1979/RedPanda-CPP
 
 ---
@@ -50,7 +50,7 @@ Homepage: https://github.com/royqh1979/RedPanda-CPP
 Proposed as the replacement for `orwell_devcpp` (last released in 2016) and
 `embarcadero_devcpp`: it keeps the Dev-C++ workflow and project format, takes over
 the same `.dev`, `.c`, `.cpp` and header file associations, and ships MinGW64
-GCC 11.5.0 instead of TDM-GCC 9.2. Install the three side by side only for
+GCC 15.3.0 instead of TDM-GCC 9.2. Install the three side by side only for
 comparison — whichever is installed last owns the file associations.
 
 The installer is NSIS with the MultiUser extension: `/AllUsers` installs under
