@@ -36,8 +36,8 @@ win_workman_tasks:
 
 Software name: `MySQL Server`
 Provider: `msi`
-Installer: `mysql-9.7.0-winx64.msi`
-Version: `9.7.0`
+Installer: `mysql-9.7.2-winx64.msi`
+Version: `9.7.2`
 Homepage: https://www.mysql.com/
 
 ---

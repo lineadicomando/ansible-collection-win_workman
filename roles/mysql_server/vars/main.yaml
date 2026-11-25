@@ -10,12 +10,12 @@ win_workman_mysql_server_schema:
   role: lineadicomando.win_workman.mysql_server
   default_action: !!str on
   package:
-    setup_file: mysql-9.7.0-winx64.msi
+    setup_file: mysql-9.7.2-winx64.msi
     searchName: "MySQL Server 9*"
-    version: "9.7.0"
+    version: "9.7.2"
     provider: msi
     uninstall_before_upgrade: true
   files:
-    - filename: mysql-9.7.0-winx64.msi
-      url: https://cdn.mysql.com//Downloads/MySQL-9.7/mysql-9.7.0-winx64.msi
-      checksum: sha256:1c7c3584eb92405c2ac54b9bfc4f61bbd455ce55229b1af5e10b96939b75e9a7
+    - filename: mysql-9.7.2-winx64.msi
+      url: https://cdn.mysql.com//Downloads/MySQL-9.7/mysql-9.7.2-winx64.msi
+      checksum: sha256:3d621e3038eed90817b87011963443e85c015c67e849db71d2a8c575aa11fdef
