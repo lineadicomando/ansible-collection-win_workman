@@ -56,7 +56,7 @@ Homepage: https://www.python.org/
 
 - **Deprecated**: Python 3.10 is in security-fix-only mode and python.org publishes no
   Windows installer past 3.10.11, so this role cannot be updated further. End-of-life is
-  2026-10-31. The role prints a warning on every run; migrate to `python313` or `python314`
+  2026-10-31. The role prints a warning on every run; migrate to `python314` or `python315`
 - **Detection**: the python.org installer is a WiX Burn bundle that registers its
   `Python 3.10.x (64-bit)` entry only in HKCU of the account that ran it, even for an
   all-users install. The role detects the machine-wide `Python 3.10.* Core Interpreter

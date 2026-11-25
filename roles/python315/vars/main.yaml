@@ -1,0 +1,51 @@
+# ==============================================================================
+#  Software Information:
+#      - Name:        Python 3.15
+#      - Homepage:    https://www.python.org/
+#      - Download:    https://www.python.org/downloads/windows/
+# ==============================================================================
+---
+win_workman_python315_schema:
+  name: Python 3.15
+  role: lineadicomando.win_workman.python315
+  default_action: !!str on
+  package:
+    setup_file: python-3.15.2-amd64.exe
+    version: "3.15.2150.0"
+    # The python.org installer is a WiX Burn bundle: its MSIs are installed
+    # machine-wide, but the bundle entry "Python 3.15.x (64-bit)" lands only in
+    # HKCU of the account that ran it, even with InstallAllUsers=1. Detect the
+    # Core Interpreter MSI instead, which every account sees; off uninstalls it
+    # and bundle_parts removes the other MSIs and the bundle registration.
+    searchName: "Python 3.15.* Core Interpreter (64-bit)"
+    bundle_parts: "Python 3.15.* (64-bit)"
+    # The other MSIs find their directory through python.exe: remove them first.
+    bundle_parts_last: "Python 3.15.* Executables (64-bit)"
+    # Written by the bundle itself, not by its MSIs.
+    bundle_cleanup_keys:
+      - 'HKLM:\SOFTWARE\Python\PythonCore\3.15\InstalledFeatures'
+    # Package Cache copies of 3.15 MSIs replaced by an upgrade.
+    bundle_cache_version_like: "3.15.*"
+    install_args: /quiet InstallAllUsers=1 PrependPath=1 Include_launcher=0 Shortcuts=1
+    uninstall_args: /qn /norestart
+    cleanup_paths:
+      - '%ProgramFiles%\Python315'
+      - '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Python 3.15'
+      - '%Public%\Desktop\Python 3.15 (64-bit).lnk'
+      - '%Public%\Desktop\IDLE (Python 3.15 64-bit).lnk'
+  files:
+    - filename: python-3.15.2-amd64.exe
+      url: https://www.python.org/ftp/python/3.15.2/python-3.15.2-amd64.exe
+      checksum: sha256:06e225a228191b0f4d1dcf6905fbb21bf9f6970d13a2ec63137ab9bee76f15aa
+  shortcuts:
+    - description: "Launches the Python 3.15 interpreter"
+      src: '%ProgramFiles%\Python315\python.exe'
+      dest: '%Public%\Desktop\Python 3.15 (64-bit).lnk'
+      icon: '%ProgramFiles%\Python315\python.exe,0'
+      directory: '%ProgramFiles%\Python315'
+    - description: "Launches IDLE, the interactive environment for Python 3.15"
+      src: '%ProgramFiles%\Python315\pythonw.exe'
+      arguments: '"%ProgramFiles%\Python315\Lib\idlelib\idle.pyw"'
+      dest: '%Public%\Desktop\IDLE (Python 3.15 64-bit).lnk'
+      icon: '%SystemRoot%\Installer\{A3863DD9-B4D3-4987-BB70-6F5F3AD4887B}\idle.exe,0'
+      directory: '%ProgramFiles%\Python315'

@@ -126,6 +126,7 @@ All catalog roles support the standard package actions: `on` (install), `off` (u
 | `python312` | Python 3.12 | — |
 | `python313` | Python 3.13 | — |
 | `python314` | Python 3.14 | — |
+| `python315` | Python 3.15 | — |
 
 ### Graphics, CAD & Multimedia
 

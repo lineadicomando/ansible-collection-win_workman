@@ -7,7 +7,7 @@
       source-only, so this role cannot be updated any further and the binaries
       it deploys will not receive security fixes. Python 3.11 reaches
       end-of-life on 2027-10-31.
-      Plan a migration to the python313 or python314 role.
+      Plan a migration to the python314 or python315 role.
 
 - name: Dispatch to package workflow
   ansible.builtin.include_role:
