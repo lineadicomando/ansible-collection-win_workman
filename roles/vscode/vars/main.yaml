@@ -18,9 +18,9 @@ win_workman_vscode_schema:
   role: lineadicomando.win_workman.vscode
   default_action: !!str on
   package:
-    setup_file: VSCodeSetup-x64-1.137.0.exe
+    setup_file: VSCodeSetup-x64-1.148.0.exe
     searchName: "Microsoft Visual Studio Code"
-    version: "1.137.0"
+    version: "1.148.0"
     install_args:
       - /VERYSILENT
       - /TASKS=desktopicon,addtopath
@@ -28,9 +28,9 @@ win_workman_vscode_schema:
     uninstall_args:
       - /VERYSILENT
   files:
-    - filename: VSCodeSetup-x64-1.137.0.exe
-      url: https://vscode.download.prss.microsoft.com/dbazure/download/stable/645f29cc3176500b4b5762ba887cf2a7f0ffdf2c/VSCodeSetup-x64-1.137.0.exe
-      checksum: sha256:7aa601ca69dfa3ddf020d3df4e35ffaccbb02748cc31587580f215b143586ad3
+    - filename: VSCodeSetup-x64-1.148.0.exe
+      url: https://vscode.download.prss.microsoft.com/dbazure/download/stable/661626d0e72f97806550790a98fb87116c9db825/VSCodeSetup-x64-1.148.0.exe
+      checksum: sha256:80e3c1814125f141afd5e196c22a831abfc5fdf4ee4087cf6b08c692e649f79c
   shortcuts: >-
     {{
       win_workman_vscode_shortcuts_schema if (
