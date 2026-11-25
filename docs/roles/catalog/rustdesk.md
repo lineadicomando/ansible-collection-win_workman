@@ -37,7 +37,7 @@ win_workman_tasks:
 
 Software name: `RustDesk`
 Provider: `registry` (MSI)
-Installer: `rustdesk-1.4.6-x86_64.msi`
+Installer: `rustdesk-1.5.3-x86_64.msi`
 Homepage: https://rustdesk.com
 
 ---

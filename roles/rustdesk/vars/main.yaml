@@ -10,11 +10,11 @@ win_workman_rustdesk_schema:
   role: lineadicomando.win_workman.rustdesk
   default_action: !!str on
   package:
-    setup_file: rustdesk-1.4.6-x86_64.msi
+    setup_file: rustdesk-1.5.3-x86_64.msi
     searchName: "RustDesk"
-    version: "1.4.6"
+    version: "1.5.3.29903684"
     product_id: "detect"
   files:
-    - filename: rustdesk-1.4.6-x86_64.msi
-      url: https://github.com/rustdesk/rustdesk/releases/download/1.4.6/rustdesk-1.4.6-x86_64.msi
-      checksum: sha256:7aad1f481b2fdf86166d082933071e7e9aaf7efd3666a4204cdc5fd2f42b0e59
+    - filename: rustdesk-1.5.3-x86_64.msi
+      url: https://github.com/rustdesk/rustdesk/releases/download/1.5.3/rustdesk-1.5.3-x86_64.msi
+      checksum: sha256:27f6bfb48a93d524860dd7f4a79e349be14b6dc71295746cf132a060ba4869c8
