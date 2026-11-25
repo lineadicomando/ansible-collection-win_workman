@@ -40,7 +40,7 @@ win_workman_tasks:
 
 Software name: `Apache NetBeans`  
 Provider: `registry`  
-Installer: `Apache-NetBeans-30.exe`  
+Installer: `Apache-NetBeans-31.exe`  
 Homepage: https://netbeans.apache.org/
 
 ---
