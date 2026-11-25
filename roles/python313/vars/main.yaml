@@ -10,8 +10,8 @@ win_workman_python313_schema:
   role: lineadicomando.win_workman.python313
   default_action: !!str on
   package:
-    setup_file: python-3.13.15-amd64.exe
-    version: "3.13.15150.0"
+    setup_file: python-3.13.17-amd64.exe
+    version: "3.13.17150.0"
     # The python.org installer is a WiX Burn bundle: its MSIs are installed
     # machine-wide, but the bundle entry "Python 3.13.x (64-bit)" lands only in
     # HKCU of the account that ran it, even with InstallAllUsers=1. Detect the
@@ -34,9 +34,9 @@ win_workman_python313_schema:
       - '%Public%\Desktop\Python 3.13 (64-bit).lnk'
       - '%Public%\Desktop\IDLE (Python 3.13 64-bit).lnk'
   files:
-    - filename: python-3.13.15-amd64.exe
-      url: https://www.python.org/ftp/python/3.13.15/python-3.13.15-amd64.exe
-      checksum: sha256:edec09c4853aeae9ac36efb8c9f95b6b8e2fee65eee56d9767a8b7c69c574403
+    - filename: python-3.13.17-amd64.exe
+      url: https://www.python.org/ftp/python/3.13.17/python-3.13.17-amd64.exe
+      checksum: sha256:5da012101ba2e17113a9a1cd901e9ce1441086f2b7ecb5de06ec94163899a190
   shortcuts:
     - description: "Launches the Python 3.13 interpreter"
       src: '%ProgramFiles%\Python313\python.exe'
@@ -47,5 +47,5 @@ win_workman_python313_schema:
       src: '%ProgramFiles%\Python313\pythonw.exe'
       arguments: '"%ProgramFiles%\Python313\Lib\idlelib\idle.pyw"'
       dest: '%Public%\Desktop\IDLE (Python 3.13 64-bit).lnk'
-      icon: '%SystemRoot%\Installer\{DFDDB8BD-7449-4F42-971B-30AEC110337C}\idle.exe,0'
+      icon: '%SystemRoot%\Installer\{558C4CF1-82E8-4C42-BC91-5F1E96E9C99C}\idle.exe,0'
       directory: '%ProgramFiles%\Python313'

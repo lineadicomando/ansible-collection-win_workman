@@ -47,7 +47,7 @@ win_workman_tasks:
 
 Software name: `Python 3.13`  
 Provider: `registry` (Burn bundle, detected through its Core Interpreter MSI)  
-Installer: `python-3.13.15-amd64.exe`  
+Installer: `python-3.13.17-amd64.exe`  
 Homepage: https://www.python.org/
 
 ---
