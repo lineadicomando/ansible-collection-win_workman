@@ -10,18 +10,18 @@ win_workman_dbeaver_schema:
   role: lineadicomando.win_workman.dbeaver
   default_action: !!str on
   package:
-    setup_file: dbeaver-ce-26.2.0-windows-x86_64.exe
+    setup_file: dbeaver-ce-26.2.5.2-windows-x86_64.exe
     searchName: "DBeaver*"
-    version: 26.2.0
+    version: 26.2.5.2
     provider: registry
     product_id: DBeaver
     install_args: "/S /allusers"
     uninstall_args: "/S"
     uninstall_via_helper: true
   files:
-    - filename: dbeaver-ce-26.2.0-windows-x86_64.exe
-      url: https://github.com/dbeaver/dbeaver/releases/download/26.2.0/dbeaver-ce-26.2.0-windows-x86_64.exe
-      checksum: sha256:009e8a99be478261d09fdeb40ab5ef64bfe1f5faf79288cac670164719d921d2
+    - filename: dbeaver-ce-26.2.5.2-windows-x86_64.exe
+      url: https://github.com/dbeaver/dbeaver/releases/download/26.2.5.2/dbeaver-ce-26.2.5.2-windows-x86_64.exe
+      checksum: sha256:eee1ee7eded5aaca5a6cbf5593dbe360ec9b70ff012cd0185fb686a9f1cfe511
   shortcuts:
     - description: "DBeaver"
       src: '%ProgramFiles%\DBeaver\dbeaver.exe'
