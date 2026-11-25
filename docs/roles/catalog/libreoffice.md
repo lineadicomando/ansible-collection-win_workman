@@ -53,3 +53,13 @@ Homepage: https://www.libreoffice.org/
 - Supports all standard Microsoft Office file formats (.docx, .xlsx, .pptx)
 - First launch may take longer due to component registration
 - Compatible with Microsoft Office templates and macros (with limitations)
+- `searchName` matches any release (`LibreOffice [0-9]*.[0-9]*.[0-9]*.[0-9]*`): every
+  LibreOffice MSI shares one UpgradeCode, so a new version replaces the installed one and
+  `on` has to see that one to upgrade it. Help packs (`LibreOffice 26.2 Help Pack (...)`)
+  do not match
+- The Online Update feature installs the *LibreOffice Maintenance Service*
+  (`update_service.exe`), which the MSI never removes: its `uninstall_updateservice` action
+  cannot run under `REMOVE=ALL`. `off` deletes the service, its
+  `HKLM\SOFTWARE\LibreOffice\MaintenanceService` key and the `program\logs` leftover. The
+  feature is not left out at install time: `REMOVE=gm_o_Onlineupdate` alone makes the MSI
+  install nothing on a new product, and `ADDLOCAL=ALL` would add every optional feature

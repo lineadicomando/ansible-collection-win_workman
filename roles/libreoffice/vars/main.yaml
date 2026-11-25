@@ -16,25 +16,47 @@ win_workman_libreoffice_branch: >-
   }}
 
 win_workman_libreoffice_branch_version:
-  still: "26.2.6"
-  fresh: "26.8.0"
+  still: "26.2.7"
+  fresh: "26.8.3"
 
-# MSI ProductVersion: it is what ends up in the uninstall registry DisplayName,
-# so searchName below depends on it.
+# MSI ProductVersion, also part of the uninstall entry's DisplayName.
 win_workman_libreoffice_branch_full_version:
-  still: "26.2.6.3"
-  fresh: "26.8.0.3"
+  still: "26.2.7.3"
+  fresh: "26.8.3.1"
 
 # TDF publishes no checksum file, only a detached GPG signature. These are the
 # sha256 of the MSI whose .asc verifies against the LibreOffice Build Team key
 # C283 9ECA D940 8FBE 9531  C3E9 F434 A1EF AFEE AEA3.
 win_workman_libreoffice_branch_checksum:
-  still: sha256:f9877032fd908beb9c0ddf06df4af5c2e85f419c42e14876c4cce5aae5fb2660
-  fresh: sha256:4aa6c6e1895f4055104effcb556bd3362d20c6ad707c149543304f395ef9db95
+  still: sha256:480fecf759fc6393bd614fbf43753eb95a8198fc1a065d41b727e3b664cd1e59
+  fresh: sha256:0e6918c273eabbdbbd800ee0dacbbf130a14c13c2e4cec861b06dd59e015bf94
 
 win_workman_libreoffice_version: "{{ win_workman_libreoffice_branch_version[win_workman_libreoffice_branch] }}"
 win_workman_libreoffice_full_version: >-
   {{ win_workman_libreoffice_branch_full_version[win_workman_libreoffice_branch] }}
+
+win_workman_libreoffice_service_cleanup_script: |
+  $Ansible.Changed = $false
+  $removed = @()
+  $svc = Get-Service -Name LibreOfficeMaintenance -ErrorAction SilentlyContinue
+  if ($svc) {
+    if ($svc.Status -ne 'Stopped') { Stop-Service -Name LibreOfficeMaintenance -Force -ErrorAction SilentlyContinue }
+    & "$env:WINDIR\System32\sc.exe" delete LibreOfficeMaintenance | Out-Null
+    $removed += 'service LibreOfficeMaintenance'
+  }
+  $key = 'HKLM:\SOFTWARE\LibreOffice\MaintenanceService'
+  if (Test-Path -LiteralPath $key) {
+    Remove-Item -LiteralPath $key -Recurse -Force
+    $removed += $key
+    $parent = 'HKLM:\SOFTWARE\LibreOffice'
+    $item = Get-Item -LiteralPath $parent -ErrorAction SilentlyContinue
+    if ($item -and $item.SubKeyCount -eq 0 -and $item.ValueCount -eq 0) {
+      Remove-Item -LiteralPath $parent -Force
+      $removed += $parent
+    }
+  }
+  if ($removed.Count -gt 0) { $Ansible.Changed = $true }
+  $Ansible.Result = @{ removed = $removed }
 
 win_workman_libreoffice_schema:
   name: LibreOffice
@@ -42,8 +64,24 @@ win_workman_libreoffice_schema:
   default_action: !!str on
   package:
     setup_file: "LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
-    searchName: "LibreOffice {{ win_workman_libreoffice_full_version }}"
+    # Any release: every LibreOffice MSI shares one UpgradeCode, so a new one
+    # replaces the installed one, and on must see that one to upgrade it. Four
+    # dotted numbers keep out "LibreOffice 26.2 Help Pack (...)".
+    searchName: "LibreOffice [0-9]*.[0-9]*.[0-9]*.[0-9]*"
     version: "{{ win_workman_libreoffice_full_version }}"
+    # The Online Update feature installs the LibreOffice Maintenance Service
+    # (update_service.exe). The MSI's uninstall_updateservice action is
+    # conditioned on that feature being installed with no action pending,
+    # which is never true under REMOVE=ALL, so removing LibreOffice left the
+    # service registered with no executable, its registry key and a log under
+    # program\logs. off removes them after the MSI.
+    # Not avoided at install time with REMOVE=gm_o_Onlineupdate: setting any
+    # feature-state property leaves every unnamed feature in its current
+    # state, absent on a new product, and the MSI then registers itself with
+    # nothing installed; ADDLOCAL=ALL would add every optional feature.
+    after_uninstall_ps_script: "{{ win_workman_libreoffice_service_cleanup_script }}"
+    cleanup_paths:
+      - '%ProgramFiles%\LibreOffice'
   files:
     - filename: "LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
       url: "https://www.mirrorservice.org/sites/download.documentfoundation.org/tdf/libreoffice/stable/{{ win_workman_libreoffice_version }}/win/x86_64/LibreOffice_{{ win_workman_libreoffice_version }}_Win_x86-64.msi"
