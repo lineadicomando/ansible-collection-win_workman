@@ -10,9 +10,10 @@ win_workman_peazip_schema:
   role: lineadicomando.win_workman.peazip
   default_action: !!str on
   package:
-    setup_file: peazip-11.1.0.WIN64.exe
-    searchName: "PeaZip"
-    version: "11.1.0"
+    setup_file: peazip-11.4.0.WIN64.exe
+    # Inno registers "PeaZip <version> (WIN64)": an exact "PeaZip" never matched.
+    searchName: "PeaZip * (WIN64)"
+    version: "11.4.0"
     install_args:
       - /VERYSILENT
       - /SUPPRESSMSGBOXES
@@ -22,6 +23,6 @@ win_workman_peazip_schema:
       - /SUPPRESSMSGBOXES
       - /NORESTART
   files:
-    - filename: peazip-11.1.0.WIN64.exe
-      url: https://github.com/peazip/PeaZip/releases/download/11.1.0/peazip-11.1.0.WIN64.exe
-      checksum: sha256:36ed5ebf33568bfbb5b7a752a7c35f7852a3bca605536a7d1d6a054037e804c1
+    - filename: peazip-11.4.0.WIN64.exe
+      url: https://github.com/peazip/PeaZip/releases/download/11.4.0/peazip-11.4.0.WIN64.exe
+      checksum: sha256:7c7e70f4bb64b0f8e6f088c33bb14d7791d9a7c1a762d062f3bfec1bbb8ac9d3
