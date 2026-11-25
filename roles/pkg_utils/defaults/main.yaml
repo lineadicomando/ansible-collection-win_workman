@@ -2,6 +2,9 @@
 win_workman_remote_tmp: C:\Windows\Temp\ansible
 win_workman_storage_path: "{{ lookup('env', 'HOME') }}/win_workman_storage"
 win_workman_portable_path: C:\PortableApps
+# File that records, in each portable install directory, which files it was
+# extracted from (pkg_act_on).
+win_workman_portable_marker_name: .win_workman_source
 win_workman_default_lang: "en_US"
 
 win_workman_restart_timeout: 600

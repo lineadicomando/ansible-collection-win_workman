@@ -165,6 +165,7 @@ immediately with a clear error if an unknown action is passed.
 | `win_workman_storage_path` | `~/win_workman_storage` | Controller-side installer storage |
 | `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Staging dir on target; its ACL is set by the dispatcher, see [below](#remote-temporary-directory) |
 | `win_workman_portable_path` | `C:\PortableApps` | Root for portable apps |
+| `win_workman_portable_marker_name` | `.win_workman_source` | Marker naming the files a portable install directory was extracted from (see architecture.md) |
 | `win_workman_restart` | `true` | Allow reboot after install if needed |
 | `win_workman_restart_timeout` | `600` | Seconds to wait after reboot until sshd runs and servicing (TrustedInstaller, TiWorker) is idle |
 | `win_workman_default_lang` | `en_US` | Locale hint for multi-locale roles |

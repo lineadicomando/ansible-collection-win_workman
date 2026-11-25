@@ -185,6 +185,21 @@ files:
     dest_dir: MyApp
 ```
 
+With no version to read, `on` tells versions apart by the files they came from.
+After extracting, it writes `.win_workman_source`
+(`win_workman_portable_marker_name`) into each install directory, one line per
+`files` entry: the filename and its `checksum`, or its URL when there is none.
+At the next `on`, a directory without the marker or with a different one is
+removed and extracted again from scratch, so a bump reaches the hosts that have
+the package and leaves no files of the old version behind; a matching marker
+makes `on` a no-op. Anything added by hand inside the install directory is lost
+at that point. A package installed before the marker existed is reinstalled
+once.
+
+A schema with `uninstall_before_upgrade: true` and a file without `checksum`
+(a "latest" URL, as `postman` has) keeps reinstalling at every `on`, as it did
+before the marker: there is nothing to compare.
+
 ### Install scopes: `sys` and `usr`
 
 Orthogonal to the provider, a schema's blocks say *for whom* it installs: a

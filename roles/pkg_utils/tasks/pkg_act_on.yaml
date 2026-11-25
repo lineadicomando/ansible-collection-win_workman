@@ -112,12 +112,37 @@
   when:
     - win_workman_pkg_portable | bool
 
+# A portable package has no uninstall entry to read a version from, so the
+# extraction leaves a marker in each install directory naming the files it came
+# from (filename and sha256, or URL when there is no checksum). on reinstalls
+# from scratch when the marker is missing or names other files: a bump then
+# reaches hosts that have the package, without old files left in the tree.
+# A schema with uninstall_before_upgrade and a file without checksum (a
+# "latest" URL) keeps reinstalling at every run, as it always did.
+- name: Set the expected portable marker
+  ansible.builtin.set_fact:
+    win_workman_portable_marker_expected: |-
+      {% for f in win_workman_schema.files | default([]) %}
+      {{ f.filename }} {{ f.checksum | default(f.url | default(''), true) }}
+      {% endfor %}
+    win_workman_portable_always_upgrade: >-
+      {{
+        (win_workman_uninstall_before_upgrade | bool)
+        and (
+          win_workman_schema.files | default([])
+          | rejectattr('checksum', 'defined') | list | length > 0
+        )
+      }}
+  when:
+    - win_workman_pkg_portable | bool
+
 - name: Fetch portable package state
   ansible.windows.win_powershell:
     script: |
       param(
         [string]$PortablePath, [string]$InstallDirsJson,
-        [string]$InstallFilesJson, [string]$ShortcutsJson
+        [string]$InstallFilesJson, [string]$ShortcutsJson,
+        [string]$MarkerName, [string]$MarkerExpected
       )
       $ErrorActionPreference = "Stop"
       # ConvertFrom-Json emits a multi-element array as a single object and the
@@ -175,9 +200,21 @@
       $hasDir  = @($dirResults  | Where-Object { $_.is_directory }).Count -gt 0
       $hasFile = @($fileResults | Where-Object { $_.is_file      }).Count -gt 0
       $installed = $hasDir -or $hasFile
+      # Every existing install directory must carry the expected marker. A
+      # package made only of files has no directory to hold one: it counts as
+      # current, as before.
+      $expected = ($MarkerExpected -replace "`r", '').Trim()
+      $markerOk = $true
+      foreach ($d in @($dirResults | Where-Object { $_.is_directory })) {
+        $m = Join-Path $d.path $MarkerName
+        $found = if (Test-Path -LiteralPath $m -PathType Leaf) {
+          ((Get-Content -LiteralPath $m -Raw) -replace "`r", '').Trim()
+        } else { $null }
+        if ($found -ne $expected) { $markerOk = $false }
+      }
       $Ansible.Changed = $false
       $Ansible.Result = [ordered]@{
-        installed = $installed; portable_path = $PortablePath
+        installed = $installed; marker_ok = $markerOk; portable_path = $PortablePath
         directories = @($dirResults); files = @($fileResults)
         shortcuts = @($shortcutResults)
       }
@@ -189,6 +226,8 @@
         {{ win_workman_portable_install_file_paths | default([]) | to_json }}
       ShortcutsJson: >-
         {{ win_workman_schema.shortcuts | default([]) | to_json }}
+      MarkerName: "{{ win_workman_portable_marker_name }}"
+      MarkerExpected: "{{ win_workman_portable_marker_expected }}"
   register: win_workman_portable_info
   when:
     - win_workman_pkg_portable | bool
@@ -197,6 +236,11 @@
   ansible.builtin.set_fact:
     win_workman_portable_is_present: >-
       {{ win_workman_portable_info.result.installed | default(false) | bool }}
+    win_workman_portable_is_current: >-
+      {{
+        (win_workman_portable_info.result.marker_ok | default(false) | bool)
+        and not (win_workman_portable_always_upgrade | bool)
+      }}
   when:
     - win_workman_pkg_portable | bool
 
@@ -250,7 +294,11 @@
     win_workman_operation: >-
       {{
         (
-          'upgrade' if (win_workman_portable_is_present | default(false) | bool)
+          (
+            'noop' if (win_workman_portable_is_current | default(false) | bool)
+            else 'upgrade'
+          )
+          if (win_workman_portable_is_present | default(false) | bool)
           else 'install'
         )
         if (win_workman_pkg_portable | bool)
@@ -270,13 +318,7 @@
   ansible.builtin.set_fact:
     win_workman_needs_action: >-
       {{
-        (
-          win_workman_operation == 'install'
-          or (
-            win_workman_operation == 'upgrade'
-            and win_workman_uninstall_before_upgrade | bool
-          )
-        )
+        (win_workman_operation in ['install', 'upgrade'])
         if (win_workman_pkg_portable | bool)
         else (
           win_workman_operation in ['install', 'upgrade']
@@ -292,7 +334,6 @@
     - win_workman_needs_action | bool
     - win_workman_pkg_portable | bool
     - win_workman_operation == 'upgrade'
-    - win_workman_uninstall_before_upgrade | bool
 
 - name: Download
   ansible.builtin.include_role:
@@ -558,6 +599,17 @@
   loop_control:
     loop_var: win_workman_schema_service
     label: "{{ win_workman_schema_service.name }}"
+
+- name: Write the portable marker
+  ansible.windows.win_copy:
+    content: "{{ win_workman_portable_marker_expected }}\n"
+    dest: "{{ win_workman_portable_path }}\\{{ win_workman_portable_marker_dir }}\\{{ win_workman_portable_marker_name }}"
+  loop: "{{ win_workman_portable_install_dirs | default([]) }}"
+  loop_control:
+    loop_var: win_workman_portable_marker_dir
+  when:
+    - win_workman_pkg_portable | bool
+    - win_workman_needs_action | bool
 
 - name: Shortcuts
   ansible.builtin.include_role:
