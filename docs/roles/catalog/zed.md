@@ -43,7 +43,7 @@ win_workman_tasks:
 
 Software name: `Zed`  
 Scope: `usr`  
-Installer: `Zed-x86_64-1.19.2.exe` (Inno Setup, `PrivilegesRequired=lowest`)  
+Installer: `Zed-x86_64-1.29.3.exe` (Inno Setup, `PrivilegesRequired=lowest`)  
 Homepage: https://zed.dev/
 
 ---
