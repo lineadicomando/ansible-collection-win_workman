@@ -37,7 +37,7 @@ win_workman_tasks:
 
 Software name: `WinSCP`
 Provider: `msi`
-Installer: `WinSCP-6.3.8.msi`
+Installer: `WinSCP-6.7.1.msi`
 Homepage: https://winscp.net/
 
 ---

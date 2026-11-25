@@ -10,15 +10,15 @@ win_workman_winscp_schema:
   role: lineadicomando.win_workman.winscp
   default_action: !!str on
   package:
-    setup_file: WinSCP-6.3.8.msi
+    setup_file: WinSCP-6.7.1.msi
     searchName: "WinSCP*"
-    version: "6.3.8"
+    version: "6.7.1"
     provider: msi
     uninstall_before_upgrade: true
   files:
-    - filename: WinSCP-6.3.8.msi
-      url: https://downloads.sourceforge.net/project/winscp/WinSCP/6.3.8/WinSCP-6.3.8.msi
-      checksum: sha256:ca958c21d648083573667c4db950b85dfc888f9d8ee97d9aeb16ba8226ecbad8
+    - filename: WinSCP-6.7.1.msi
+      url: https://downloads.sourceforge.net/project/winscp/WinSCP/6.7.1/WinSCP-6.7.1.msi
+      checksum: sha256:6f13955925447f0714bc8e6de9e9be7e59e5352422284c27f4ff0ad9c68cda6c
   shortcuts:
     - description: "WinSCP"
       src: '%ProgramFiles%\WinSCP\WinSCP.exe'
