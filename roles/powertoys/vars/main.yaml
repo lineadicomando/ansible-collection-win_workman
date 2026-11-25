@@ -10,12 +10,21 @@ win_workman_powertoys_schema:
   role: lineadicomando.win_workman.powertoys
   default_action: !!str on
   package:
-    setup_file: PowerToysSetup-0.99.1-x64.exe
-    searchName: "PowerToys (Preview)"
-    version: "0.99.1"
+    setup_file: PowerToysSetup-0.102.3101.0-x64.exe
+    # The installer is a per-machine WiX Burn bundle. It registers two entries:
+    # the MSI, "PowerToys (Preview)", and the bundle, "PowerToys (Preview) x64",
+    # whose uninstaller is its cached copy. Detecting the MSI made off remove
+    # only that, leaving the bundle listed under Apps and its Package Cache on
+    # disk. Detect the bundle and run its own uninstaller instead: Burn then
+    # removes the MSI, its registration and the caches.
+    searchName: "PowerToys (Preview) x64"
+    version: "0.102.3101.0"
     install_args:
       - -silent
+    uninstall_args:
+      - /quiet
+    uninstall_via_helper: true
   files:
-    - filename: PowerToysSetup-0.99.1-x64.exe
-      url: https://github.com/microsoft/PowerToys/releases/download/v0.99.1/PowerToysSetup-0.99.1-x64.exe
-      checksum: sha256:29210f756b93dc1871694fc2a6be89ab0bc76227f66ffba0f5a80f408e576cdd
+    - filename: PowerToysSetup-0.102.3101.0-x64.exe
+      url: https://github.com/microsoft/PowerToys/releases/download/v0.102.3101/PowerToysSetup-0.102.3101.0-x64.exe
+      checksum: sha256:f1d24a49346167322eb64a2458bd82810519920d1da4c0aeb1788e54c345d142
