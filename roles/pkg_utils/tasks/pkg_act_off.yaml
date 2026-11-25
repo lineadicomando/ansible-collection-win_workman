@@ -489,8 +489,11 @@
       # Only a directory holding nothing but uninstaller files is safe to drop.
       # Anything else (user data, extensions, a second product sharing the dir)
       # means the package did not clean up and that is not ours to decide.
+      # Subdirectories count only through the files they hold: Laragon keeps
+      # its uninstaller in bin\laragon under InstallLocation, so after a clean
+      # uninstall the tree is a couple of empty levels and one unins000.exe.
       $leftover = @(Get-ChildItem -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue)
-      $foreign = @($leftover | Where-Object { $_.PSIsContainer -or $_.Name -notlike 'unins*' })
+      $foreign = @($leftover | Where-Object { -not $_.PSIsContainer -and $_.Name -notlike 'unins*' })
       if ($foreign.Count -gt 0) {
           $result.Reason = "$($foreign.Count) item(s) not from the uninstaller remain"
           $result.Kept = @($foreign | Select-Object -First 10 -ExpandProperty Name)
