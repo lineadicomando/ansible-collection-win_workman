@@ -141,4 +141,4 @@ The lab project (`ansible-win_edulab`, checked out next to this one) reaches thi
 collection through a symlink under its `ansible_collections/`, so edits here take
 effect there with no reinstall. That project drives runs through its own
 `playbooks/win_wm.yaml`; this collection's own entry point is
-`ansible-playbook lineadicomando.win_workman.win_workman -e '{"t": "chrome,vlc-off"}'`.
+`ansible-playbook lineadicomando.win_workman.win_workman -e '{"todo": "chrome,vlc-off"}'`.

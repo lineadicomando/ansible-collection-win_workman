@@ -90,7 +90,7 @@ def _get_tools() -> list[Tool]:
                             "(highest precedence). E.g. {\"win_workman_usr_targets\": "
                             "[\"Domain Users\"]} or {\"win_workman_shutdown_timeout\": 60}. "
                             "get_role_info lists each role's variables under 'defaults'. "
-                            "'t' and ansible_* connection variables are refused."
+                            "'t', 'todo' and ansible_* connection variables are refused."
                         ),
                     },
                     "sensitive_vars": {

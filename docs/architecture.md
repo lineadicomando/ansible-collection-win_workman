@@ -33,9 +33,9 @@ win_workman_tasks (list of strings)
 | `lineadicomando.win_workman.dispatcher` role | `roles:` block in a playbook | Standard playbook usage |
 | `lineadicomando.win_workman.win_workman` playbook (FQCN) | `ansible-playbook lineadicomando.win_workman.win_workman` | CLI / MCP server |
 
-The collection playbook (`playbooks/win_workman.yaml`) accepts `t` as a
-comma-separated extra-var string, normalises it into a list, and delegates to
-`dispatcher`. It is the entry point used by the [MCP server](mcp.md).
+The collection playbook (`playbooks/win_workman.yaml`) accepts `todo` (old
+name `t`) as a comma-separated extra-var string or a list, normalises it into a
+list, and delegates to `dispatcher`. It is the entry point used by the [MCP server](mcp.md).
 
 ---
 

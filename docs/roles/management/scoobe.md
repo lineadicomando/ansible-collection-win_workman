@@ -62,8 +62,8 @@ profile when their profile is created.
 
 ```bash
 # Suppress on the whole lab
-ansible-playbook lineadicomando.win_workman.win_workman -i <inventory> -l win_managed -e t=scoobe-off
+ansible-playbook lineadicomando.win_workman.win_workman -i <inventory> -l win_managed -e todo=scoobe-off
 
 # Check what each profile has
-ansible-playbook lineadicomando.win_workman.win_workman -i <inventory> -l student01 -e t=scoobe-info
+ansible-playbook lineadicomando.win_workman.win_workman -i <inventory> -l student01 -e todo=scoobe-info
 ```

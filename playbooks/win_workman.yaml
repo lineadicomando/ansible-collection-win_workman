@@ -5,33 +5,23 @@
 # The task list is passed as extra-vars (JSON):
 #
 #   ansible-playbook lineadicomando.win_workman.win_workman \
-#     -e '{"t": "chrome,chrome-info"}'
+#     -e '{"todo": "chrome,chrome-info"}'
 #
-# t: comma-separated list of tasks (e.g. "chrome", "chrome-off,vlc-on")
+# todo: task strings, as a comma-separated string (e.g. "chrome",
+#       "chrome-off,vlc-on") or a list.
+# t:    the old name of todo, still accepted; todo wins when both are given.
 
 - name: Win Workman dispatcher
   hosts: all
   gather_facts: false
   vars:
-    t: ""
+    todo: "{{ t | default('') }}"
+    todo_list: "{{ todo.split(',') | map('trim') | select | list if todo is string else todo }}"
   tasks:
-    - name: Normalize t into list
-      ansible.builtin.set_fact:
-        t_list: >-
-          {{
-             t.split(',') if (
-                 t is string and ',' in t
-             ) else ( [t] if (
-                 t is string and t|length > 0
-             ) else t )
-          }}
-      when:
-        - t != ''
-
     - name: Run win_workman tasks
       ansible.builtin.import_role:
         name: lineadicomando.win_workman.dispatcher
       vars:
-        win_workman_tasks: "{{ t_list }}"
+        win_workman_tasks: "{{ todo_list }}"
       when:
-        - t_list is defined
+        - todo_list | length > 0

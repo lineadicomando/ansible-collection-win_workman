@@ -219,7 +219,7 @@ Targets are account or group names, `DOMAIN\name`, or SIDs, joined by `+`.
 Everything after the verb is rejoined on `-` before splitting on `+`, so names
 containing dashes work: `zed-usr-on-student-alice+student-bob`. `+` cannot occur in a
 Windows or AD account name; `,` cannot be used because it separates tasks in the
-`t` extra var. Without targets, `on` uses `win_workman_usr_targets`.
+`todo` extra var. Without targets, `on` uses `win_workman_usr_targets`.
 
 `on` and `off` merge into the policy rather than replace it, so they compose:
 

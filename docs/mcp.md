@@ -110,7 +110,7 @@ Runs one or more win_workman tasks on an Ansible host or group by invoking
 | `t` | list of strings | yes | — | Task list (e.g. `["chrome"]`, `["chrome-off", "vlc-on"]`) |
 | `l` | string | no | `"win_managed"` | Ansible limit: hostname or group name. The default is the group of the managed Windows PCs, or `lab_win` in an inventory that still has only the old name; `all` also reaches every other host of the inventory and has to be asked for |
 | `inventory` | string | no | `"school"` | Inventory name under `inventories/` |
-| `extra_vars` | object | no | — | Role variables passed as Ansible extra vars (e.g. `{"win_workman_usr_targets": ["Domain Users"]}`); `t` and `ansible_*` are refused |
+| `extra_vars` | object | no | — | Role variables passed as Ansible extra vars (e.g. `{"win_workman_usr_targets": ["Domain Users"]}`); `t`, `todo` and `ansible_*` are refused |
 | `sensitive_vars` | object | no | — | Role variables that are secrets (a password, a licence code). Same rules as `extra_vars` and merged with it, but handed to `ansible-playbook` through a private temporary file instead of the command line, and masked in the run log, in the output and in a preview |
 | `preview` | boolean | no | `false` | Return the command string without executing |
 
@@ -131,7 +131,7 @@ Command to run:
   ansible-playbook lineadicomando.win_workman.win_workman \
   -i '/srv/ansible/inventories/school/hosts.yaml' \
   -l 'pc01' \
-  -e '{"t": "chrome"}'
+  -e '{"todo": "chrome"}'
 
 No command executed.
 ```
@@ -177,8 +177,9 @@ also usable standalone:
 ansible-playbook lineadicomando.win_workman.win_workman \
   -i inventories/school/hosts.yaml \
   -l win_managed \
-  -e '{"t": "chrome,vscode"}'
+  -e '{"todo": "chrome,vscode"}'
 ```
 
-The `t` extra-var accepts a comma-separated task list. The playbook normalises
+The `todo` extra-var accepts a comma-separated task list, or a list; `t` is its
+old name, still accepted (`todo` wins when both are given). The playbook normalises
 it into a list and passes it to the `dispatcher` role.

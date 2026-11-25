@@ -106,14 +106,14 @@ an inventory written for `secure_ssh` keeps its overrides.
 
 ```bash
 # How OpenSSH is installed, and which version
-ansible-playbook lineadicomando.win_workman.win_workman -e '{"t": "openssh"}'
+ansible-playbook lineadicomando.win_workman.win_workman -e '{"todo": "openssh"}'
 
 # Upgrade the MSI installation, one PC first
-ansible-playbook lineadicomando.win_workman.win_workman -l pc01 -e '{"t": "openssh-update"}'
+ansible-playbook lineadicomando.win_workman.win_workman -l pc01 -e '{"todo": "openssh-update"}'
 
 # Harden it, keeping password authentication on
 ansible-playbook lineadicomando.win_workman.win_workman \
-  -e '{"t": "openssh-harden", "win_workman_openssh_disable_password_auth": false}'
+  -e '{"todo": "openssh-harden", "win_workman_openssh_disable_password_auth": false}'
 ```
 
 ---

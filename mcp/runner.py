@@ -52,7 +52,7 @@ def validate_extra_vars(extra_vars) -> str | None:
     """Return an error message if extra_vars cannot be passed to the playbook, else None.
 
     Extra vars sit at the top of Ansible's precedence, so they are limited to
-    what a task needs: role variables. 't' is the task list itself, and
+    what a task needs: role variables. 'todo' (and its old name 't') is the task list itself, and
     ansible_* would let a caller swap the connection user, password, or become
     settings of every host in the run.
     """
@@ -63,8 +63,8 @@ def validate_extra_vars(extra_vars) -> str | None:
     for name in extra_vars:
         if not isinstance(name, str) or not _EXTRA_VAR_NAME.match(name):
             return f"invalid variable name in extra_vars: {name!r}"
-        if name == "t":
-            return "extra_vars cannot set 't': pass the tasks in the t parameter"
+        if name in ("t", "todo"):
+            return f"extra_vars cannot set '{name}': pass the tasks in the t parameter"
         if name.startswith("ansible_"):
             return f"extra_vars cannot set connection variables ({name})"
     try:
@@ -113,7 +113,7 @@ def build_wm_command(
         cmd += ["-l", l]
     if forks is not None:
         cmd += ["-f", str(forks)]
-    cmd += ["-e", json.dumps({**(extra_vars or {}), "t": ",".join(t)})]
+    cmd += ["-e", json.dumps({**(extra_vars or {}), "todo": ",".join(t)})]
     return cmd
 
 
