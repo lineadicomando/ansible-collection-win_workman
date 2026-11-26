@@ -110,29 +110,6 @@ roles. A process-only wait would report a barely started uninstall as finished.
 So: add the option with `true` as the default, then enable it per role only
 where a hang is actually observed. Do not flip the default.
 
-## `pkg_act_on` reads from `ansible_remote_tmp`
-
-**Priority:** P1 — one-line correctness fix, breaks any consumer that does not set the variable  
-**Status:** proposed — one line, `roles/pkg_utils/tasks/pkg_act_on.yaml:518` (re-checked 2026-11-15)
-
-`win_copy` puts the installer in `win_workman_remote_tmp` (the collection's own
-default, `C:\Windows\Temp\ansible`), but the *Install package* task reads it
-back from `ansible_remote_tmp`, an Ansible connection variable. The two coincide
-only because every `win_edulab` inventory sets
-`ansible_remote_tmp: C:\Windows\Temp\ansible` in `group_vars/win_managed/vars.yaml`
-(re-checked 2026-11-15: eight inventories of the project repo set it; the
-temporary `sshtest` one inherits it through a symlink).
-
-It is the last read of `ansible_remote_tmp` that resolves a path; the check that
-`d5aa649` added a few tasks earlier (*version_file*) already uses
-`win_workman_remote_tmp`. `pkg_utils/tasks/remote_tmp.yaml` and the `win_iso`
-`setup.ps1.j2` (`22ec497`) read it too, with `| default('')`, only to give it the
-same ACL as `win_workman_remote_tmp`: not the same coupling. A consumer who does
-not set the variable gets an undefined-variable error at line 518; one who points
-it elsewhere gets the wrong path, since `win_copy` staged the installer in
-`win_workman_remote_tmp`. The same coupling was removed from `autocadlt2026` in
-`9304d43`. Fix: read `win_workman_remote_tmp` at line 518.
-
 ## veyon `config`: a crashing `veyon-cli` export reads as a missing key
 
 **Priority:** P3 — 4.10.x only; matters while a lab still runs it  

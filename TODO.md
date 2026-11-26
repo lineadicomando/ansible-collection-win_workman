@@ -15,7 +15,6 @@ section; when you touch one, update its **Status** line with the date.
 | P | Entry | File | Next step |
 |---|---|---|---|
 | P1 | Kill declared processes before install | [package-workflow](docs/todo/package-workflow.md) | `kill_processes:` schema field in `pkg_utils`, then fold the role-local kills into it |
-| P1 | `pkg_act_on` reads from `ansible_remote_tmp` | [package-workflow](docs/todo/package-workflow.md) | One line: `pkg_act_on.yaml:518` → `win_workman_remote_tmp` |
 | P1 | `wu`: a feature update that does not apply is reported as installed | [wu-feature-update](docs/todo/wu-feature-update.md) | Compare build before/after each round; stop retrying and report it as failed |
 | P1 | `lock-off` leaves the logon screen without the user list until a restart | [lock-off](docs/todo/lock-off.md) | In `act_off`/`act_reset`, restart the logon screen of sessions with no user when `DontDisplayLastUserName` changed (candidates in the entry) |
 | P1 | `sfc`: repairs are reported as "no integrity violation" | [sfc](docs/todo/sfc.md) | Parse repaired / pending-reboot lines of CBS.log; report them and `RestartRequired` |
