@@ -57,3 +57,6 @@ jobs:
 
       - name: Run ansible-lint
         run: ansible-lint --profile production
+
+      - name: Check the catalog of the skill of cockpit-fleet
+        run: python3 tools/fleet_skills.py --check

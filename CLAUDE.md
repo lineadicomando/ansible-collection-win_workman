@@ -82,6 +82,9 @@ Minimum set, mirroring an existing role of the same family:
 - `tasks/main.yaml` — dispatcher that includes `act_{{ win_workman_action or default_action }}`
 - `meta/main.yaml` — galaxy info, `dependencies: [pkg_utils]`, `allow_duplicates: true`
 - `meta/mcp.yaml` — **required**, or the role is invisible to the MCP server
+  and to the skill of cockpit-fleet: after any change to one, run
+  `python3 tools/fleet_skills.py`, which writes the catalog of
+  `.fleet/skills/win-workman/` from them (CI fails when it is out of date)
 - `docs/roles/<family>/<role>.md`, plus its rows in `docs/index.md` (catalog table
   *and* thematic list) and in the two tables in `docs/architecture.md`
 
@@ -91,7 +94,8 @@ Variables are namespaced `win_workman_<role>_*`. User-overridable ones go in
 ### 4. Lint is the gate
 
 CI runs `ansible-lint --profile production` on ansible-core 2.20.4 over the whole
-tree, and nothing else: `.gitea/workflows/lint.yml` on git.cmdln.it, where the
+tree, and `tools/fleet_skills.py --check` (the catalog of the skill of
+cockpit-fleet up to date), and nothing else: `.gitea/workflows/lint.yml` on git.cmdln.it, where the
 collection is pushed, and `.github/workflows/lint.yml` on the GitHub mirror. Keep
 the two in step. Run it on the role you touched before declaring done —
 it catches module misuse, not just formatting.
