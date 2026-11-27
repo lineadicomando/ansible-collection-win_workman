@@ -20,6 +20,7 @@ section; when you touch one, update its **Status** line with the date.
 | P1 | `sfc`: repairs are reported as "no integrity violation" | [sfc](docs/todo/sfc.md) | Parse repaired / pending-reboot lines of CBS.log; report them and `RestartRequired` |
 | P1/P3 | AutoCAD: end-to-end validation on a real host (P1 only before a rollout) | [autocad](docs/todo/autocad.md) | `autocadlt2026-on`, `autocadlt2023-off-full`, `autocadlt2026-off-full` on a real host |
 | P2 | Verify the upgrade path of the `uninstall_before_upgrade` roles | [package-workflow](docs/todo/package-workflow.md) | Upgrade from the previous release on a VM: postman, winscp, inkscape, putty, mysql_server (veyon done) |
+| P2 | `ansible_user` read without a default: warning in `ping` under cockpit-fleet (`--user`), possible failure in `openssh`, `win_iso` | [ansible-user](docs/todo/ansible-user.md) | Default in `ping`'s task name; `AllowUsers` from the connected user or a clear failure; assert in `win_iso` |
 | P2 | `pkg_act_off` does not stop declared services | [package-workflow](docs/todo/package-workflow.md) | Call `services_stop` in `pkg_act_off` as `pkg_act_on` does |
 | P2 | Remote tmp ACL: exercise the paths not run yet | [package-workflow](docs/todo/package-workflow.md) | One `wu` optional-update run, one `win_iso` build |
 | P2 | `openssh-update`: first run on a production host | [openssh](docs/todo/openssh.md) | At the next Win32-OpenSSH release: VM, one PC, then the lab |
