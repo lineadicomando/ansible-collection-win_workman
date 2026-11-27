@@ -38,6 +38,7 @@ section; when you touch one, update its **Status** line with the date.
 | P3 | `usr`: adopt more per-user packages | [usr](docs/todo/usr.md) | On demand |
 | P3 | AutoCAD: promote `odis_uninstall` and `find_products` to `pkg_utils` | [autocad](docs/todo/autocad.md) | After the end-to-end validation |
 | P3 | `autoshutdown`: implement the `nouser` mode | [management](docs/todo/management.md) | Session check on the host, inside the scheduled task |
+| P3 | `optimize`: an analysis alone, without defragmenting HDDs | [management](docs/todo/management.md) | An action `optimize-analyze` (`Optimize-Volume -Analyze`), then the skills of win_edulab |
 | P3 | `scoobe`: confirm that `off` keeps the page away after a cumulative | [management](docs/todo/management.md) | Observe a lab PC after the next cumulative update |
 | P3 | `wim-repair`: the folder form of the source, only partly exercised | [management](docs/todo/management.md) | Document it as the way to repair cumulative payloads |
 | P3 | `w32time`: a role for the Windows time service | [management](docs/todo/management.md) | Proposed role, design in the entry |

@@ -166,3 +166,31 @@ To check when implementing: whether the master deduplicates a global and a
 per-user entry with the same `Uid`, and whether writing the value with
 `veyon-cli config set` accepts a JSON array or needs the import of a whole
 configuration file.
+
+## `optimize`: an analysis alone, without defragmenting HDDs
+
+**Priority:** P3 — an improvement; what the role does now is what its docs say  
+**Status:** proposed 2026-11-27
+
+`optimize-on` calls `Optimize-Volume` without an operation, so Windows picks
+it by media type: retrim on SSDs, analysis *and* defragmentation on HDDs.
+`win_workman_optimize_defrag` only adds `-Defrag`, forcing it on SSDs too.
+There is no way to learn how fragmented an HDD is without defragmenting it,
+which keeps a lab PC busy for long: on a Windows 11 VM whose disk reads as an
+HDD (cockpit-fleet's lab, 27 November) a run "without defrag" made eight
+passes and took about 9 minutes, fragmentation from 7% to 1%. An assistant
+of cockpit-fleet, reading `defrag` as the question of the playbook, had even
+offered "analysis only" to the user (the skill of ansible-win_edulab now says
+there is none).
+
+What to change: a variable `win_workman_optimize_analyze` (bool, false) that
+calls `Optimize-Volume -Analyze` instead, reporting the fragmentation and
+changing nothing (`$Ansible.Changed = $false`); or an action `analyze`
+beside `on`, which fits the task strings better (`optimize-analyze`). With
+it, `meta/mcp.yaml`, `docs/roles/management/optimize.md`, the catalog of
+the skill (`tools/fleet_skills.py`) and, in ansible-win_edulab, the row of
+`maint_optimize` in its skill and in `docs/playbooks.md`.
+
+Test: on an HDD (or a VM disk read as one), `optimize-analyze` leaves the
+fragmentation as it was and reports it; on an SSD it reports the retrim not
+needed; `optimize-on` as before.
