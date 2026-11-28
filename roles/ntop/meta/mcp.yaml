@@ -1,2 +1,3 @@
 ---
-display_name: "ntopng"
+display_name: "NTop"
+notes: "Console process viewer (not ntopng), portable under C:\\PortableApps\\NTop. 'on' installs vcredist14 first."

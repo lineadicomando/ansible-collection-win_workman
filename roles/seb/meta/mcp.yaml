@@ -2,20 +2,28 @@
 display_name: Safe Exam Browser
 custom_actions:
   - name: deploy
-    description: Install SEB and deploy the current win_workman_seb_client_settings as a .seb config file
+    description: >-
+      Generate a .seb file from win_workman_seb_client_settings on the
+      controller and copy it to win_workman_seb_client_settings_dest. Does not
+      install SEB: run seb-on first
   - name: undeploy
     description: Remove the deployed .seb config file (leaves SEB installed)
   - name: config_key
-    description: Print the Browser Exam Key for the current configuration (for server-side verification)
+    description: >-
+      Experimental: print the SHA-256 of the generated .seb file as a Config
+      Key for Moodle (run_once, nothing written to the hosts). Cross-check it
+      in SEB Config Tool before use
 defaults:
   - var: win_workman_seb_client_settings
     type: dict
     default: "(baseline lockdown preset)"
     description: >
-      Full SEB client settings dict. Key fields: startURL, allowQuit, browserViewMode (1=fullscreen),
-      createNewDesktop, killExplorerShell, allowScreenSharing (required for Veyon),
-      sebServicePolicy (2=enforce), URLFilterEnable, URLFilterRules, clipboardPolicy,
-      sendBrowserExamKey.
+      Full SEB client settings dict, replaced not merged when overridden. Key
+      fields: startURL, allowQuit, allowVirtualMachine (true in the baseline,
+      for test VMs), browserViewMode (1=fullscreen), createNewDesktop,
+      killExplorerShell, allowScreenSharing (required for Veyon),
+      sebServicePolicy (2=enforce), URLFilterEnable, URLFilterRules,
+      clipboardPolicy, sendBrowserExamKey.
   - var: win_workman_seb_client_settings_dest
     type: str
     default: "C:\\ProgramData\\SafeExamBrowser\\SebClientSettings.seb"
@@ -25,6 +33,6 @@ defaults:
     default: false
     description: Create a Desktop shortcut for SEB
 notes: >
-  Use 'deploy' instead of 'on' when you want to push a specific exam config.
-  allowScreenSharing must be true when Veyon is used alongside SEB (prevents black screen).
-  Accepts '32bit' task argument.
+  'on' installs SEB (and vcredist14) only; run 'deploy' as well to push the
+  config. allowScreenSharing must be true when Veyon is used alongside SEB
+  (prevents black screen). Accepts '32bit' task argument.

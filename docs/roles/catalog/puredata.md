@@ -1,51 +1,15 @@
-# Role: puredata
+# puredata — Pure Data
 
-> **Work in progress** — preliminary draft.
-
-Manages Pure Data (Pd), an open-source visual programming language for audio signal
-processing and interactive multimedia. Supports standard package operations: install,
-uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade Pure Data |
-| `off` | Uninstall Pure Data |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that Pure Data is installed |
-
----
-
-## Configuration
-
-No variables. Pure Data is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - puredata
-  - puredata-off
-```
-
----
-
-## Schema details
-
-Software name: `Pure Data`  
-Provider: `registry`  
-Installer: `pd-*.exe` (version varies)  
-Homepage: http://puredata.info/
-
----
+Installs Pure Data (Pd vanilla) from the upstream NSIS installer (`/S`). Standard
+package actions only.
 
 ## Notes
 
-Pure Data is used for multimedia development, audio synthesis, and interactive art.
-Supports real-time audio processing and networked communication via OSC (Open Sound Control).
+- `off` runs the registered uninstaller directly (`uninstall_via_helper`).
+- The download sets `validate_certs: false` for msp.ucsd.edu. The host publishes no
+  digest: the checksum comes from hashing the downloaded installer (size matching the
+  server's content-length).
+- `version` keeps upstream's dash form (`0.57-0`), which is also the DisplayVersion.
+- Tested 2026-11-25 on a Windows test VM (0.57-0): download, copy, on, a no-op second
+  on, info, is_present, off and info passed, with nothing left on disk, in the
+  shortcuts or in the uninstall entries.

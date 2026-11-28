@@ -8,6 +8,9 @@ defaults:
       Comma-separated list of Google Workspace domains allowed to sign in
       (required for the 'on' action; e.g. 'example.com' or 'school.edu,other.edu')
 notes: >-
-  Accepts '32bit' task argument for 32-bit installer.
+  Accepts '32bit' task argument for 32-bit installer (passed on to Chrome too).
+  'on' installs Chrome first (skip with the 'nodep' argument: gcpw-on-nodep)
+  and restarts the host when the MSI installs or upgrades; 'off' removes
+  HKLM\SOFTWARE\Google\GCPW and restarts when something was removed.
   win_workman_gcpw_domains_allowed_to_login must be set to a valid domain list
   before running the 'on' action — the role fails if absent or malformed.

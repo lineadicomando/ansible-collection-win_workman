@@ -1,65 +1,27 @@
-# Role: goldendict
+# goldendict — GoldenDict-ng
 
-> **Work in progress** — preliminary draft.
-
-Manages GoldenDict-ng, an open-source dictionary lookup program that reads many
-offline dictionary formats (StarDict, DSL, MDX, …) and online sources. Supports
-standard package operations: install, uninstall, download, and info queries.
-
----
+Installs GoldenDict-ng, the maintained fork of GoldenDict, from the upstream NSIS
+installer (`/S`), plus a shortcut on the public desktop (the installer creates only a
+Start Menu one).
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Install or upgrade GoldenDict-ng |
-| `off` | Uninstall GoldenDict-ng |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that GoldenDict-ng is installed |
-
----
-
-## Configuration
-
-No variables. GoldenDict-ng is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - goldendict
-  - goldendict-off
-```
-
----
-
-## Dependencies
-
-`on` installs [`vcredist14`](vcredist14.md) first: GoldenDict-ng needs the MSVC
-runtime. Use `goldendict-on-nodep` to skip it.
-
----
-
-## Schema details
-
-Software name: `GoldenDict-ng`  
-Provider: `registry`  
-Installer: `GoldenDict-ng-26.11.0-Qt6.8.3-Windows-installer.exe`  
-Homepage: https://xiaoyifang.github.io/goldendict-ng/
-
----
+| `on[-nodep]` | Installs [vcredist14](vcredist14.md) first (the program needs the MSVC runtime), then GoldenDict-ng; `nodep` skips the dependency |
 
 ## Notes
 
-This is GoldenDict-ng, the maintained fork, not the original GoldenDict. Each
-upstream release ships two installers built against different Qt versions; the
-role uses the Qt 6.8 one.
-
-The installer ships no offline dictionaries: out of the box only the online
-sources (Wikipedia, Wiktionary, web sites) answer. Settings and indexes are
-per-user, under `%APPDATA%\GoldenDict`. A `content\defconfig` file in the install
-directory is used as the template for users who have no configuration yet; the
-role does not manage it.
+- Each upstream release ships two installers built against different Qt versions;
+  the role uses the Qt 6.8 one.
+- `off` runs the registered uninstaller directly (`uninstall_via_helper`); the
+  uninstaller leaves its Start Menu folder behind, so that folder is in
+  `cleanup_paths`.
+- No offline dictionaries are shipped: out of the box only the online sources
+  (Wikipedia, Wiktionary, web sites) answer. Settings and indexes are per-user, under
+  `%APPDATA%\GoldenDict`. A `content\defconfig` file in the install directory is the
+  template for users with no configuration yet; the role does not manage it.
+- The checksum is the asset digest of the GitHub release.
+- Tested 2026-11-25 on a Windows test VM (26.11.0): download, copy, on (dependency
+  included), a no-op second on, info, is_present, off and info passed, with nothing
+  left on disk, in the shortcuts or in the uninstall entries.

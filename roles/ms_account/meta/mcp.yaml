@@ -2,7 +2,9 @@
 display_name: Microsoft Account (block/unblock)
 custom_actions:
   - name: "on"
-    description: Allow Microsoft account logon (unblock)
+    description: >-
+      Default. Block Microsoft accounts (NoConnectedUser=3, MicrosoftAccount
+      DisableUserAuth=1): local accounts only
   - name: "off"
-    description: Block Microsoft account logon via local policy
+    description: Allow Microsoft accounts again (removes both policy values)
 notes: "Does not install software; manages a registry/policy setting only."

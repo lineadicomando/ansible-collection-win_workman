@@ -1,50 +1,17 @@
-# Role: p7zip
+# p7zip — 7-Zip
 
-> **Work in progress** — preliminary draft.
-
-Manages 7-Zip, a free and open-source file archiver with high compression ratio.
-Supports standard package operations: install, uninstall, download, and info queries.
-
----
+7-Zip, official MSI (`msi` provider). 64-bit by default; the task argument `32bit`
+selects the x86 MSI, installed under `%ProgramFiles(x86)%`.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Install or upgrade 7-Zip |
-| `off` | Uninstall 7-Zip |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that 7-Zip is installed |
-
----
-
-## Configuration
-
-No variables. 7-Zip is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - p7zip
-  - p7zip-off
-```
-
----
-
-## Schema details
-
-Software name: `7-Zip`  
-Provider: `registry`  
-Installer: `7z*.exe` (version varies)  
-Homepage: https://www.7-zip.org/
-
----
+| `on-32bit`, `off-32bit`, ... | Any standard action takes `32bit` to pick the x86 MSI and its install directory: `p7zip-on-32bit` |
 
 ## Notes
 
-7-Zip supports .7z, .zip, .rar, and many other archive formats. Integrates with
-Windows Explorer for easy context menu access.
+- `off` also deletes the install directory of the selected architecture
+  (`cleanup_paths`).
+- `searchName` is `7-Zip *`, so it matches the 64-bit and the 32-bit entries alike:
+  the `32bit` token does not change what `info` and `off` find.

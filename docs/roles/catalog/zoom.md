@@ -1,52 +1,15 @@
-# Role: zoom
+# zoom — Zoom Workplace
 
-> **Work in progress** — preliminary draft.
-
-Manages Zoom, a cloud-based unified communications platform for video conferencing,
-webinars, and team collaboration. Supports standard package operations: install,
-uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade Zoom |
-| `off` | Uninstall Zoom |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that Zoom is installed |
-
----
-
-## Configuration
-
-No variables. Zoom is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - zoom
-  - zoom-off
-```
-
----
-
-## Schema details
-
-Software name: `Zoom`  
-Provider: `registry`  
-Installer: `ZoomInstallerFull64bit-<version>.msi` (upstream `ZoomInstallerFull.msi`)  
-Homepage: https://www.zoom.us/
-
----
+Installs the Zoom Workplace 64-bit machine-wide MSI. Standard package actions only.
 
 ## Notes
 
-Zoom client supports HD video/audio, screen sharing, and recording capabilities.
-Requires internet connection for functionality. Can be pre-configured with SSO
-for enterprise deployments.
+- Upstream serves the same filename, `ZoomInstallerFull.msi`, for every release: the
+  stored filename carries the version so two releases never share one.
+- `version` and `product_id` are the MSI's ProductVersion (`7.2.51704`, three parts,
+  not the four-part release number in the URL) and ProductCode, which changes with
+  every release: update both at every bump.
+- Zoom publishes no digest: the checksum is computed on the downloaded MSI.
+- Tested 2026-11-25 on a Windows test VM with 7.2.1 installed: info saw it, on
+  upgraded it in place, a second on was a no-op, is_present, off and info passed, and
+  no directory, service, shortcut or uninstall entry was left.

@@ -1,51 +1,13 @@
-# Role: geogebra
+# geogebra — GeoGebra Calculator Suite (Classic 6)
 
-> **Work in progress** — preliminary draft.
-
-Manages GeoGebra, a dynamic mathematics software for geometry, algebra, calculus,
-and statistics education. Supports standard package operations: install, uninstall,
-download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade GeoGebra |
-| `off` | Uninstall GeoGebra |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that GeoGebra is installed |
-
----
-
-## Configuration
-
-No variables. GeoGebra is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - geogebra
-  - geogebra-off
-```
-
----
-
-## Schema details
-
-Software name: `GeoGebra`  
-Provider: `registry`  
-Installer: `GeoGebra-Windows-Installer-*.msi` (version varies)  
-Homepage: https://www.geogebra.org/
-
----
+Installs GeoGebra 6 machine-wide from the upstream MSI (`ALLUSERS=2 /qn`); detected
+as `GeoGebra Classic`. Standard package actions only. For the legacy Classic 5 see
+[geogebra5](geogebra5.md).
 
 ## Notes
 
-No special configuration or behavior. GeoGebra is primarily used in mathematics
-education and may require Java Runtime Environment (JRE) on some systems.
+- The build is the one `download.geogebra.org/package/win-msi6` redirects to.
+  GeoGebra publishes no digest: the checksum is computed on the downloaded MSI.
+- Tested 2026-11-25 on a Windows test VM (6.0.937.0): download, copy, on, a no-op
+  second on, info, is_present, off and info passed, with nothing left on disk, in the
+  shortcuts or in the uninstall entries.

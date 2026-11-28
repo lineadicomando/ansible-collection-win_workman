@@ -2,7 +2,12 @@
 display_name: Veyon
 custom_actions:
   - name: config
-    description: Deploy Veyon configuration and keypairs to target hosts
+    description: >-
+      Does not install. Creates the RSA keypair on the controller if missing,
+      imports the public key (agent) or the private key (master, by
+      win_workman_veyon_master) when the fingerprint differs, sets key-file
+      authentication and, on a master with win_workman_veyon_labs, reconciles
+      the lab locations from the inventory (ansible_host, ansible_mac)
 defaults:
   - var: win_workman_veyon_master
     type: bool
@@ -18,7 +23,17 @@ defaults:
   - var: win_workman_veyon_keypairs_dir
     type: str
     default: "{{ win_workman_storage_path }}/veyon"
-    description: Local controller path where Veyon keypairs are stored
+    description: >-
+      Local controller path where Veyon keypairs are stored; its basename is
+      also the key name in Veyon
+  - var: win_workman_veyon_remote_key_dir
+    type: str
+    default: "{{ win_workman_remote_tmp }}\\veyon\\keys"
+    description: Staging directory for the key on the target, emptied at the end
+  - var: win_workman_veyon_no_log
+    type: bool
+    default: true
+    description: Hide key material and fingerprints in the log
   - var: win_workman_veyon_lab_force_replace
     type: bool
     default: false
@@ -28,5 +43,9 @@ defaults:
     default: false
     description: Also remove computers of the location that are not in the inventory group (by default they are kept and reported as unmanaged)
 notes: >
-  Use the dedicated 'veyon' playbook (run_playbook) for full lab setup including key generation.
-  Use run_tasks with 'veyon-config' only to push config/key updates to already-provisioned hosts.
+  'on' installs the Master component only with the 'master' argument
+  (veyon-on-master) or win_workman_veyon_master true; 'config' uses the
+  variable only.
+  The 'veyon' playbook (run_playbook) runs veyon and veyon-config on the whole lab.
+  'veyon-config' alone pushes config and key updates; it creates the keypair
+  on the controller when missing.

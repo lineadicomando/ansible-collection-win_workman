@@ -1,47 +1,36 @@
-# Role: restart
+# restart — Controlled reboot
 
-Performs a controlled system restart, optionally only when a pending reboot is detected.
-
----
+Reboots the host through `pkg_utils` `restart` and waits until it is really back.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Restart the system unconditionally |
-| `if-pending` | Restart only if a pending reboot is detected (CBS, WUA, PendingFileRenameOperations, WinSxS) |
-
-Before restarting, `if-pending` prints which flags were set and, for
-PendingFileRenameOperations, up to 20 of the queued file operations:
-
-```
-Reboot pending: PendingFileRenameOperations
-rename C:\Windows\Temp\app\new.dll -> C:\Windows\Temp\app\app.dll
-delete C:\Windows\Temp\app\old.dll
-```
-
-The reboot consumes those operations, so the run log is the only place left to
-tell what asked for it. Every role that checks for a pending reboot through
-`pkg_utils` (wu-run, sfc, some package roles) prints the same lines.
-
----
+| `on` *(default)* | reboot unconditionally |
+| `if-pending` | reboot only when a reboot is pending: CBS `RebootPending`, WU `RebootRequired`, `PendingFileRenameOperations` or `WinSxS\pending.xml`; a bare `if` or another condition fails |
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_restart_timeout` | `600` | Seconds to wait for the host to come back after reboot |
+| `win_workman_restart_timeout` | `600` | seconds to wait for the host after the reboot |
 
----
+## Notes
 
-## Usage
+- The host counts as back when `sshd` runs, it has been up for 60 s and component
+  servicing (TrustedInstaller, TiWorker) has stayed idle for 20 s: after updates Windows
+  finishes installing at boot and may reboot again on its own once the logon screen is
+  up, and the next task would run into that reboot. A connection lost meanwhile only
+  makes `win_reboot` test again, until the timeout.
+- `win_workman_restart: false` does not stop this role; it only stops the roles that
+  reboot on their own (`wu`, `sfc`).
+- Before rebooting, `if-pending` prints the flags set and, for
+  PendingFileRenameOperations, up to 20 of the queued operations; the reboot consumes
+  them, so the run log is the only place left to read them. Every role using `pkg_utils`
+  `pending_restart` (`wu-run`, `sfc`, the AutoCAD roles) prints the same:
 
-```yaml
-# Unconditional restart
-win_workman_tasks:
-  - restart
-
-# Restart only if needed
-win_workman_tasks:
-  - restart-if-pending
-```
+  ```
+  Reboot pending: PendingFileRenameOperations
+  rename C:\Windows\Temp\app\new.dll -> C:\Windows\Temp\app\app.dll
+  delete C:\Windows\Temp\app\old.dll
+  ```

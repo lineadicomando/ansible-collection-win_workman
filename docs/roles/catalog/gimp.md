@@ -1,51 +1,12 @@
-# Role: gimp
+# gimp — GIMP
 
-> **Work in progress** — preliminary draft.
-
-Manages GIMP (GNU Image Manipulation Program), a free and open-source image
-editor. Supports standard package operations: install, uninstall, download, and
-info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade GIMP |
-| `off` | Uninstall GIMP |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that GIMP is installed |
-
----
-
-## Configuration
-
-No variables. GIMP is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - gimp
-  - gimp-off
-```
-
----
-
-## Schema details
-
-Software name: `GIMP`  
-Provider: `registry`  
-Installer: `gimp-*.exe` (version varies)  
-Homepage: https://www.gimp.org/
-
----
+Installs GIMP 3 machine-wide from the upstream Inno Setup installer (`registry`
+provider, `/ALLUSERS`, desktop icon). Standard package actions only.
 
 ## Notes
 
-GIMP provides tools for photo retouching, image composition, and image authoring.
-Supports a wide range of file formats and includes plugin support for extensibility.
+- download.gimp.org has no checksum file next to the installer: the sha256 comes
+  from `gimp_versions.json` in the gimp-web repository.
+- Tested 2026-11-25 on a Windows test VM (3.2.8): download, copy, on, a no-op second
+  on, info (DisplayVersion `3.2.8.0`), is_present, off and info passed, with nothing
+  left on disk, in the shortcuts or in the uninstall entries.

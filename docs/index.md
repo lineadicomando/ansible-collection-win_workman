@@ -1,178 +1,125 @@
-# lineadicomando.win_workman — Documentation
+# win_workman documentation
 
-> **Work in progress** — This documentation is a preliminary draft and may be
-> incomplete or inaccurate.
+Ansible collection for **Windows 11 workstations** in school labs (not Windows
+Server). Start with [architecture](architecture.md) (task strings, standard actions,
+package schema, global variables); [mcp](mcp.md) for the MCP server;
+[TEMPLATE](roles/TEMPLATE.md) for writing a role page.
 
-Ansible collection for managing **Windows 11 workstations** (not Windows Server).
-Designed for classroom and lab environments; covers software deployment, system
-hardening, UX configuration, and lab-specific infrastructure (Veyon, SEB).
+Two families of roles: **catalog** roles install a package through `pkg_utils`
+(standard actions `on`, `off`, `info`, `download`, `copy`, `shortcuts`, `is_present`,
+`usr-*`; the table shows only the extra ones); **management** roles implement their own
+actions (all listed, default first). The exact actions and variables of any role are
+also what `get_role_info` returns.
 
----
+## Core
 
-## Quick start
-
-```yaml
-# requirements.yml
-collections:
-  - name: git+https://github.com/lineadicomando/ansible-collection-win_workman
-    type: git
-    version: main
-```
-
-```yaml
-# playbook
-- name: Configure workstations
-  hosts: lab_pcs
-  roles:
-    - role: lineadicomando.win_workman.dispatcher
-      vars:
-        win_workman_tasks:
-          - chrome
-          - vscode
-          - python312
-          - veyon-on-student
-```
-
-Tasks are **dash-separated strings**: `<schema>[-<action>[-<arg>...]]`.
-See [Architecture](architecture.md) for the full syntax.
-
----
-
-## Role families
-
-The collection has two distinct role families:
-
-- **Catalog roles** — schema-based roles for installable software. Each defines a
-  `win_workman_<schema>_schema` variable consumed by `pkg_utils`. Supports `on`,
-  `off`, `download`, `copy`, `info`, and role-specific actions.
-- **Management roles** — procedural roles for workstation-level operations (system
-  maintenance, OS configuration, session control, network). No schema variable;
-  actions map directly to system tasks.
-
----
-
-## Documentation index
-
-| File | Contents |
+| Role | What |
 |---|---|
-| [architecture.md](architecture.md) | Dispatcher+schema pattern, task string syntax, actions, pkg_utils pipeline |
-| [mcp.md](mcp.md) | MCP server — tools, manifest format, Claude Desktop wiring |
-| [roles/core/dispatcher.md](roles/core/dispatcher.md) | `dispatcher` — entry point |
-| [roles/core/pkg_utils.md](roles/core/pkg_utils.md) | `pkg_utils` — package schema format and operations |
-| [roles/catalog/chrome.md](roles/catalog/chrome.md) | `chrome` — arch selection, shortcuts, privacy, rm_data |
-| [roles/catalog/firefox.md](roles/catalog/firefox.md) | `firefox` — locale detection, private/kiosk mode, privacy, rm_data |
-| [roles/catalog/edge.md](roles/catalog/edge.md) | `edge` — policy, privacy, rm_data (uninstall not supported) |
-| [roles/catalog/brave.md](roles/catalog/brave.md) | `brave` — privacy-focused browser |
-| [roles/catalog/opera.md](roles/catalog/opera.md) | `opera` — built-in VPN and battery saver browser |
-| [roles/catalog/vivaldi.md](roles/catalog/vivaldi.md) | `vivaldi` — Chromium-based browser with advanced tab management |
-| [roles/catalog/vscode.md](roles/catalog/vscode.md) | `vscode` — source-code editor and IDE |
-| [roles/catalog/python310.md](roles/catalog/python310.md) | `python310` — Python 3.10 interpreter |
-| [roles/catalog/python311.md](roles/catalog/python311.md) | `python311` — Python 3.11 interpreter |
-| [roles/catalog/python312.md](roles/catalog/python312.md) | `python312` — Python 3.12 interpreter and IDLE |
-| [roles/catalog/python313.md](roles/catalog/python313.md) | `python313` — Python 3.13 interpreter |
-| [roles/catalog/python314.md](roles/catalog/python314.md) | `python314` — Python 3.14 interpreter |
-| [roles/catalog/python315.md](roles/catalog/python315.md) | `python315` — Python 3.15 interpreter |
-| [roles/catalog/nodejs26.md](roles/catalog/nodejs26.md) | `nodejs26` — Node.js 26 LTS runtime and npm |
-| [roles/catalog/embarcadero_devcpp.md](roles/catalog/embarcadero_devcpp.md) | `embarcadero_devcpp` — C++ IDE |
-| [roles/catalog/orwell_devcpp.md](roles/catalog/orwell_devcpp.md) | `orwell_devcpp` — C++ IDE community fork |
-| [roles/catalog/redpanda_cpp.md](roles/catalog/redpanda_cpp.md) | `redpanda_cpp` — Red Panda C++ IDE with MinGW64 |
-| [roles/catalog/laragon.md](roles/catalog/laragon.md) | `laragon` — portable WAMP/LEMP stack |
-| [roles/catalog/mysql_workbench.md](roles/catalog/mysql_workbench.md) | `mysql_workbench` — database administration tool |
-| [roles/catalog/mysql_server.md](roles/catalog/mysql_server.md) | `mysql_server` — MySQL Server 9.x database engine |
-| [roles/catalog/dbeaver.md](roles/catalog/dbeaver.md) | `dbeaver` — universal database tool |
-| [roles/catalog/netbeans.md](roles/catalog/netbeans.md) | `netbeans` — Apache NetBeans IDE for Java and web development |
-| [roles/catalog/postman.md](roles/catalog/postman.md) | `postman` — API development platform |
-| [roles/catalog/git.md](roles/catalog/git.md) | `git` — Git for Windows version control |
-| [roles/catalog/gimp.md](roles/catalog/gimp.md) | `gimp` — image manipulation and editing |
-| [roles/catalog/inkscape.md](roles/catalog/inkscape.md) | `inkscape` — vector graphics editor |
-| [roles/catalog/notepadpp.md](roles/catalog/notepadpp.md) | `notepadpp` — Notepad++ text and source code editor |
-| [roles/catalog/vlc.md](roles/catalog/vlc.md) | `vlc` — multimedia player |
-| [roles/catalog/puredata.md](roles/catalog/puredata.md) | `puredata` — visual programming language for audio |
-| [roles/catalog/audacity.md](roles/catalog/audacity.md) | `audacity` — multi-track audio editor and recorder |
-| [roles/catalog/autocadlt2023.md](roles/catalog/autocadlt2023.md) | `autocadlt2023` — 2D CAD, removal only (no install) |
-| [roles/catalog/autocadlt2026.md](roles/catalog/autocadlt2026.md) | `autocadlt2026` — 2D CAD, locale auto-detected |
-| [roles/catalog/sketchup2026.md](roles/catalog/sketchup2026.md) | `sketchup2026` — 3D modeling software |
-| [roles/catalog/blender.md](roles/catalog/blender.md) | `blender` — 3D creation suite |
-| [roles/catalog/adobe_reader_dc.md](roles/catalog/adobe_reader_dc.md) | `adobe_reader_dc` — Adobe Acrobat Reader DC PDF viewer |
-| [roles/catalog/foxit_pdf_reader.md](roles/catalog/foxit_pdf_reader.md) | `foxit_pdf_reader` — Foxit PDF Reader |
-| [roles/catalog/p7zip.md](roles/catalog/p7zip.md) | `p7zip` — file archive compression |
-| [roles/catalog/peazip.md](roles/catalog/peazip.md) | `peazip` — file archiver and manager |
-| [roles/catalog/powertoys.md](roles/catalog/powertoys.md) | `powertoys` — Microsoft PowerToys utilities suite |
-| [roles/catalog/windirstat.md](roles/catalog/windirstat.md) | `windirstat` — disk usage analyzer |
-| [roles/catalog/ntop.md](roles/catalog/ntop.md) | `ntop` — Windows port of Unix `top` (process monitor) |
-| [roles/catalog/nircmd.md](roles/catalog/nircmd.md) | `nircmd` — system utilities command-line tool |
-| [roles/catalog/winfsp.md](roles/catalog/winfsp.md) | `winfsp` — file system proxy framework |
-| [roles/catalog/putty.md](roles/catalog/putty.md) | `putty` — SSH, Telnet, and serial console client |
-| [roles/catalog/winscp.md](roles/catalog/winscp.md) | `winscp` — SFTP/FTP/SCP client |
-| [roles/catalog/filezilla.md](roles/catalog/filezilla.md) | `filezilla` — FTP/SFTP/FTPS client |
-| [roles/catalog/vcredist14.md](roles/catalog/vcredist14.md) | `vcredist14` — Visual C++ runtime libraries |
-| [roles/catalog/virtiogt.md](roles/catalog/virtiogt.md) | `virtiogt` — KVM/QEMU guest tools |
-| [roles/catalog/geogebra.md](roles/catalog/geogebra.md) | `geogebra` — dynamic mathematics software |
-| [roles/catalog/geogebra5.md](roles/catalog/geogebra5.md) | `geogebra5` — mathematics software classic version |
-| [roles/catalog/goldendict.md](roles/catalog/goldendict.md) | `goldendict` — GoldenDict-ng dictionary lookup program |
-| [roles/catalog/libreoffice.md](roles/catalog/libreoffice.md) | `libreoffice` — office productivity suite |
-| [roles/catalog/zoom.md](roles/catalog/zoom.md) | `zoom` — video conferencing and collaboration |
-| [roles/catalog/rustdesk.md](roles/catalog/rustdesk.md) | `rustdesk` — open-source remote desktop |
-| [roles/catalog/seb.md](roles/catalog/seb.md) | `seb` — Safe Exam Browser install and client settings generation |
-| [roles/catalog/veyon.md](roles/catalog/veyon.md) | `veyon` — classroom management agent |
-| [roles/catalog/galene.md](roles/catalog/galene.md) | `galene` — teacher screen and audio broadcast (Galène server + student shortcuts) |
-| [roles/catalog/gcpw.md](roles/catalog/gcpw.md) | `gcpw` — Google Credential Provider for Windows install and domain configuration |
-| [roles/catalog/patchcleaner.md](roles/catalog/patchcleaner.md) | `patchcleaner` — WinSxS / superseded update cleanup |
-| [roles/catalog/driver_reviver.md](roles/catalog/driver_reviver.md) | `driver_reviver` — ReviverSoft driver updater |
-| [roles/management/optimize.md](roles/management/optimize.md) | `optimize` — volume optimisation and defrag |
-| [roles/management/wu.md](roles/management/wu.md) | `wu` — Windows Update enable/disable/pause/policy |
-| [roles/management/sysinfo.md](roles/management/sysinfo.md) | `sysinfo` — system information and statistics collection |
-| [roles/management/wallpaper.md](roles/management/wallpaper.md) | `wallpaper` — set/reset/lock/unlock across all profiles |
-| [roles/management/display_scale.md](roles/management/display_scale.md) | `display_scale` — display scaling percentage across all profiles |
-| [roles/management/visual_effects.md](roles/management/visual_effects.md) | `visual_effects` — Performance Options visual effects across all profiles |
-| [roles/management/ps_policy.md](roles/management/ps_policy.md) | `ps_policy` — PowerShell execution policy, machine-wide |
-| [roles/management/scoobe.md](roles/management/scoobe.md) | `scoobe` — suppress the "finish setting up your device" page after updates |
-| [roles/management/lock.md](roles/management/lock.md) | `lock` — maintenance mode, login banner, logon restrictions |
-| [roles/management/autologon.md](roles/management/autologon.md) | `autologon` — automatic logon configuration |
-| [roles/management/autoshutdown.md](roles/management/autoshutdown.md) | `autoshutdown` — scheduled task that shuts the host down at fixed times |
-| [roles/management/domain.md](roles/management/domain.md) | `domain` — Active Directory domain join, leave and status |
-| [roles/management/file_copy.md](roles/management/file_copy.md) | `file_copy` — copy files and folders to and from the hosts, per-user folders included |
-| [roles/management/win_iso.md](roles/management/win_iso.md) | `win_iso` — Windows installation ISO with unattended Setup and OpenSSH Server, built on the controller |
-| [roles/management/openssh.md](roles/management/openssh.md) | `openssh` — OpenSSH Server installation info, MSI upgrade and hardening; replaces `secure_ssh` |
-| [roles/management/system-tools.md](roles/management/system-tools.md) | `chkdsk`, `sfc`, `oobe`, `widgets`, `wim`, `ms_account`, `logoff`, `restart`, `shutdown`, `ping`, `wol` |
+| [`dispatcher`](roles/core/dispatcher.md) | entry point: parses `win_workman_tasks`, includes each role |
+| [`pkg_utils`](roles/core/pkg_utils.md) | package workflow, schema reference, shared `tasks_from` toolbox |
 
----
+## Catalog
 
-## Role index
+| Role | What | Extra actions / args |
+|---|---|---|
+| **Browsers** | | |
+| [`chrome`](roles/catalog/chrome.md) | Google Chrome Enterprise MSI, lockdown policies | `privacy`, `rm`; `32bit` |
+| [`firefox`](roles/catalog/firefox.md) | Mozilla Firefox per-language installer, lockdown policies | `privacy`, `rm`; language token |
+| [`edge`](roles/catalog/edge.md) | Microsoft Edge policies and profile removal; never uninstalled | `privacy`, `rm`; `32bit` |
+| [`brave`](roles/catalog/brave.md) | Brave Browser | — |
+| [`opera`](roles/catalog/opera.md) | Opera Browser | — |
+| [`vivaldi`](roles/catalog/vivaldi.md) | Vivaldi | — |
+| [`seb`](roles/catalog/seb.md) | Safe Exam Browser and its generated machine-level `.seb` | `deploy`, `undeploy`, `config_key` |
+| **Classroom** | | |
+| [`veyon`](roles/catalog/veyon.md) | Veyon: install, keys, lab locations from the inventory | `config`; `on-master` |
+| [`galene`](roles/catalog/galene.md) | Galène server on the teacher PC, shortcuts on the students | `build`; own `on`/`off`/`info` |
+| [`gcpw`](roles/catalog/gcpw.md) | Google Credential Provider for Windows, allowed domains | `nodep` |
+| **Development** | | |
+| [`vscode`](roles/catalog/vscode.md) | Visual Studio Code, machine-wide, on PATH | — |
+| [`zed`](roles/catalog/zed.md) | Zed editor, per-user only (`usr-*`) | — |
+| [`notepadpp`](roles/catalog/notepadpp.md) | Notepad++ (MSI) | — |
+| [`git`](roles/catalog/git.md) | Git for Windows | — |
+| [`embarcadero_devcpp`](roles/catalog/embarcadero_devcpp.md) | Embarcadero Dev-C++ 6.3 with TDM-GCC 9.2 | — |
+| [`orwell_devcpp`](roles/catalog/orwell_devcpp.md) | Orwell Dev-C++ 5.11 with TDM-GCC 4.9.2 (unmaintained) | — |
+| [`redpanda_cpp`](roles/catalog/redpanda_cpp.md) | Red Panda C++ with MinGW64 GCC | — |
+| [`laragon`](roles/catalog/laragon.md) | Laragon WAMP development environment | — |
+| [`mysql_server`](roles/catalog/mysql_server.md) | MySQL Server 9 binaries, no instance configured | — |
+| [`mysql_workbench`](roles/catalog/mysql_workbench.md) | MySQL Workbench 8.0 CE | — |
+| [`dbeaver`](roles/catalog/dbeaver.md) | DBeaver Community | — |
+| [`postman`](roles/catalog/postman.md) | Postman, portable, latest upstream build | — |
+| [`netbeans`](roles/catalog/netbeans.md) | Apache NetBeans with bundled JDK | — |
+| [`python310`](roles/catalog/python310.md) … [`python315`](roles/catalog/python315.md) | Python 3.10–3.15, all users (one role per minor: `python311`…`python314`) | — |
+| [`nodejs26`](roles/catalog/nodejs26.md) | Node.js 26 LTS, optional firewall rule | — |
+| **Graphics, CAD, audio, video** | | |
+| [`gimp`](roles/catalog/gimp.md) | GIMP 3 | — |
+| [`inkscape`](roles/catalog/inkscape.md) | Inkscape (MSI) | — |
+| [`blender`](roles/catalog/blender.md) | Blender, one minor series per host | — |
+| [`sketchup2026`](roles/catalog/sketchup2026.md) | SketchUp 2026, classic or network licence | `license`, `unlicense` |
+| [`autocadlt2026`](roles/catalog/autocadlt2026.md) | AutoCAD LT 2026, en/it detected | `off-full` |
+| [`autocadlt2023`](roles/catalog/autocadlt2023.md) | removal of AutoCAD LT 2023, any locale | `off` only, `off-full` |
+| [`tinycad`](roles/catalog/tinycad.md) | TinyCAD schematic editor, portable | — |
+| [`vlc`](roles/catalog/vlc.md) | VLC media player | — |
+| [`puredata`](roles/catalog/puredata.md) | Pure Data | — |
+| [`audacity`](roles/catalog/audacity.md) | Audacity 4; removes 1.x–3.x first | — |
+| **Education and office** | | |
+| [`geogebra`](roles/catalog/geogebra.md) | GeoGebra Calculator Suite (Classic 6) | — |
+| [`geogebra5`](roles/catalog/geogebra5.md) | GeoGebra Classic 5 | — |
+| [`goldendict`](roles/catalog/goldendict.md) | GoldenDict-ng dictionary | — |
+| [`libreoffice`](roles/catalog/libreoffice.md) | LibreOffice Still (or Fresh) | `rm_data`; `fresh` |
+| [`zoom`](roles/catalog/zoom.md) | Zoom Workplace (MSI) | — |
+| [`googledrive`](roles/catalog/googledrive.md) | Google Drive for desktop | — |
+| [`adobe_reader_dc`](roles/catalog/adobe_reader_dc.md) | Adobe Acrobat Reader 64-bit MUI | — |
+| [`foxit_pdf_reader`](roles/catalog/foxit_pdf_reader.md) | Foxit PDF Reader (Burn bundle) | — |
+| [`winmerge`](roles/catalog/winmerge.md) | WinMerge file and folder comparison | — |
+| **Utilities and runtimes** | | |
+| [`p7zip`](roles/catalog/p7zip.md) | 7-Zip (MSI) | `32bit` |
+| [`peazip`](roles/catalog/peazip.md) | PeaZip | — |
+| [`winrar`](roles/catalog/winrar.md) | WinRAR, per-language installer | language token |
+| [`powertoys`](roles/catalog/powertoys.md) | Microsoft PowerToys | — |
+| [`windirstat`](roles/catalog/windirstat.md) | WinDirStat | — |
+| [`ntop`](roles/catalog/ntop.md) | NTop console process viewer, portable | — |
+| [`nircmd`](roles/catalog/nircmd.md) | NirCmd, portable | — |
+| [`putty`](roles/catalog/putty.md) | PuTTY | — |
+| [`winscp`](roles/catalog/winscp.md) | WinSCP | — |
+| [`filezilla`](roles/catalog/filezilla.md) | FileZilla Client | — |
+| [`rustdesk`](roles/catalog/rustdesk.md) | RustDesk remote desktop | — |
+| [`vcredist14`](roles/catalog/vcredist14.md) | Visual C++ 2015–2022 x64 runtime (dependency of several roles) | — |
+| [`virtiogt`](roles/catalog/virtiogt.md) | KVM/QEMU VirtIO guest tools | — |
+| [`winfsp`](roles/catalog/winfsp.md) | WinFsp plus the VirtIO-FS service, for KVM guests | — |
+| [`patchcleaner`](roles/catalog/patchcleaner.md) | PatchCleaner (orphaned `C:\Windows\Installer` files); install only | — |
+| [`driver_reviver`](roles/catalog/driver_reviver.md) | Driver Reviver (trial) | — |
 
-### Core
-- [`dispatcher`](roles/core/dispatcher.md) — entry point, iterates task list
-- [`pkg_utils`](roles/core/pkg_utils.md) — low-level package operations
+## Management
 
-### Catalog — Browsers
-[`brave`](roles/catalog/brave.md) · [`chrome`](roles/catalog/chrome.md) · [`edge`](roles/catalog/edge.md) · [`firefox`](roles/catalog/firefox.md) · [`opera`](roles/catalog/opera.md) · [`seb`](roles/catalog/seb.md) · [`vivaldi`](roles/catalog/vivaldi.md)
-
-### Catalog — Developer tools
-[`vscode`](roles/catalog/vscode.md) · [`zed`](roles/catalog/zed.md) · [`notepadpp`](roles/catalog/notepadpp.md) · [`git`](roles/catalog/git.md) · [`embarcadero_devcpp`](roles/catalog/embarcadero_devcpp.md) · [`orwell_devcpp`](roles/catalog/orwell_devcpp.md) · [`redpanda_cpp`](roles/catalog/redpanda_cpp.md) · [`laragon`](roles/catalog/laragon.md) · [`mysql_server`](roles/catalog/mysql_server.md) · [`mysql_workbench`](roles/catalog/mysql_workbench.md) · [`dbeaver`](roles/catalog/dbeaver.md) · [`postman`](roles/catalog/postman.md) · [`netbeans`](roles/catalog/netbeans.md) · [`python310`](roles/catalog/python310.md) · [`python311`](roles/catalog/python311.md) · [`python312`](roles/catalog/python312.md) · [`python313`](roles/catalog/python313.md) · [`python314`](roles/catalog/python314.md) · [`python315`](roles/catalog/python315.md) · [`nodejs26`](roles/catalog/nodejs26.md)
-
-### Catalog — Graphics, CAD & Multimedia
-[`gimp`](roles/catalog/gimp.md) · [`inkscape`](roles/catalog/inkscape.md) · [`blender`](roles/catalog/blender.md) · [`sketchup2026`](roles/catalog/sketchup2026.md) · [`autocadlt2023`](roles/catalog/autocadlt2023.md) · [`autocadlt2026`](roles/catalog/autocadlt2026.md) · [`vlc`](roles/catalog/vlc.md) · [`puredata`](roles/catalog/puredata.md) · [`audacity`](roles/catalog/audacity.md)
-
-### Catalog — Education & Productivity
-[`geogebra`](roles/catalog/geogebra.md) · [`geogebra5`](roles/catalog/geogebra5.md) · [`goldendict`](roles/catalog/goldendict.md) · [`libreoffice`](roles/catalog/libreoffice.md) · [`zoom`](roles/catalog/zoom.md)
-
-### Catalog — Utilities & Runtimes
-[`adobe_reader_dc`](roles/catalog/adobe_reader_dc.md) · [`foxit_pdf_reader`](roles/catalog/foxit_pdf_reader.md) · [`p7zip`](roles/catalog/p7zip.md) · [`peazip`](roles/catalog/peazip.md) · [`powertoys`](roles/catalog/powertoys.md) · [`windirstat`](roles/catalog/windirstat.md) · [`ntop`](roles/catalog/ntop.md) · [`nircmd`](roles/catalog/nircmd.md) · [`winfsp`](roles/catalog/winfsp.md) · [`putty`](roles/catalog/putty.md) · [`winscp`](roles/catalog/winscp.md) · [`filezilla`](roles/catalog/filezilla.md) · [`vcredist14`](roles/catalog/vcredist14.md) · [`virtiogt`](roles/catalog/virtiogt.md) · [`patchcleaner`](roles/catalog/patchcleaner.md) · [`rustdesk`](roles/catalog/rustdesk.md) · [`driver_reviver`](roles/catalog/driver_reviver.md)
-
-### Catalog — Classroom & Lab
-[`veyon`](roles/catalog/veyon.md) · [`galene`](roles/catalog/galene.md) · [`gcpw`](roles/catalog/gcpw.md)
-
-### Management — System & OS
-[`sysinfo`](roles/management/sysinfo.md) · [`optimize`](roles/management/optimize.md) · [`wu`](roles/management/wu.md) · [`oobe`](roles/management/system-tools.md#oobe) · [`widgets`](roles/management/system-tools.md#widgets) · [`scoobe`](roles/management/scoobe.md) · [`sfc`](roles/management/system-tools.md#sfc) · [`chkdsk`](roles/management/system-tools.md#chkdsk) · [`wim`](roles/management/system-tools.md#wim) · [`win_iso`](roles/management/win_iso.md) · [`ps_policy`](roles/management/ps_policy.md)
-
-### Management — Session & Access
-[`autologon`](roles/management/autologon.md) · [`ms_account`](roles/management/system-tools.md#ms_account) · [`lock`](roles/management/lock.md) · [`logoff`](roles/management/system-tools.md#logoff) · [`restart`](roles/management/system-tools.md#restart) · [`shutdown`](roles/management/system-tools.md#shutdown) · [`autoshutdown`](roles/management/autoshutdown.md)
-
-### Management — Network & Security
-[`domain`](roles/management/domain.md) · [`openssh`](roles/management/openssh.md) · [`wol`](roles/management/system-tools.md#wol) · [`ping`](roles/management/system-tools.md#ping)
-
-### Management — Files
-[`file_copy`](roles/management/file_copy.md)
-
-### Management — UX & Appearance
-[`wallpaper`](roles/management/wallpaper.md) · [`display_scale`](roles/management/display_scale.md) · [`visual_effects`](roles/management/visual_effects.md) · [`widgets`](roles/management/system-tools.md#widgets)
+| Role | What | Actions |
+|---|---|---|
+| **System and maintenance** | | |
+| [`wu`](roles/management/wu.md) | Windows Update: install in rounds, pause/resume, Settings refresh, reset | `run`, `scan`, `sync_ui`, `reset`, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` |
+| [`sysinfo`](roles/management/sysinfo.md) | read-only inventory: OS, hardware, disks, network, TPM, WU | `on`, `os`, `security`, `wu`, `full`, `save` |
+| [`optimize`](roles/management/optimize.md) | Optimize-Volume: retrim SSDs, defragment HDDs | `on` |
+| [`chkdsk`](roles/management/system-tools.md#chkdsk) | Check Disk | `on` |
+| [`sfc`](roles/management/system-tools.md#sfc) | System File Checker | `on` |
+| [`wim`](roles/management/system-tools.md#wim) | DISM component store: CheckHealth, ScanHealth, RestoreHealth | `check`, `scan`, `repair` |
+| [`win_iso`](roles/management/win_iso.md) | unattended Windows ISO with OpenSSH, built on the controller | `build[-msi\|dism\|none]`, `info`, `on` |
+| [`ps_policy`](roles/management/ps_policy.md) | machine-wide PowerShell 5.1 execution policy | `set`, `reset`, `on`, `off`, `info` |
+| [`oobe`](roles/management/system-tools.md#oobe) | show (`on`) or skip (`off`) the OOBE privacy and first-logon screens | `on`, `off` |
+| [`scoobe`](roles/management/scoobe.md) | suppress "finish setting up your device" after updates | `info`, `off`, `on` |
+| [`widgets`](roles/management/system-tools.md#widgets) | allow or disable Windows 11 Widgets by policy | `on`, `off` |
+| **Sessions and power** | | |
+| [`lock`](roles/management/lock.md) | maintenance mode: logon banner, restricted logon, logoff | `on`, `off`, `reset` |
+| [`autologon`](roles/management/autologon.md) | automatic logon for one account | `on`, `off` |
+| [`ms_account`](roles/management/system-tools.md#ms_account) | block (`on`) or allow (`off`) Microsoft accounts by policy | `on`, `off` |
+| [`logoff`](roles/management/system-tools.md#logoff) | log off every interactive session | `on` |
+| [`restart`](roles/management/restart.md) | controlled reboot, optionally only when one is pending | `on`, `if-pending` |
+| [`shutdown`](roles/management/system-tools.md#shutdown) | shut down and wait until the host is offline | `on`, `wait`, `no_wait`, `if-nouser`, `abort` (`a`) |
+| [`autoshutdown`](roles/management/autoshutdown.md) | scheduled task shutting the host down at set times | `on`, `off`, `info` |
+| [`wol`](roles/management/system-tools.md#wol) | Wake-on-LAN from the controller | `on` |
+| [`ping`](roles/management/system-tools.md#ping) | connectivity test | `on` |
+| **Network and access** | | |
+| [`domain`](roles/management/domain.md) | Active Directory join, leave, status | `status`, `join`, `leave`, `on`, `off` |
+| [`openssh`](roles/management/openssh.md) | OpenSSH Server: info, MSI upgrade, hardening (`secure_ssh`: deprecated alias) | `info`, `update`, `harden`, `unharden`, `on`, `off` |
+| [`file_copy`](roles/management/file_copy.md) | copy files to and from hosts, per-user folders too | `push`, `pull`, `status`, `remove`, `on`, `off` |
+| **Appearance, every profile** | | |
+| [`wallpaper`](roles/management/wallpaper.md) | set and lock the desktop wallpaper | `on`, `off`, `set`, `reset`, `lock`, `unlock`, `clear_history` |
+| [`display_scale`](roles/management/display_scale.md) | display scaling | `set`, `reset`, `on`, `off`, `info` |
+| [`visual_effects`](roles/management/visual_effects.md) | Performance Options presets, for old hardware | `set`, `reset`, `on`, `off`, `info` |

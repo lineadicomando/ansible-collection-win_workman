@@ -55,7 +55,9 @@ custom_actions:
   - name: "on"
     description: Resume Windows Update (alias for resume)
   - name: "off"
-    description: Pause Windows Update at max duration (alias for pause at max)
+    description: >-
+      Pause Windows Update for win_workman_wu_default_max_pause_days days (35),
+      still bounded by FlightSettingsMaxPauseDays
   - name: pause
     description: >-
       Pause Windows Update. Bare wu-pause uses win_workman_wu_pause_months plus
@@ -78,7 +80,10 @@ custom_actions:
   - name: is_paused
     description: Check if Windows Update is currently paused (sets win_workman_wu_is_paused fact)
   - name: policy_standard
-    description: Apply standard Windows Update policy (quality + feature updates enabled)
+    description: >-
+      Restore the default Windows Update policy: WaaSMedicSvc manual with default
+      recovery, automatic updates on, no WSUS; removes AUOptions,
+      NoAutoRebootWithLoggedOnUsers and ExcludeWUDriversInQualityUpdate
   - name: policy_ansible_managed
     description: Removed; fails on purpose. Use pause/off, or policy_standard to restore the default policy
 defaults:

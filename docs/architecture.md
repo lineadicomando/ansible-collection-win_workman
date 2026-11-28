@@ -1,236 +1,151 @@
 # Architecture
 
-> **Work in progress** — preliminary draft.
-
----
-
-## Overview
-
-The collection is built on a **dispatcher + schema** pattern. A single role
-(`dispatcher`) is the only entry point a playbook needs to call. It parses a
-list of task strings, resolves each one to a *schema role*, and delegates
-execution. All low-level package operations are centralised in `pkg_utils`.
+A playbook calls one role, `dispatcher`, with a list of task strings. Each string
+names a role and an action; package roles hand the work to `pkg_utils`, management
+roles implement their actions themselves.
 
 ```
-win_workman_tasks (list of strings)
-        │
-        ▼  lineadicomando.win_workman.parse_tasks (Jinja2 filter)
-        │
+win_workman_tasks: ["chrome", "wu-pause-14"]
+        │  lineadicomando.win_workman.parse_tasks (plugins/filter/parse_tasks.py)
         ▼
-  dispatcher role
-        │  include_role: lineadicomando.win_workman.<schema>
+  dispatcher ── include_role lineadicomando.win_workman.<argv[0]>
         ▼
-  schema role  (e.g. chrome, vscode, veyon …)
-        │  include_role: pkg_utils  tasks_from: pkg_workflow
-        ▼
-  pkg_utils — download / install / uninstall / info / …
+  <role>/tasks/main.yaml ── dispatches on argv[1] (or the schema's default_action)
+        ├─ package role:    pkg_utils tasks_from: pkg_workflow → pkg_act_<action>
+        └─ management role: tasks/act_<action>.yaml
 ```
 
 ## Entry points
 
-| Entry point | How to call | When to use |
-|---|---|---|
-| `lineadicomando.win_workman.dispatcher` role | `roles:` block in a playbook | Standard playbook usage |
-| `lineadicomando.win_workman.win_workman` playbook (FQCN) | `ansible-playbook lineadicomando.win_workman.win_workman` | CLI / MCP server |
+| Entry point | Use |
+|---|---|
+| role `lineadicomando.win_workman.dispatcher` | playbooks: `roles:` with `win_workman_tasks` |
+| playbook `lineadicomando.win_workman.win_workman` | CLI and the [MCP server](mcp.md): `-e '{"todo": "chrome,vlc-off"}'` (`todo`: comma-separated string or list; `t` is its old name) |
 
-The collection playbook (`playbooks/win_workman.yaml`) accepts `todo` (old
-name `t`) as a comma-separated extra-var string or a list, normalises it into a
-list, and delegates to `dispatcher`. It is the entry point used by the [MCP server](mcp.md).
+Before the first task that connects to the host (a leading `wol` runs on the
+controller), the dispatcher gives `win_workman_remote_tmp` an ACL that SYSTEM can use ([pkg_utils](roles/core/pkg_utils.md)).
 
----
-
-## Task string syntax
+## Task strings
 
 ```
-<schema>[-<action>[-<arg1>[-<arg2>…]]]
+<role>[-<action>[-<arg1>[-<arg2>…]]]
 ```
 
-| Token | Position | Description |
-|---|---|---|
-| `schema` | `argv[0]` | Name of the target schema role |
-| `action` | `argv[1]` | Operation to perform; if omitted, the role uses its own `win_workman_{role}_schema.default_action` |
-| `arg1…` | `argv[2+]` | Role-specific arguments (e.g. Veyon mode) |
+`argv[0]` is the role, `argv[1]` the action (omitted: the role's
+`win_workman_<role>_schema.default_action`), the rest are role arguments. A role name
+therefore never contains a dash (`display_scale`, not `display-scale`).
 
-### Examples
-
-| Task string | Schema | Action | Args |
+| Task string | Role | Action | Args |
 |---|---|---|---|
-| `chrome` | `chrome` | *(default: `on`)* | — |
-| `chrome-on` | `chrome` | `on` | — |
-| `chrome-off` | `chrome` | `off` | — |
-| `veyon-on-student` | `veyon` | `on` | `student` |
-| `veyon-config-teacher` | `veyon` | `config` | `teacher` |
-| `python312-download` | `python312` | `download` | — |
-| `wallpaper-set` | `wallpaper` | `set` | — |
+| `chrome` | `chrome` | default (`on`) | — |
+| `chrome-on-32bit` | `chrome` | `on` | `32bit` |
+| `veyon-on-master` | `veyon` | `on` | `master` |
+| `wu-pause-14` | `wu` | `pause` | `14` |
 | `display_scale-set-150` | `display_scale` | `set` | `150` |
-| `visual_effects-set-balanced` | `visual_effects` | `set` | `balanced` |
-| `ps_policy-set-AllSigned` | `ps_policy` | `set` | `AllSigned` |
 | `zed-usr-on-student-alice+student-bob` | `zed` | `usr` | `on`, `student-alice+student-bob` |
 
-### Parsed object
-
-The filter produces one dict per task:
-
-```python
-{
-  "task":   "veyon-config-teacher",   # original string
-  "schema": "veyon",                  # argv[0]
-  "act":    "config",                 # argv[1], or "" if omitted — default applied at role level
-  "argc":   3,                        # len(argv)
-  "argv":   ["veyon", "config", "teacher"]
-}
-```
-
-The dispatcher exposes these as `win_workman_action`, `win_workman_task_argv`,
-`win_workman_task_argc`, and `win_workman_task` inside each included schema role.
-
----
+The filter yields, per string, `{task, schema, act, argc, argv}` (`act` is `""` when
+omitted); inside the role these are `win_workman_task`, `win_workman_action`,
+`win_workman_task_argc`, `win_workman_task_argv`.
 
 ## Actions
 
-### Standard package actions (handled by `pkg_utils`)
+Every role's schema has a `default_action`, so a bare role name does something
+sensible; `on`/`off` mean enable/disable across the collection, wired as aliases where
+a role's own verbs differ (`set`/`reset`, `join`/`leave`). An unknown action fails the
+host.
 
-| Action | Description |
+Standard package actions, implemented once in `pkg_utils`
+(`roles/pkg_utils/vars/main.yaml`, `win_workman_pkg_actions`):
+
+| Action | Does |
 |---|---|
-| `on` | Install or upgrade the package |
-| `off` | Uninstall the package |
-| `download` | Download installer to `win_workman_storage_path` only |
-| `copy` | Copy installer from storage to remote temp without installing |
-| `info` | Report installation state without making changes |
-| `is_present` | Assert that the package is installed (fails the play if not) |
-| `usr-<verb>` | Per-user deferred install: `on`, `off`, `info`, `apply`, `purge` — see [pkg_utils](roles/core/pkg_utils.md#per-user-deferred-install-usr) |
+| `on` | install, or upgrade to the version of the schema (the usual default) |
+| `off` | uninstall |
+| `info` | report installed version and state, change nothing |
+| `download` | fetch the files into `win_workman_storage_path` on the controller |
+| `copy` | copy the installer to the host, install nothing |
+| `shortcuts` | create the shortcuts again on an installed package |
+| `is_present` | fail when the package is not installed |
+| `usr-<verb>` | per-user deferred install: `on`, `off`, `info`, `apply`, `purge` ([pkg_utils](roles/core/pkg_utils.md#per-user-deferred-install-usr)) |
 
-### Role-specific actions
+Role-specific actions are on each role's page ([catalog](index.md)) and in its
+`meta/mcp.yaml`, which `get_role_info` returns.
 
-Some roles extend the standard set with their own actions or support a subset:
+## Package schema
 
-| Role | Actions |
-|---|---|
-| `chrome` | `on`, `off`, `privacy-on`, `privacy-off`, `rm-profile` |
-| `firefox` | `on`, `off`, `privacy-on`, `privacy-off`, `rm-profile` |
-| `edge` | `privacy-on`, `privacy-off`, `rm-profile` (uninstall not supported) |
-| `wallpaper` | `on` *(default, `set` + `lock`)*, `off` *(`reset` + `unlock`)*, `set`, `reset`, `lock`, `unlock`, `clear_history` |
-| `display_scale` | `set` *(default)*, `reset`, `on` *(alias for `set`)*, `off` *(alias for `reset`)*, `info` |
-| `visual_effects` | `set` *(default)*, `reset`, `on` *(alias for `set`)*, `off` *(alias for `reset`)*, `info` |
-| `ps_policy` | `set` *(default)*, `reset`, `on` *(alias for `set`)*, `off` *(alias for `reset`)*, `info` |
-| `wu` | `run` *(default)*, `scan`, `sync_ui`, `reset`, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` |
-| `veyon` | `on`, `off`, `config` |
-| `lock` | `on`, `off`, `reset` |
-| `autologon` | `on`, `off` |
-| `autoshutdown` | `on` *(default)*, `off`, `info` |
-| `domain` | `status` *(default)*, `join`, `leave`, `on` *(alias for `join`)*, `off` *(alias for `leave`)* |
-| `file_copy` | `push` *(default)*, `pull`, `status`, `remove`, `on` *(alias for `push`)*, `off` *(alias for `remove`)* |
-| `openssh` | `info` *(default)*, `update`, `harden`, `unharden`, `on` *(alias for `harden`)*, `off` *(alias for `unharden`)* |
-| `secure_ssh` | *(deprecated alias of `openssh`)* `on`, `off` |
-| `ms_account` | `on`, `off` |
-| `oobe` | `on`, `off` |
-| `seb` | `on`, `off`, `deploy`, `undeploy`, `config_key` |
-| `chkdsk` | `on` |
-| `sfc` | `on` |
-| `logoff` | `on` |
-| `restart` | `on` |
-| `shutdown` | `on`, `wait` |
-| `ping` | `on` |
-| `wol` | `on` |
-| `wim` | `check` *(default)*, `scan`, `repair` |
-| `win_iso` | `build` *(default)*, `info`, `on` *(alias for `build`)* |
-
----
-
-## Package providers
-
-Each schema role defines a `win_workman_<schema>_schema` variable in
-`vars/main.yaml`. The `package.provider` key controls how `pkg_utils`
-installs and detects the software.
-
-### `registry` (default)
-
-Standard installer (MSI, NSIS, Inno Setup, …). Detected via the Windows
-Uninstall registry key using `package.searchName`.
+A package role defines `win_workman_<role>_schema` in `vars/main.yaml`; the full field
+reference is in [pkg_utils](roles/core/pkg_utils.md).
 
 ```yaml
 win_workman_vscode_schema:
   name: Visual Studio Code
+  default_action: !!str on
   package:
-    setup_file: VSCodeSetup-x64-1.108.2.exe
-    searchName: "Microsoft Visual Studio Code"
-    version: "1.108.2"
-    provider: registry
-    install_args:
-      - /VERYSILENT
-      - /TASKS=desktopicon,addtopath
-    uninstall_args:
-      - /VERYSILENT
+    setup_file: VSCodeSetup-x64-<version>.exe
+    searchName: "Microsoft Visual Studio Code"   # matched in the Uninstall registry keys
+    version: "<version>"
+    provider: registry                           # msi | registry | portable; absent: auto
+    install_args: [/VERYSILENT]
+    uninstall_args: [/VERYSILENT]
   files:
-    - filename: VSCodeSetup-x64-1.108.2.exe
-      url: https://…/VSCodeUserSetup-x64-1.108.2.exe
+    - filename: VSCodeSetup-x64-<version>.exe
+      url: https://…
       checksum: sha256:…
 ```
 
-### `portable`
+### Providers
 
-Files are extracted or copied to `win_workman_portable_path`
-(`C:\PortableApps` by default). No registry entry. Detection is based on
-filesystem presence under the portable path.
+- **`msi`, `registry`** (absent: `auto`): passed to `win_package` as its `provider`;
+  a normal installer (MSI, NSIS, Inno, Burn, …), detected through the Uninstall keys
+  by `searchName`.
+- **`portable`**: files extracted or copied under `win_workman_portable_path`
+  (`package.portable_dir`; a file entry may carry `extract: 7z` and `dest_dir`).
+  With no version to read, `on` writes `.win_workman_source`
+  (`win_workman_portable_marker_name`) in each install directory: one line per
+  `files` entry, filename and checksum (URL when there is none). At the next `on` a
+  missing or different marker means remove and extract again from scratch, so a bump
+  reaches the hosts and leaves no old files behind (anything added by hand inside is
+  lost); a matching marker makes `on` a no-op. A schema with
+  `uninstall_before_upgrade: true` and a file without `checksum` (a "latest" URL, as
+  `postman` has) reinstalls at every `on`: there is nothing to compare.
 
-```yaml
-package:
-  provider: portable
-  portable_dir: MyApp          # subdirectory under win_workman_portable_path
-files:
-  - filename: myapp.7z
-    url: https://…
-    checksum: sha256:…
-    extract: 7z                # optional: extract with 7-Zip after download
-    dest_dir: MyApp
-```
+### Install scopes
 
-With no version to read, `on` tells versions apart by the files they came from.
-After extracting, it writes `.win_workman_source`
-(`win_workman_portable_marker_name`) into each install directory, one line per
-`files` entry: the filename and its `checksum`, or its URL when there is none.
-At the next `on`, a directory without the marker or with a different one is
-removed and extracted again from scratch, so a bump reaches the hosts that have
-the package and leaves no files of the old version behind; a matching marker
-makes `on` a no-op. Anything added by hand inside the install directory is lost
-at that point. A package installed before the marker existed is reinstalled
-once.
-
-A schema with `uninstall_before_upgrade: true` and a file without `checksum`
-(a "latest" URL, as `postman` has) keeps reinstalling at every `on`, as it did
-before the marker: there is nothing to compare.
-
-### Install scopes: `sys` and `usr`
-
-Orthogonal to the provider, a schema's blocks say *for whom* it installs: a
-`package` block installs machine-wide now (`sys`), a `usr` block installs into
-each user's profile at their next logon (`usr`, through the `usr-<verb>`
-actions). A per-user-only package such as `zed` has no `package` block, and
-`zed-on` fails instead of installing into the Ansible user's profile. Details
-in [pkg_utils](roles/core/pkg_utils.md#per-user-deferred-install-usr).
-
----
+Orthogonal to the provider: a `package` block installs machine-wide now (`sys`); a
+`usr` block installs into each user's profile at their next logon (`usr-<verb>`). A
+per-user-only package (`zed`) has no `package` block, and `zed-on` fails instead of
+installing into the Ansible user's profile.
 
 ## Global variables
 
-These variables are meaningful across the whole collection.
+Defaults in `roles/pkg_utils/defaults/main.yaml`; role variables are
+`win_workman_<role>_*`, documented on the role's page.
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_tasks` | `[]` | List of task strings for the dispatcher |
-| `win_workman_storage_path` | `~/win_workman_storage` | Path (controller-side) where installers are stored |
-| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Staging directory on the Windows target; the dispatcher gives it an ACL SYSTEM can use (`docs/roles/core/pkg_utils.md`) |
-| `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |
-| `win_workman_restart_timeout` | `600` | Seconds to wait after a reboot |
-| `win_workman_restart` | `true` | Whether schema roles may trigger a reboot |
-| `win_workman_default_lang` | `en_US` | Default locale hint for multi-locale roles |
+| `win_workman_tasks` | `[]` | task strings for the dispatcher |
+| `win_workman_storage_path` | `$HOME/win_workman_storage` | controller-side installer storage |
+| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | staging directory on the host |
+| `win_workman_portable_path` | `C:\PortableApps` | root of portable packages |
+| `win_workman_default_lang` | `en_US` | locale hint of multi-locale roles (some detect it) |
+| `win_workman_restart` | `true` | roles may reboot when needed |
+| `win_workman_restart_timeout` | `600` | seconds to wait for a reboot |
+| `win_workman_logoff_timeout_seconds` | `300` | wait for sessions to log off |
+| `win_workman_installer_wait_timeout` | `120` | wait for Windows Installer to be idle (`Global\_MSIExecute`) before an install |
+| `win_workman_installer_retry_codes` / `_retries` / `_retry_delay` | `[1601, 1618]` / `5` / `60` | retry an installer busy with another install |
+| `win_workman_cleanup_uninstaller_dir` | `true` | after `off`, remove an install directory left with only the uninstaller's files (Inno's `unins000.exe`) |
+| `win_workman_usr_path`, `win_workman_usr_targets`, `win_workman_usr_timeout`, `win_workman_usr_apply_timeout` | see [pkg_utils](roles/core/pkg_utils.md#per-user-deferred-install-usr) | per-user install |
 
-### Maintenance mode variables (defaults of `lock`)
+## Repository layout
 
-| Variable | Default | Description |
-|---|---|---|
-| `win_workman_mode_title` | `"Maintenance in progress"` | Legal notice title on login screen |
-| `win_workman_mode_text` | *(see defaults)* | Legal notice body text |
-| `win_workman_mode_force_logoff` | `true` | Log the user sessions off when locking |
-| `win_workman_mode_interactive_logon_users` | `[Administrators]` | Groups allowed to log in during maintenance |
-| `win_workman_mode_interactive_logon_fallback_users` | Administrators, Users, Backup Operators (SIDs) | Who may log on when `lock` has nothing to restore |
+| Path | Holds |
+|---|---|
+| `roles/<role>/` | `vars/main.yaml` (schema), `defaults/`, `tasks/main.yaml` + `act_*.yaml`, `meta/main.yaml`, `meta/mcp.yaml` |
+| `roles/pkg_utils/tasks/` | package workflow (`pkg_*`) and the shared `tasks_from` toolbox |
+| `plugins/` | `filter/parse_tasks.py`, `lookup/file_copy_manifest.py`, `modules/seb_config.py` |
+| `playbooks/win_workman.yaml` | the collection playbook |
+| `mcp/` | MCP server ([mcp.md](mcp.md)) |
+| `tools/` | `release.sh`, `fleet_skills.py` |
+| `.fleet/skills/win-workman/` | skill for the assistant of cockpit-fleet; `roles-*.md` generated from the manifests |
+| `docs/` | this documentation; `docs/todo/` the full backlog entries indexed by `TODO.md` |

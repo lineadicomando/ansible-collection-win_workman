@@ -1,101 +1,33 @@
-# Role: gcpw
+# gcpw — Google Credential Provider for Windows
 
-> **Work in progress** — preliminary draft.
-
-Installs Google Credential Provider for Windows (GCPW) and configures the
-`domains_allowed_to_login` registry key. Supports 32-bit and 64-bit variants.
-
----
+GCPW enterprise MSI (`registry` provider, `/quiet`), Google's current release with no
+version or checksum pinned; 64-bit by default, the task argument `32bit` selects the
+x86 MSI. Lets users sign in to Windows with a Google Workspace account of the allowed
+domains. `on` installs Chrome first and may restart the host.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Install or upgrade GCPW and set `domains_allowed_to_login` |
-| `off` | Uninstall GCPW |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that GCPW is installed |
-
----
-
-## Architecture selection
-
-| Task string | Arch | Installer |
-|---|---|---|
-| `gcpw-on` *(default)* | `64bit` | `gcpwstandaloneenterprise64.msi` |
-| `gcpw-on-32bit` | `32bit` | `gcpwstandaloneenterprise.msi` |
-
-The token `32bit` must appear anywhere in `argv` (position 2+).
-
----
+| `on[-nodep]` | Fails at once unless `win_workman_gcpw_domains_allowed_to_login` starts with a valid domain; installs `chrome` (skipped with `nodep`), then GCPW; writes `HKLM\SOFTWARE\Google\GCPW\domains_allowed_to_login`; restarts the host when the MSI changed something |
+| `off` | Uninstalls GCPW, deletes `HKLM\SOFTWARE\Google\GCPW`, restarts the host when something was removed; Chrome stays |
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_gcpw_domains_allowed_to_login` | `""` | **Required for `on`.** Comma-separated list of Google Workspace domains allowed to sign in (e.g. `school.edu` or `school.edu,other.edu`) |
-
-The role **fails immediately** if `win_workman_gcpw_domains_allowed_to_login` is
-empty or does not contain a valid domain name when action is `on`.
-
----
-
-## Post-install and post-uninstall behaviour
-
-### After install (`on`)
-
-1. Registry key `HKLM\SOFTWARE\Google\GCPW\domains_allowed_to_login` is set to
-   `win_workman_gcpw_domains_allowed_to_login` (key path created if absent).
-2. The target is **rebooted** if the package was actually installed or upgraded
-   (`win_workman_install_result.changed`).
-
-### After uninstall (`off`)
-
-1. The registry key `HKLM:\SOFTWARE\Google\GCPW` is removed entirely.
-2. The target is **rebooted** if the package was actually removed
-   (`win_workman_uninstall_result.changed` or `win_workman_uninstall_via_helper_result.changed`).
-
----
-
-## Example
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_gcpw_domains_allowed_to_login: "school.edu"
-
-win_workman_tasks:
-  - gcpw
-```
-
-Multiple domains:
-
-```yaml
-win_workman_gcpw_domains_allowed_to_login: "school.edu,staff.school.edu"
-```
-
----
-
-## Schema details
-
-Software name: `Google Credential Provider for Windows`  
-Provider: `registry` (MSI)  
-Installer (64-bit): `gcpwstandaloneenterprise64.msi`  
-Installer (32-bit): `gcpwstandaloneenterprise.msi`  
-Homepage: https://tools.google.com/dlpage/gcpw
-
----
+| `win_workman_gcpw_domains_allowed_to_login` | `""` | **Required for `on`.** Comma-separated Google Workspace domains allowed to sign in (`example.com` or `example.com,staff.example.com`) |
 
 ## Notes
 
-- The `searchName` is `Google Credential Provider for Windows` — verify with
-  `Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Select DisplayName`
-  on a target host after first install.
-- GCPW requires an active Google Workspace account and network connectivity to
-  Google's authentication servers.
-- Chrome is installed automatically as part of the `on` action: Google services
-  (Drive, Classroom, Gmail, etc.) are accessed through the browser, and Chrome
-  is the only browser that natively inherits the Google session established by
-  GCPW at sign-in. Chrome installation is skipped for all other actions (`off`,
-  `info`, `download`, etc.).
+- Chrome is installed because it is the only browser that inherits the Google session
+  GCPW opens at sign-in, and Google services are used through it. The `32bit` token
+  reaches the chrome role too: `gcpw-on-32bit` installs 32-bit Chrome.
+- The domain check only matches the start of the value against
+  `^[a-zA-Z0-9][a-zA-Z0-9\-]*\.[a-zA-Z]{2,}`: later entries of the list are not
+  validated.
+- With no version pinned, `on` runs the MSI on every run, which rewrites the registry
+  value; `win_package` reports no change for the same MSI, so there is no restart.
+  The installer kept in storage is the one downloaded first: delete it to fetch a newer
+  release.
+- GCPW needs network access to Google's authentication servers at sign-in.

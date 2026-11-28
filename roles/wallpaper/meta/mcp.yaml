@@ -67,7 +67,7 @@ defaults:
     description: Apply wallpaper to the default user profile (new user template)
   - var: win_workman_wallpaper_default_path
     type: str
-    default: "%SystemRoot%\\Web\\Wallpaper\\Windows\\img0.jpg"
+    default: "{{ ansible_env.SystemRoot | default('C:\\Windows') }}\\Web\\Wallpaper\\Windows\\img0.jpg"
     description: Wallpaper restored by reset
   - var: win_workman_wallpaper_default_style
     type: str

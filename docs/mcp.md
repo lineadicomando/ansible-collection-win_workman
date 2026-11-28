@@ -1,59 +1,33 @@
-# MCP Server
+# MCP server
 
-The collection ships an optional **Model Context Protocol (MCP) server** that
-exposes win_workman operations to AI assistants (Claude Desktop, Claude Code,
-or any MCP-compatible client).
-
----
-
-## Overview
+`mcp/server.py` ("win-workman") exposes the collection to MCP clients (Claude Code,
+Claude Desktop) over stdio. It reads role manifests (`roles/<role>/meta/mcp.yaml`)
+live from the tree, so a new or changed manifest is visible with no restart, and runs
+tasks through the collection playbook.
 
 ```
-AI assistant (MCP client)
-        │
-        ▼  MCP stdio transport
-  mcp/server.py  ("win-workman")
-        │
-        ├─ get_role_info  →  reads meta/mcp.yaml from the role directory
-        │
-        └─ run_tasks  →  ansible-playbook lineadicomando.win_workman.win_workman
+MCP client ─stdio─► mcp/server.py
+                     ├─ get_role_info          → mcp/roles.py reads meta/mcp.yaml
+                     ├─ run_tasks              → ansible-playbook lineadicomando.win_workman.win_workman
+                     └─ run_status / wait_run  → mcp/runlog.py, the run logs
 ```
 
-The server reads role metadata from each role's `meta/mcp.yaml` manifest and
-delegates task execution to the collection playbook `playbooks/win_workman.yaml`
-(invokable by FQCN `lineadicomando.win_workman.win_workman`).
-
----
-
-## Prerequisites
-
-- Python 3.12+ on the controller
-- `mcp` Python package installed (`pip install mcp`)
-- `ansible-playbook` in `PATH`
-- Collection installed (see [installation](../README.md#installation))
-- An Ansible project directory with the expected structure:
-  ```
-  <project_root>/
-  └── inventories/
-      └── <inventory_name>/
-          └── hosts.yaml
-  ```
-
----
-
-## Configuration
-
-The server requires one environment variable:
-
-| Variable | Description |
+| File | Does |
 |---|---|
-| `ANSIBLE_PROJECT_ROOT` | Absolute path to your Ansible project directory |
+| `server.py` | tool schemas and dispatch |
+| `roles.py` | `list_roles`, `get_role_info`; also used by `tools/fleet_skills.py` |
+| `runner.py` | builds and validates the `ansible-playbook` command |
+| `runlog.py` | logged, supervised runs; byte-identical copy in the project repo (`ansible-win_edulab/mcp/`) |
 
----
+## Setup
 
-## Wiring into Claude Desktop
+Python 3.12+, `pip install -r mcp/requirements.txt` (`mcp`, `jsonschema`, `pyyaml`),
+`ansible-playbook` in `PATH`, the collection installed or symlinked.
 
-Add the server to `~/.config/claude/claude_desktop_config.json`:
+| Environment | Meaning |
+|---|---|
+| `ANSIBLE_PROJECT_ROOT` | required: project with `inventories/<name>/hosts.yaml` |
+| `ANSIBLE_MCP_LOG_DIR` | optional: log directory, default `<root>/logs` |
 
 ```json
 {
@@ -61,125 +35,77 @@ Add the server to `~/.config/claude/claude_desktop_config.json`:
     "win-workman": {
       "command": "python",
       "args": ["/path/to/ansible-collection-win_workman/mcp/server.py"],
-      "env": {
-        "ANSIBLE_PROJECT_ROOT": "/path/to/your/ansible-project"
-      }
+      "env": { "ANSIBLE_PROJECT_ROOT": "/path/to/your/ansible-project" }
     }
   }
 }
 ```
 
----
+Each run writes `<logs>/<timestamp>-<label>.log` while it runs, repoints
+`<logs>/latest.log` at it, and creates `<log>.done` when it ends (what a client waits
+on). Secrets passed as `sensitive_vars` are masked in the log.
 
 ## Tools
 
-### `get_role_info`
+### `get_role_info(role)`
 
-Returns the display name, custom actions, configurable defaults, and notes for
-a single win_workman role. Data is read from the role's `meta/mcp.yaml` manifest.
-
-**Parameters**
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `role` | string | yes | Role name (e.g. `chrome`, `vscode`, `wu`) |
-
-**Returns** — JSON object with the following keys:
-
-| Key | Description |
-|---|---|
-| `display_name` | Human-readable name |
-| `custom_actions` | List of role-specific actions beyond the standard package actions |
-| `defaults` | Configurable role variables with type, default value, and description |
-| `notes` | Free-text notes about the role |
-| `common_actions` | Standard package actions the role supports, with `handled_by` and `default` |
-| `install_scopes` | Package roles only: `sys` (machine-wide), `usr` (per-user deferred), or both |
-| `usr_actions` | Roles with the `usr` scope only: task syntax, target rules, and the verbs |
-
----
+Returns, from the manifest: `display_name`, `common_actions` (each with `handled_by`:
+`pkg_utils` or the role when it reimplements the action, and `default`),
+`custom_actions`, `defaults` (variable, type, default, description), `notes`; for
+package roles `install_scopes` (`sys`, `usr`), and `usr_actions` when `usr` is one.
 
 ### `run_tasks`
 
-Runs one or more win_workman tasks on an Ansible host or group by invoking
-`ansible-playbook lineadicomando.win_workman.win_workman`.
+| Parameter | Default | Meaning |
+|---|---|---|
+| `t` | required | task strings, e.g. `["chrome-info", "vlc-off"]` |
+| `l` | `win_managed` | limit (host or group); `lab_win` in an inventory that still has only the old name. `all` reaches every host of the inventory, a DC too: only when asked |
+| `inventory` | `school` | name under `inventories/` |
+| `extra_vars` | — | role variables as extra vars; `t`, `todo`, `ansible_*` refused |
+| `sensitive_vars` | — | like `extra_vars`, for secrets: passed in a private temp file, masked in log, output and preview |
+| `forks` | Ansible's (5) | hosts in parallel; set it to the host count for a whole lab |
+| `preview` | `false` | return the command, run nothing |
+| `background` | `false` | return a run id at once; follow it with `run_status` / `wait_run` |
 
-**Parameters**
+### `run_status(run="latest", since_line=0, max_lines=200)`
 
-| Parameter | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `t` | list of strings | yes | — | Task list (e.g. `["chrome"]`, `["chrome-off", "vlc-on"]`) |
-| `l` | string | no | `"win_managed"` | Ansible limit: hostname or group name. The default is the group of the managed Windows PCs, or `lab_win` in an inventory that still has only the old name; `all` also reaches every other host of the inventory and has to be asked for |
-| `inventory` | string | no | `"school"` | Inventory name under `inventories/` |
-| `extra_vars` | object | no | — | Role variables passed as Ansible extra vars (e.g. `{"win_workman_usr_targets": ["Domain Users"]}`); `t`, `todo` and `ansible_*` are refused |
-| `sensitive_vars` | object | no | — | Role variables that are secrets (a password, a licence code). Same rules as `extra_vars` and merged with it, but handed to `ansible-playbook` through a private temporary file instead of the command line, and masked in the run log, in the output and in a preview |
-| `preview` | boolean | no | `false` | Return the command string without executing |
+New output of a background run since a line, and whether it is still running.
 
-The tasks follow the same dash-separated syntax as the collection:
-`<role>` or `<role>-<action>` (e.g. `chrome`, `chrome-off`, `wu-pause-14`).
+### `wait_run(run="latest", timeout=900, since_line=0, max_lines=200)`
 
-**Example** — install Chrome on a single host (preview mode):
+Blocks until the run ends or `timeout` (5–3600 s) runs out, then returns the output;
+a run still going is marked so, with the line to resume from.
 
-```
-run_tasks(t=["chrome"], l="pc01", preview=true)
-```
+## Role manifest (`meta/mcp.yaml`)
 
-Returns:
-
-```
-Command to run:
-
-  ansible-playbook lineadicomando.win_workman.win_workman \
-  -i '/srv/ansible/inventories/school/hosts.yaml' \
-  -l 'pc01' \
-  -e '{"todo": "chrome"}'
-
-No command executed.
-```
-
----
-
-## Role manifest format (`meta/mcp.yaml`)
-
-Each role may optionally provide a `meta/mcp.yaml` file. The server falls back
-to safe defaults when the file is absent.
+Every role has one: without it the role is invisible to `get_role_info` and missing
+from the skill of cockpit-fleet (`.fleet/skills/win-workman/`, written from the
+manifests by `python3 tools/fleet_skills.py`; CI runs it with `--check`).
 
 ```yaml
-# meta/mcp.yaml — all keys are optional
-display_name: Google Chrome           # human-readable name (default: role directory name)
-
-custom_actions:                       # actions beyond the standard package set
-  - name: privacy                     # action token used in task strings
-    description: >
-      Apply privacy Group Policy (disables telemetry, sync, etc.)
-
-defaults:                             # configurable role variables
+display_name: Google Chrome
+custom_actions:                 # beyond the standard package actions
+  - name: privacy
+    description: Apply the privacy policies
+defaults:                       # user-overridable variables (defaults/main.yaml)
   - var: win_workman_chrome_shortcuts
-    type: bool                        # bool | str | int | list
+    type: bool                  # bool | str | int | list | dict
     default: false
     description: Create shortcuts on Desktop and Start Menu
-
 notes: >
-  Free-text notes visible to the AI assistant.
-  Accepts '32bit' task argument. Closes running Chrome before install/uninstall.
+  Free text for the assistant: argument tokens, side effects, traps.
 ```
 
-Standard package actions (`on`, `off`, `download`, `copy`, `info`, `is_present`)
-are common to all catalog roles and do not need to be listed in `custom_actions`.
-
----
+The standard package actions are not listed: `roles.py` derives them from
+`roles/pkg_utils/vars/main.yaml`.
 
 ## Collection playbook
 
-`playbooks/win_workman.yaml` is the entry point used by the MCP server. It is
-also usable standalone:
+`playbooks/win_workman.yaml`, FQCN `lineadicomando.win_workman.win_workman`: takes
+`todo` (comma-separated string or list; `t` is its old name, `todo` wins) and runs the
+`dispatcher` with it.
 
 ```bash
 ansible-playbook lineadicomando.win_workman.win_workman \
-  -i inventories/school/hosts.yaml \
-  -l win_managed \
-  -e '{"todo": "chrome,vscode"}'
+  -i inventories/school/hosts.yaml -l win_managed -e '{"todo": "chrome,vscode"}'
 ```
-
-The `todo` extra-var accepts a comma-separated task list, or a list; `t` is its
-old name, still accepted (`todo` wins when both are given). The playbook normalises
-it into a list and passes it to the `dispatcher` role.

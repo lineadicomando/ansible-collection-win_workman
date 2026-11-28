@@ -4,8 +4,9 @@ Backlog of the `lineadicomando.win_workman` collection. This file is the index: 
 row per entry, with what to do next. The full entry (cause, evidence, what to change,
 how to test) is in the linked file under `docs/todo/`; open only the one you work on.
 
-Every entry was re-checked against the tree on 2026-11-15 at `22ec497` (earlier checks:
-2026-09-28, 2026-10-01, 2026-10-31). When an entry is done, delete its row and its
+Every entry was re-checked against the tree on 2026-11-15 at `22ec497`; on 2026-11-28 the
+docs were audited role by role against the code (all pages checked, the drafts rewritten)
+and the defects found on the way filed in [code-defects](docs/todo/code-defects.md). When an entry is done, delete its row and its
 section; when you touch one, update its **Status** line with the date.
 
 - **P1** — affects the labs in production or is a correctness bug; do next.
@@ -26,7 +27,7 @@ section; when you touch one, update its **Status** line with the date.
 | P2 | `openssh-update`: first run on a production host | [openssh](docs/todo/openssh.md) | At the next Win32-OpenSSH release: VM, one PC, then the lab |
 | P2 | `usr`: test a version upgrade | [usr](docs/todo/usr.md) | Bump `zed` and run `tests/usr_zed.yaml` over an older install |
 | P2 | `file_copy-pull`: large directories lose files and flood the output | [file-copy-pull](docs/todo/file-copy-pull.md) | Slim the loop items, retry fetch, list missing files |
-| P2 | Audit the catalog drafts | [documentation](docs/todo/documentation.md) | Check the 45 + 7 draft pages against the roles, drop the banner where earned |
+| P2 | Defects found reading the code: wrong results with no error (`start_process` wait switch, `wu-run` report, `display_scale-set-100`, `vcredist14-off`, …) | [code-defects](docs/todo/code-defects.md) | Fix and test one at a time, starting from `start_process` (one-line fix) |
 | P3 | Wait mode for the helper uninstall in `pkg_act_off` | [package-workflow](docs/todo/package-workflow.md) | Only when a hang is observed |
 | P3 | veyon `config`: a crashing `veyon-cli` export reads as a missing key | [package-workflow](docs/todo/package-workflow.md) | Check the exported file, not `$LASTEXITCODE`, in `import_keys.yaml`; only if a 4.10.x lab needs it |
 | P3 | `version_file`: a program found only that way cannot be removed | [package-workflow](docs/todo/package-workflow.md) | No fix designed |
@@ -43,6 +44,6 @@ section; when you touch one, update its **Status** line with the date.
 | P3 | `wim-repair`: the folder form of the source, only partly exercised | [management](docs/todo/management.md) | Document it as the way to repair cumulative payloads |
 | P3 | `w32time`: a role for the Windows time service | [management](docs/todo/management.md) | Proposed role, design in the entry |
 | P3 | `veyon`: manage the predefined applications and websites | [management](docs/todo/management.md) | Variables for both lists, written to the global configuration by `veyon-config` |
-| P3 | Remove the `secure_ssh` alias | [openssh](docs/todo/openssh.md) | At the next release, with the variable fallbacks |
-| P3 | Roles with no documentation at all | [documentation](docs/todo/documentation.md) | Pages for `googledrive`, `tinycad`, `winmerge`, `winrar` |
+| P3 | Remove the `secure_ssh` alias | [openssh](docs/todo/openssh.md) | At the next `minor` release, with the variable fallbacks |
+| P3 | Defects found reading the code: packages that never upgrade, small faults | [code-defects](docs/todo/code-defects.md) | Checksums for `ntop`, `nircmd`, `googledrive`, `winrar`; then the rest |
 | P3 | `run_powershell`: `timeout` is ignored with `background=true` | [mcp-server](docs/todo/mcp-server.md) | Pass `timeout` to `start_run` (project repo `mcp/`) |

@@ -1,51 +1,12 @@
-# Role: winfsp
+# winfsp — WinFsp
 
-> **Work in progress** — preliminary draft.
-
-Manages WinFsp (Windows File System Proxy), a framework for implementing file systems
-in Windows userspace. Supports standard package operations: install, uninstall,
-download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade WinFsp |
-| `off` | Uninstall WinFsp |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that WinFsp is installed |
-
----
-
-## Configuration
-
-No variables. WinFsp is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - winfsp
-  - winfsp-off
-```
-
----
-
-## Schema details
-
-Software name: `WinFsp`  
-Provider: `registry`  
-Installer: `winfsp*.exe` (version varies)  
-Homepage: https://github.com/billziss-gh/winfsp
-
----
+WinFsp (Windows File System Proxy), MSI (`registry` provider), set up here for
+virtiofs shares on KVM/QEMU guests: `on` installs [`virtiogt`](virtiogt.md) first and
+sets the `VirtioFsSvc` service (from the guest tools) to automatic and started.
 
 ## Notes
 
-WinFsp is required by many cloud storage integrations and network file system clients.
-Enables implementation of custom file systems in user-mode applications.
+- The role is for virtual machines: on a physical PC `winfsp` also installs the VirtIO
+  guest tools, and `VirtioFsSvc` has no virtiofs device to serve.
+- WinFsp names its entry after the release year (`WinFsp 20xx`): `searchName` is
+  `WinFsp 20*`.

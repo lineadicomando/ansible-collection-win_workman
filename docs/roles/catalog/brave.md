@@ -1,49 +1,21 @@
-# Role: brave
+# brave — Brave Browser
 
-> **Work in progress** — preliminary draft.
+Brave Browser, 64-bit system-level install (`registry` provider) from the vendor's
+`latest/brave_installer-x64.exe`.
 
-Manages Brave Browser, a privacy-focused Chromium-based web browser. Supports
-standard package operations: install, uninstall, download, and info queries.
+## Variables
 
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade Brave |
-| `off` | Uninstall Brave |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that Brave is installed |
-
----
-
-## Configuration
-
-No variables. Brave is installed with default system-level configuration.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - brave
-  - brave-off
-```
-
----
-
-## Schema details
-
-Software name: `Brave Browser`  
-Provider: `registry`  
-Installer: `brave_installer-x64.exe`  
-Homepage: https://brave.com/
-
----
+| Variable | Default | Meaning |
+|---|---|---|
+| `win_workman_brave_shortcuts` | `false` | Create the Public Desktop and Start Menu shortcuts |
+| `win_workman_brave_shortcut_url` | `""` | URL appended to the shortcut arguments |
+| `win_workman_brave_shortcut_no_first_run` | `true` | Add `--disable-search-engine-choice-screen --no-default-browser-check --no-first-run` to the shortcut |
 
 ## Notes
 
-No special configuration or behavior.
+- No `version` and no checksum: with no version `on` treats an installed Brave as
+  older and runs the installer again at every run. `download` keeps the file already
+  in storage, so delete it there to fetch a newer release.
+- `searchName` is `*Brave*`, wide enough to match any program with Brave in its name.
+- Nothing closes a running Brave before uninstall; `off` deletes
+  `BraveSoftware\Brave-Browser` afterwards (`cleanup_paths`).

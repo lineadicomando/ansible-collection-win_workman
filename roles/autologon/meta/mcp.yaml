@@ -17,5 +17,5 @@ defaults:
   - var: win_workman_autologon_restart
     type: bool
     default: false
-    description: Restart the host after enabling autologon
-notes: "Credentials are written to the registry (Winlogon). Use vault-encrypted vars for the password."
+    description: Restart the host after on/off, only when something changed
+notes: "The password is stored as the LSA secret DefaultPassword, decryptable by any administrator of the host. Use a dedicated account and a vaulted password."

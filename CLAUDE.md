@@ -1,148 +1,90 @@
 # CLAUDE.md
 
-Agent instructions for `lineadicomando.win_workman` — an Ansible collection that
-manages Windows 11 workstations in school labs.
+`lineadicomando.win_workman`: Ansible collection managing Windows 11 lab
+workstations. Conversation in Italian; code, docs and commits in English. Public repo:
+no real site, host, domain or account names in files or commit messages.
 
-## The one thing to understand first
+## Start of a session
 
-Everything is driven by **dash-separated task strings**: `<schema>-<action>-<arg…>`.
-`plugins/filter/parse_tasks.py` splits them, the `dispatcher` role resolves
-`argv[0]` to a role of the same name, and that role dispatches on `argv[1]`.
-Package roles delegate the actual work to `pkg_utils`; management roles
-implement their own `tasks/act_<action>.yaml`.
+`git pull` (one clone per workstation, not synced), then `TODO.md` for open work. The
+lab project `ansible-win_edulab`, checked out beside this repo, symlinks this working
+tree under its `ansible_collections/`, so edits here take effect there at once; its
+test VMs and MCP servers are where roles are run and tested.
 
-Consequence worth remembering: **a role name can never contain a dash** — the
-parser would read it as an action boundary. Use underscores (`display_scale`).
+## How it works, in one paragraph
+
+Everything is a dash-separated task string `<role>-<action>-<arg…>`:
+`plugins/filter/parse_tasks.py` splits it, the `dispatcher` role includes the role
+named by `argv[0]`, which dispatches on `argv[1]`. Package roles delegate to
+`pkg_utils` (`pkg_workflow` → `pkg_act_<action>`); management roles have their own
+`tasks/act_<action>.yaml`. **A role name never contains a dash**: the parser would
+read it as an action boundary (`display_scale`).
 
 ## Read these instead of exploring
 
-`roles/` holds over 70 roles plus `dispatcher` and `pkg_utils`. Grepping across it is
-almost always the expensive way to answer a question that a doc already answers.
+`roles/` has 92 roles plus `dispatcher` and `pkg_utils`: grepping it is the
+expensive way to answer what a doc answers.
 
 | To find out | Read |
 |---|---|
-| How dispatch, task syntax, actions, and providers work | `docs/architecture.md` |
-| Which roles exist and what each one covers | `docs/index.md` (catalog table) |
-| What a specific role does, its actions and variables | `docs/roles/{catalog,management}/<role>.md` |
-| A role's actions/defaults as the MCP server sees them | `roles/<role>/meta/mcp.yaml` |
-| The package schema fields | `docs/roles/core/pkg_utils.md` |
-| What is planned but not built, and why | `TODO.md` — index with priority and next step; full entries in `docs/todo/` |
-
-Prefer the `win-workman` MCP server's `get_role_info` over reading files when the
-question is "what actions does X support": it returns exactly that, already
-structured. It reads `meta/mcp.yaml` live from this working tree, so a role added
-now is visible immediately, with no server restart.
+| Dispatch, task syntax, standard actions, providers, global variables, layout | `docs/architecture.md` |
+| Which roles exist | `docs/index.md` |
+| One role: actions, variables, traps | `docs/roles/{catalog,management,core}/<role>.md` |
+| Actions and defaults as the MCP server sees them | `get_role_info` (win-workman MCP), live from `meta/mcp.yaml` |
+| Schema fields, the `tasks_from` toolbox | `docs/roles/core/pkg_utils.md` |
+| MCP server | `docs/mcp.md` |
+| Open work | `TODO.md` (index), full entries in `docs/todo/` |
 
 ## Working rules
 
-### 1. Commit messages in English
-
-**Rule**: Git commit messages are always written in English, regardless of the
-language used in conversation.
-
-**Why**: the repository history is a technical artifact meant to stay readable to
-any contributor and consistent with the code and docs, which are in English.
-Mixed-language history is hard to search and to skim.
-
-**How to apply**: imperative subject line, English body covering the reasoning and
-the trade-offs. Conversation and explanations to the user stay in Italian.
-
-### 2. Reuse `pkg_utils`, do not reimplement
-
-`roles/pkg_utils/tasks/` is the shared toolbox; include it with `tasks_from`.
-Before writing PowerShell, check whether one of these already does the job:
-
-`profiles` · `logoff` · `restart` · `pending_restart` · `kill` · `services_stop` ·
-`detect_sw` · `registry_read` · `download` · `win_copy` · `win_extract` ·
-`win_path` · `shortcuts` · `start_process` · `run_as_system` · `win_clean_temp` ·
-`remote_tmp`
-
-`profiles` is the one most worth knowing, and its implementation is ~300 lines of
-P/Invoke you never need to read. It returns `win_workman_profiles`, one entry per
-local profile (plus `Default` when `win_workman_profiles_include_default`), with:
-
-| Field | Meaning |
-|---|---|
-| `SID`, `Name`, `LocalPath` | identity of the profile |
-| `HiveRoot` | `HKU:\<SID>\` when mounted, else `HKLM:\ANSIBLE\` |
-| `HivePath` | path to `NTUSER.DAT`, for `win_regedit`'s `hive:` parameter |
-| `HiveExists`, `HiveMounted` | whether the hive is on disk / currently loaded |
-| `Loaded` | true only when the user has an **active interactive session** |
-
-The established pattern for writing an `HKCU` setting to every profile — including
-users who never logged on — is in `roles/wallpaper/` and `roles/display_scale/`:
-force a logoff, select `Loaded == false and HiveExists == true`, then loop
-`win_regedit` over `profiles | product(entries)`.
-
-### 3. Adding a role
-
-Minimum set, mirroring an existing role of the same family:
-
-- `vars/main.yaml` — `win_workman_<role>_schema` with `name` and `default_action`
-- `tasks/main.yaml` — dispatcher that includes `act_{{ win_workman_action or default_action }}`
-- `meta/main.yaml` — galaxy info, `dependencies: [pkg_utils]`, `allow_duplicates: true`
-- `meta/mcp.yaml` — **required**, or the role is invisible to the MCP server
-  and to the skill of cockpit-fleet: after any change to one, run
-  `python3 tools/fleet_skills.py`, which writes the catalog of
-  `.fleet/skills/win-workman/` from them (CI fails when it is out of date)
-- `docs/roles/<family>/<role>.md`, plus its rows in `docs/index.md` (catalog table
-  *and* thematic list) and in the two tables in `docs/architecture.md`
-
-Variables are namespaced `win_workman_<role>_*`. User-overridable ones go in
-`defaults/`, computed and structural ones in `vars/`.
-
-### 4. Lint is the gate
-
-CI runs `ansible-lint --profile production` on ansible-core 2.20.4 over the whole
-tree, and `tools/fleet_skills.py --check` (the catalog of the skill of
-cockpit-fleet up to date), and nothing else: `.gitea/workflows/lint.yml` on git.cmdln.it, where the
-collection is pushed, and `.github/workflows/lint.yml` on the GitHub mirror. Keep
-the two in step. Run it on the role you touched before declaring done —
-it catches module misuse, not just formatting.
-
-### 5. Keep `on`/`off` meaningful
-
-Every schema has a `default_action`, so a bare `chrome` or `wallpaper` does
-something sensible, and `on`/`off` mean enable/disable across the whole
-collection. When a role's natural verbs are different (`set`/`reset`), still wire
-`on`/`off` as aliases rather than leaving them undefined.
-
-### 6. Release often, with tools/release.sh
-
-Projects pin a tag, not `main`, so a commit reaches them only through a
-release. Release after a package version update or a fix (`patch`), and after a
-new role, a new action or a change of default behaviour (`minor`); several
-commits of the same day can share one release. `tools/release.sh` bumps
-`galaxy.yml`, tags, and pushes branch and tag in one atomic push; `--pin FILE`
-then moves the requirements file of a project to the new tag and pushes it.
-Never push branch and tag separately: two pushes in a row start two runs of
-the GitHub push mirror, one is rejected and the tag never reaches GitHub.
-
-```bash
-tools/release.sh patch --dry-run
-tools/release.sh patch --pin ../other-project/requirements.yaml
-```
+1. **Commits**: English, imperative subject, body with the reasoning and trade-offs.
+2. **Reuse `pkg_utils`** (`include_role … tasks_from:`) before writing PowerShell:
+   `profiles`, `logoff`, `user_sessions`, `restart`, `pending_restart`, `kill`,
+   `services_stop`, `detect_sw`, `registry_read`, `download`, `win_copy`,
+   `win_extract`, `win_path`, `shortcuts`, `start_process`, `run_as_system`,
+   `wait_installer`, `win_clean_temp`, `remote_tmp` (inputs and outputs in
+   `pkg_utils.md`). `profiles` returns `win_workman_profiles` (`SID`, `Name`,
+   `LocalPath`, `HiveRoot`, `HivePath`, `HiveExists`, `HiveMounted`, `Loaded` = active
+   interactive session). Writing an `HKCU` setting into every profile, users who never
+   logged on included: copy `roles/wallpaper/` or `roles/display_scale/` (force
+   logoff, select `Loaded == false and HiveExists == true`, loop `win_regedit` over
+   `profiles | product(entries)`).
+3. **Adding a role** (skill `win-workman-new-role` in the project repo): mirror one
+   of the same family. `vars/main.yaml` (`win_workman_<role>_schema` with `name` and
+   `default_action`), `tasks/main.yaml` (includes `act_{{ win_workman_action or
+   default_action }}`), `meta/main.yaml` (`dependencies: [pkg_utils]`,
+   `allow_duplicates: true`), `meta/mcp.yaml` (required: without it the role is
+   invisible to MCP and to the cockpit-fleet skill), the page
+   `docs/roles/<family>/<role>.md` following `docs/roles/TEMPLATE.md`, and one row
+   in `docs/index.md`. Variables `win_workman_<role>_*`: user-overridable in
+   `defaults/`, computed in `vars/`.
+4. **`on`/`off` everywhere**: every schema has a `default_action`; where a role's
+   verbs differ (`set`/`reset`), wire `on`/`off` as aliases.
+5. **Lint is the gate**: CI runs `ansible-lint --profile production` (ansible-core
+   2.20.4) and `python3 tools/fleet_skills.py --check`, in
+   `.gitea/workflows/lint.yml` (git.cmdln.it, where it is pushed) and
+   `.github/workflows/lint.yml` (GitHub mirror): keep the two in step. Run lint on what
+   you touched, and `python3 tools/fleet_skills.py` after changing any
+   `meta/mcp.yaml`.
+6. **Release often** with `tools/release.sh patch|minor [--pin FILE] [--dry-run]`:
+   projects pin a tag. `patch` after a package bump or a fix, `minor` after a new
+   role, action or default behaviour; same-day commits can share one. It bumps
+   `galaxy.yml`, tags, pushes branch and tag in **one atomic push** (two pushes start
+   two runs of the GitHub mirror, one is rejected and the tag never arrives), then
+   `--pin` moves the project's requirements file to the tag and pushes it.
+7. **Docs follow the code** in the same commit: role page, manifest, index row;
+   a finished TODO entry is deleted from `TODO.md` and its file.
 
 ## PowerShell traps already paid for
 
-Both of these fail **silently**, which is why they are here rather than in a doc.
+Both fail **silently**.
 
-- **`ConvertFrom-Json` does not unroll arrays.** It returns a multi-element array
-  as a single object, and the pipeline does not flatten it: `@(...)` and
-  `ForEach-Object` yield one element holding every value concatenated. Works with
-  one element, breaks with two or more, without an error. Always iterate with
+- **`ConvertFrom-Json` does not unroll arrays**: a multi-element array comes back as
+  one object; `@(...)` and `ForEach-Object` yield one element with every value
+  concatenated. Works with one element, breaks with two. Iterate with
   `foreach ($x in (ConvertFrom-Json -InputObject $Json))`.
-- **`Start-Process -Wait` waits on the job object, not the process.** It returns
-  only once every descendant has exited, so a task hangs on an operation that
-  already succeeded (an installer leaving a telemetry helper alive). That same
-  behaviour is load-bearing for NSIS uninstallers that re-spawn into temp and exit
-  immediately — so do not "fix" it globally. Use `-PassThru` plus `WaitForExit()`
-  with a timeout where you need the process alone.
-
-## Environment
-
-The lab project (`ansible-win_edulab`, checked out next to this one) reaches this
-collection through a symlink under its `ansible_collections/`, so edits here take
-effect there with no reinstall. That project drives runs through its own
-`playbooks/win_wm.yaml`; this collection's own entry point is
-`ansible-playbook lineadicomando.win_workman.win_workman -e '{"todo": "chrome,vlc-off"}'`.
+- **`Start-Process -Wait` waits on the job object**, i.e. every descendant: a task
+  hangs after an installer that left a helper running. NSIS uninstallers that
+  re-spawn into temp depend on it, so do not change it globally; wait for the process
+  alone with `-PassThru` + `WaitForExit()` and a timeout. (`pkg_utils/start_process`
+  has a `win_workman_exec_wait_tree` switch for this, broken: see `TODO.md`.)

@@ -1,259 +1,227 @@
-# Role: pkg_utils
+# pkg_utils — Package workflow and shared toolbox
 
-> **Work in progress** — preliminary draft.
-
-Low-level package operations shared by all software roles. Not called directly
-by playbooks — schema roles delegate to it via `include_role tasks_from: pkg_workflow`.
-
----
-
-## Package schema format
-
-Each software role exposes a `win_workman_<schema>_schema` variable in
-`vars/main.yaml` with the following structure:
+Internal role, never dispatched to (the parser refuses `pkg_utils-…`). It implements
+the standard package actions for every schema role (`tasks_from: pkg_workflow`) and
+holds the task files other roles include with `tasks_from` instead of writing their
+own PowerShell. The actions themselves are described in
+[architecture](../../architecture.md#actions), the providers in
+[architecture](../../architecture.md#providers).
 
 ```yaml
-win_workman_<schema>_schema:
-  name: "Human-readable name"
-  default_action: !!str on      # action used when task string has no action token
-
-  package:
-    setup_file: installer.exe       # filename expected in storage/remote_tmp
-    searchName: "Registry display name"
-    version: "1.2.3"
-    provider: registry              # registry | portable
-    install_args:
-      - /VERYSILENT
-    uninstall_args:
-      - /VERYSILENT
-    uninstall_before_upgrade: false # uninstall old version before installing new
-    version_file: "%ProgramFiles%\\App\\app.exe"  # optional, see below
-    version_like: "26.*"            # optional: match only these DisplayVersions, see below
-    exclusive: false                # optional: remove other versions before installing
-    bundle_parts: "App 1.* (64-bit)" # optional: Burn bundle, see below
-    bundle_parts_last: "App 1.* Core (64-bit)" # optional: removed after the other parts
-    bundle_cleanup_keys: []         # optional: registry keys the bundle writes itself
-    bundle_cache_version_like: ""   # optional: orphaned Package Cache copies to drop
-
-  files:                            # list of downloadable assets
-    - filename: installer.exe
-      url: https://…
-      checksum: sha256:…
-      extract: 7z                   # optional: extract after download
-      dest_dir: SubDir              # optional: destination under portable_path
-
-  shortcuts:                        # optional: shortcuts to create/remove
-    - description: "App Name"
-      dest: "%PUBLIC%\\Desktop\\App.lnk"
-      target: "C:\\Program Files\\App\\app.exe"
+# roles/<role>/tasks/main.yaml of a package role
+- name: Run package workflow
+  ansible.builtin.include_role:
+    name: lineadicomando.win_workman.pkg_utils
+    tasks_from: pkg_workflow
+  vars:
+    win_workman_schema: "{{ win_workman_<role>_schema }}"
 ```
 
-For the difference between `registry` and `portable` providers see
-[architecture.md](../architecture.md#package-providers).
+`pkg_workflow` fails on an action outside `win_workman_pkg_actions` (`vars/main.yaml`:
+`on`, `off`, `info`, `download`, `copy`, `shortcuts`, `is_present`, `usr`), on `usr-*`
+for a schema without a `usr` block, and on any action but `usr`/`download` for a
+schema with only a `usr` block; then it includes `pkg_act_<action>`.
+
+## Package schema
+
+`win_workman_<role>_schema` in `roles/<role>/vars/main.yaml`. Every field but `name`,
+`role` and `default_action` is optional.
+
+| Field | Meaning |
+|---|---|
+| `name` | display name; the default portable directory when none is given |
+| `role` | FQCN of the role: hooks are included from it, its last segment names the `usr` policy |
+| `default_action` | action of a bare task string (`!!str on`) |
+| `package.setup_file` | installer under `win_workman_remote_tmp` (`package.filename` is a fallback); also what `copy`/cleanup handle when `files` is empty |
+| `package.setup_dir` | subdirectory of `win_workman_remote_tmp` holding `setup_file` (an extracted archive); removed after the install |
+| `package.searchName` | `-like` glob on `DisplayName` in the Uninstall keys (HKLM, WOW6432Node, HKCU of the connecting user); a string |
+| `package.version` | target `DisplayVersion`; omitted means `latest`: `on` reinstalls at every run (Chrome-style MSIs) |
+| `package.version_like` | `-like` glob on `DisplayVersion`, default `*`: see below |
+| `package.exclusive` | remove the other versions of `searchName` before installing: see below |
+| `package.version_file` | executable whose file version, against the MSI's `ProductVersion`, skips the install: see below |
+| `package.provider` | `registry` (default) or `portable`; for registry packages it is also passed to `win_package` (absent: `auto`) |
+| `package.install_args`, `uninstall_args` | list or string, `win_package` `arguments` |
+| `package.expected_return_code` | `win_package` return codes accepted on install |
+| `package.product_id` | uninstall by this id instead of the detected one (`detect`: use detection) |
+| `package.uninstall_via_helper` | `true`: run the detected `UninstallString` (+ `uninstall_args`) with `Start-Process -Wait` instead of `win_package`; exit codes in `uninstall_valid_rc` (default `[0]`) |
+| `package.uninstall_before_upgrade` | uninstall the old version before `on` upgrades, and allow a downgrade; with a portable file without checksum, reinstall at every run |
+| `package.cleanup_registry_key` | after uninstall, delete the Uninstall key the uninstaller left behind |
+| `package.cleanup_paths` | paths removed after a successful uninstall |
+| `package.portable_dir`, `portable_dirs` | install directories under `win_workman_portable_path`; derived otherwise from the `dest_dir` of the files, then from `name` |
+| `package.path_dirs` | directories under **`win_workman_portable_path`** added to the machine `PATH` by `on`, removed by `off` |
+| `package.bundle_parts`, `bundle_parts_last`, `bundle_cleanup_keys`, `bundle_cache_version_like` | Burn bundle registered per user: see below |
+| `package.before_install_ps_script`, `after_install_ps_script`, `before_uninstall_ps_script`, `after_uninstall_ps_script`, `after_copy_ps_script` | inline PowerShell run at that point (install/uninstall ones only when there is something to do) |
+| `files[]` | `filename`, `url`, `checksum` (`sha256:…`; without it `download` prints the sha256), `validate_certs`, `extract: 7z` (extracted with 7-Zip into `dest_dir`), `dest_dir` |
+| `shortcuts[]` | `description`, `src`, `dest`, `icon`, `directory`, `arguments`: `icon` and `directory` are required by the task; created by `on` and `shortcuts`, removed by `off` |
+| `services[]` | `name`, `start_mode`, `state`: stopped before install so locked files get replaced, set to the declared state after `on` |
+| `usr` | per-user deferred install: [below](#per-user-deferred-install-usr) |
+
+Hooks: a role whose `defaults/` sets `win_workman_schema_hooks: {before_install: true,
+…}` (keys `before_install`, `after_install`, `before_uninstall`, `after_uninstall`) gets
+`roles/<role>/tasks/<hook>.yaml` included at that point (`include_tasks.yaml`), only when
+there is something to install or uninstall. Only `gcpw` uses them.
+
+`on` classifies the operation as `install`, `upgrade`, `downgrade` or `noop` from the
+detected and the target version; a downgrade happens only with
+`uninstall_before_upgrade`. Before `win_package` it waits for Windows Installer
+(`wait_installer`) and retries return codes in `win_workman_installer_retry_codes`.
 
 ### Programs that update themselves (`version_file`)
 
-Browsers such as Chrome install the vendor's current MSI with no `version`
-pinned, while their own updater keeps moving them forward. When the updater
-gets ahead of the MSI the vendor publishes, and especially when it leaves no
-uninstall entry behind, detection finds nothing installed and the MSI refuses
-to downgrade: Chrome's fails with rc 1603, "a newer version is already
-installed".
-
-`version_file` names the program's executable (environment variables are
-expanded). After the installer is copied to the host, `on` compares the file
-version of that executable with the MSI's `ProductVersion`: when the program is
-the same or newer, the install is skipped, the installer removed from the
-temporary directory, and the task reports `ok`. The check only applies to
-`.msi` installers; with any other installer, or when the executable is missing,
-the install goes ahead as before.
-
-A program found only through `version_file` still has no uninstall entry, so
-`off` cannot remove it; the skip message says so.
+Browsers such as Chrome install the vendor's current MSI with no `version` pinned
+while their own updater moves them forward, at times leaving no uninstall entry. Then
+detection finds nothing and the MSI refuses to downgrade (Chrome: rc 1603, "a newer
+version is already installed"). With `version_file` (environment variables expanded),
+`on` compares, after copying the installer, the executable's file version with the
+MSI's `ProductVersion`: same or newer skips the install, removes the installer and
+reports `ok`. Only `.msi` installers are checked; a missing executable installs as
+usual. A program found only this way still has no uninstall entry, so `off` cannot
+remove it (the skip message says so).
 
 ### One role per major line (`version_like`, `exclusive`)
 
-Some vendors ship every release with the same unversioned `DisplayName` and the
-same MSI `UpgradeCode`: every Node.js MSI is "Node.js", and a newer one replaces
-an older one in place, so two major lines can never be installed together. A
-role per major line (`nodejs26`, `nodejs27`, …) then needs two fields:
+Some vendors ship every release with the same unversioned `DisplayName` and MSI
+`UpgradeCode` (every Node.js MSI is "Node.js"), so two major lines never coexist and a
+role per line (`nodejs26`, `nodejs27`) needs:
 
-- `version_like` — a `-like` pattern on `DisplayVersion` (`"26.*"`). `info`,
-  `is_present`, `on` and `off` see only the entries that match it, so
-  `nodejs26-off` leaves a Node.js 27 alone and `nodejs26-info` reports it
-  absent. Default `*`, every version, as before.
-- `exclusive` — when `true`, `on` uninstalls every machine-wide entry with the
-  same `searchName` and a version outside `version_like` before installing
-  (`pkg_exclusive.yaml`). The MSI would refuse to go back to an older major,
-  and would replace a newer one only when upgrading. Requires `version_like`;
-  without it the step is skipped, since every version would count as "other".
+- `version_like` (`"26.*"`): `info`, `is_present`, `on` and `off` see only matching
+  entries, so `nodejs26-off` leaves a Node.js 27 alone.
+- `exclusive: true`: `on` first uninstalls every machine-wide entry with the same
+  `searchName` and a version outside `version_like` (`pkg_exclusive.yaml`), since the
+  MSI refuses to go back to an older major and replaces a newer one only when
+  upgrading. Skipped without `version_like` (every version would be "other").
 
-`<role>-on` then means "this major line is the one on the host", in either
-direction. Listing two such roles in the same run makes them replace each other
-at every run.
+`<role>-on` then means "this major line is on the host", in either direction; two such
+roles in one run replace each other at every run.
 
 ### Burn bundles registered per user (`bundle_parts`)
 
-A WiX Burn bundle can install its MSI packages machine-wide while registering
-the bundle itself per user: the python.org installer does, even with
-`InstallAllUsers=1` (its log says *bundle scope: PerUser, package scope:
-PerMachine*). The entry the user sees under Apps then lives only in HKCU of the
-account that ran the install, so a schema that detects it works only for that
-account: connecting as anyone else, `info` reports the package absent, `on`
-reinstalls it at every run and `off` finds nothing to remove.
+A WiX Burn bundle can install its MSIs machine-wide but register the bundle only in
+HKCU of the account that ran it: python.org's does, even with `InstallAllUsers=1`
+(log: *bundle scope: PerUser, package scope: PerMachine*). Detecting the bundle entry
+works only for that account: for anyone else `info` says absent, `on` reinstalls at
+every run, `off` finds nothing. Such a schema detects one MSI through `searchName`
+(Python: `Python 3.14.* Core Interpreter (64-bit)`) and sets `bundle_parts` to a
+`DisplayName` glob matching every part and the bundle (`Python 3.14.* (64-bit)`). `off`
+(`bundle_parts_off.yaml`) then:
 
-Such a schema detects one of the bundle's MSIs instead, through `searchName`
-(Python: `Python 3.14.* Core Interpreter (64-bit)`), and sets `bundle_parts` to
-a `DisplayName` glob that matches every package of the bundle and the bundle
-entry itself (`Python 3.14.* (64-bit)`). `off` then works in two steps
-(`bundle_parts_off.yaml`):
+1. removes with `msiexec /x` every other machine-wide MSI entry matching the glob (and
+   `version_like`); the parts matching `bundle_parts_last` (string or list) go after
+   the others, in list order;
+2. uninstalls the detected MSI, last;
+3. removes what Burn would have removed with the bundle: the connecting account's
+   bundle registration when it matches the glob (uninstall key, the Package Cache copy
+   in `BundleCachePath`, the dependency provider key), the
+   `ProgramData\Package Cache\{ProductCode}v<version>` copy of every MSI removed, the
+   keys in `bundle_cleanup_keys` with their empty parents (Python writes
+   `HKLM:\SOFTWARE\Python\PythonCore\3.x\InstalledFeatures` itself);
+4. with `bundle_cache_version_like` (`"3.14.*"`), removes every
+   `{ProductCode}v<version>` cache directory whose version matches and whose product is
+   gone: an upgrade run by an account that does not own the old registration leaves
+   them, since Burn drops them only when upgrading its own related bundle.
 
-1. before the usual uninstall, every other machine-wide Windows Installer entry
-   matching the glob (and `version_like`) is removed with `msiexec /x`; the
-   parts matching a `bundle_parts_last` glob (a string or a list) go after the
-   others, in the order of that list;
-2. the detected MSI is uninstalled as usual, last of all.
-
-The order is not cosmetic. Python's MSIs locate their directory in AppSearch
-through the `python.exe` component of the *Executables* MSI, with two
-`DrLocator` rows that name each other as parent: while the component is
-installed the search ends there, once it is gone the search loops and msiexec
-dies with a stack overflow (`0xc00000fd`, rc 1603), leaving the part installed.
-The Python roles therefore set `bundle_parts_last` to the Executables MSI. The
-Core Interpreter and Executables MSIs have no AppSearch of their own.
-
-Then comes what Burn would have removed with the bundle, and `msiexec /x` does
-not: the bundle registration of the connecting account, when it matches the
-glob (the uninstall key, the Package Cache copy named by `BundleCachePath`, the
-dependency provider key); the `ProgramData\Package Cache\{ProductCode}v<version>`
-copy of every MSI removed; and the registry keys listed in
-`bundle_cleanup_keys`, with their parents pruned while empty (Python's bundle
-writes `HKLM:\SOFTWARE\Python\PythonCore\3.x\InstalledFeatures` itself).
-
-An upgrade run by an account that does not own the old bundle registration
-leaves the old MSIs' cache copies behind: Burn drops them only when it upgrades
-its own related bundle. With `bundle_cache_version_like` set (Python:
-`"3.14.*"`), `off` also removes every `{ProductCode}v<version>` directory whose
-version matches and whose product is no longer installed.
-
-Registrations in other profiles are left in place: they point at packages that
-are already gone.
-
----
-
-## Actions (`pkg_workflow`)
-
-`pkg_workflow` validates the action against `win_workman_pkg_actions` and fails
-immediately with a clear error if an unknown action is passed.
-
-| Action | Task file | Description |
-|---|---|---|
-| `on` | `pkg_act_on` | Install or upgrade |
-| `off` | `pkg_act_off` | Uninstall |
-| `download` | `pkg_act_download` → `download` | Download to `win_workman_storage_path` |
-| `copy` | `pkg_act_copy` | Copy from storage to remote temp |
-| `info` | `pkg_act_info` | Report installation state |
-| `is_present` | `pkg_act_is_present` | Assert package is installed |
-| `usr` | `pkg_act_usr` → `pkg_usr_<verb>` | Per-user deferred install, see [below](#per-user-deferred-install-usr) |
-
----
-
-## Key variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `win_workman_storage_path` | `~/win_workman_storage` | Controller-side installer storage |
-| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Staging dir on target; its ACL is set by the dispatcher, see [below](#remote-temporary-directory) |
-| `win_workman_portable_path` | `C:\PortableApps` | Root for portable apps |
-| `win_workman_portable_marker_name` | `.win_workman_source` | Marker naming the files a portable install directory was extracted from (see architecture.md) |
-| `win_workman_restart` | `true` | Allow reboot after install if needed |
-| `win_workman_restart_timeout` | `600` | Seconds to wait after reboot until sshd runs and servicing (TrustedInstaller, TiWorker) is idle |
-| `win_workman_default_lang` | `en_US` | Locale hint for multi-locale roles |
-| `win_workman_cleanup_uninstaller_dir` | `true` | Remove an install directory left holding only uninstaller files (`unins*`), at any depth: empty subdirectories do not keep it |
-| `win_workman_installer_wait_timeout` | `120` | Seconds to wait before win_package until no MSI holds the Windows Installer mutex; component servicing (TiWorker) is not waited for |
-| `win_workman_installer_retry_codes` | `[1601, 1618]` | win_package return codes retried as "installer busy" |
-| `win_workman_installer_retries` | `5` | Retries on those codes |
-| `win_workman_installer_retry_delay` | `60` | Seconds between retries |
-
-### Remote temporary directory
-
-`win_workman_remote_tmp` is where installers, archives and scripts are staged, and in
-the lab inventories it is also Ansible's own `ansible_remote_tmp`. When that
-directory does not exist, Ansible creates it readable by the connecting user alone
-(owner `ansible_user`, inheritance off, one entry). Whatever does not run as that
-user then fails there:
-
-- `become_user: SYSTEM` (the `wu` optional updates): the become wrapper stops with
-  `CompileAssemblyFromSource ... path not found`;
-- a SYSTEM scheduled task (`run_as_system`) or the Windows Installer service reading
-  a staged file (`openssh-update`);
-- another `ansible_user` connecting to the same PC later.
-
-`remote_tmp.yaml` gives the directory, and `ansible_remote_tmp` when it is a
-different absolute path, the ACL every role expects: SYSTEM and Administrators full
-control, inherited by what is created inside, no inheritance from
-`C:\Windows\Temp`, nothing else. Users get no access: installers run as SYSTEM from
-there, and a user able to replace one would run code as SYSTEM. The
-`ansible-moduletmp-*` directories Ansible creates for each module keep their own ACL,
-private to the connecting user.
-
-The dispatcher runs it once per host before the first task that connects to the
-host, so a PC whose directory still has the old ACL is fixed on its next run.
-Controller-only tasks (`wol`) do not trigger it, so `wol,chrome` wakes a powered-off
-PC before anything tries to reach it. It reports a change only when the ACL was
-different. `win_iso` creates the directory with this ACL during Setup, so it
-is right from the first run. Roles included without the dispatcher can call it
-themselves:
-
-```yaml
-- ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: remote_tmp
-```
+The order matters: Python's MSIs find their directory in AppSearch through the
+`python.exe` component of the *Executables* MSI, with two `DrLocator` rows naming each
+other as parent; once that component is gone the search loops and msiexec dies with a
+stack overflow (`0xc00000fd`, rc 1603), leaving the part installed. The Python roles
+therefore set `bundle_parts_last` to the Executables MSI (Core Interpreter and
+Executables have no AppSearch of their own). Registrations in other profiles are left:
+they point at packages already gone.
 
 ### Uninstall cleanup
 
-`off` removes more than the package itself, in this order: the registry key (only
-when the schema sets `cleanup_registry_key`), the schema's `cleanup_paths`, then
-the install directory if nothing but uninstaller files is left in it.
+After the uninstall, `off` removes in order: the Uninstall key (`cleanup_registry_key`;
+detection then runs again, so the next steps judge the state after it),
+`cleanup_paths` (only once the package is no longer detected), then the install
+directory (`InstallLocation`, or the uninstaller's folder) when every file left in it,
+at any depth, matches `unins*`. Inno Setup cannot delete the `unins000.exe` it runs
+from, so every Inno package (`vscode`, `git`, `gimp`, `netbeans`, `winmerge`, `peazip`,
+`laragon`) leaves that directory; Laragon keeps its uninstaller in `bin\laragon`, hence
+"at any depth". A directory holding anything else is reported and kept; drive roots and
+shared system directories are refused. `win_workman_cleanup_uninstaller_dir: false`
+keeps the leftovers; a package whose non-empty directory must go uses `cleanup_paths`.
 
-That last step is global, not per-role: Inno Setup cannot delete the
-`unins000.exe` it is running from, so every Inno-based package (`vscode`, `git`,
-`gimp`, `netbeans`, `winmerge`, `peazip`, `laragon`) leaves its install directory
-behind holding that one file. The step removes the directory only when *every*
-remaining entry matches `unins*` and is not a subdirectory — a directory still
-holding user data, extensions or a second product is reported and left alone.
-Drive roots and shared system directories are refused outright.
+## Toolbox (`tasks_from`)
 
-Set `win_workman_cleanup_uninstaller_dir: false` to keep the leftovers. A role
-that needs a non-empty install directory removed wholesale should use
-`cleanup_paths` instead, which makes that intent explicit per package.
+Files meant for roles to include. Inputs go in `vars:` of the `include_role`; the
+`pkg_act_*`, `pkg_usr_*`, `pkg_workflow`, `pkg_exclusive`, `bundle_parts_off`,
+`info`, `win_extract` and `include_tasks` files are the workflow's own.
 
----
+| tasks_from | Does | Inputs → output |
+|---|---|---|
+| `profiles` | list local user profiles (SID `S-1-5-21-*`, non-special) | `win_workman_profiles_include` / `_exclude` (name or `DOMAIN\name` globs), `_single`, `_include_default` → `win_workman_profiles` |
+| `logoff` | log off every user session (any WTS state, not session 0 or system accounts) and wait for them to end; fails on timeout | `win_workman_logoff_timeout_seconds` |
+| `user_sessions` | list user sessions (any state); fails rather than return a partial list | → `win_workman_user_sessions` (`SessionId`, `UserName`, `State`) |
+| `restart` | `win_reboot`, back when sshd runs, uptime ≥ 60 s and TrustedInstaller/TiWorker idle for 20 s | `win_workman_restart_timeout` |
+| `pending_restart` | reboot (through `restart`) only when CBS `RebootPending`, WU `RebootRequired`, `PendingFileRenameOperations` or `WinSxS\pending.xml` is set, logging why and the first 20 file operations | → `win_workman_pending_restart` |
+| `kill` | stop processes by name | `win_workman_kill_process_name` or `_image_name` (string or list), `_user_name`, `_force` (default `true`) |
+| `services_stop` | stop the services of `win_workman_schema.services` that exist | `win_workman_schema` |
+| `detect_sw` | find an installed program in the Uninstall keys (HKLM, WOW6432Node, HKCU), optionally AppX; best match by version, then MSI over registry, machine over user | `win_workman_detect_sw_args: {name_like (string or list), version_like, version_not_like, search_appx}` → `win_workman_detect_sw.result` (`installed`, `id`, `provider`, `display_name`, `display_version`, `install_location`, `uninstall_string`, `scope`, `registry_key`, `match_count`, `results` when > 1) |
+| `registry_read` | read one registry value (accepts `HKLM\…` and `HKLM:\…` forms) | `win_workman_winreg_path`, `win_workman_winreg_name` → `win_workman_registry_read.result` (`exists`, `value`, `kind`) |
+| `se_read` | read the holders of a user right through `secedit /export` (fails if the export fails) | `win_workman_se_read_right` → `win_workman_se_read.result` |
+| `detect_lang` | set `win_workman_default_lang` from the host locale | `win_workman_detect_lang_allowed` (required), `_map` (BCP47 → code); match order: map, `it-IT`→`it_IT`, `it`; unchanged when nothing matches |
+| `download` | fetch `win_workman_schema.files` to `win_workman_storage_path` on the controller, run once, 3 retries | `win_workman_schema` |
+| `win_copy` | copy the files (or `setup_file`) to `win_workman_remote_tmp` (portable: `win_workman_portable_path`, honouring `dest_dir`), extract `extract: 7z` entries, run `after_copy_ps_script` | `win_workman_schema` |
+| `win_clean_temp` | delete the copied files and `setup_dir` from `win_workman_remote_tmp`; a locked file is reported, not failed | `win_workman_schema` |
+| `7zip` | stage `7zr.exe` and 7-Zip Extra on the host and run `a`, `e` or `x` | `win_workman_7zip_command`, `_archive_path`, `_source_path` → `win_workman_7zip` |
+| `win_path` | add or remove `portable_path\<dir>` for each `package.path_dirs` in the machine `PATH` | `win_workman_schema`, `win_workman_schema_win_path_state` |
+| `shortcuts` | create or remove `win_workman_schema.shortcuts` | `win_workman_schema`, `win_workman_schema_shortcuts_state` |
+| `shortcut_cleaner` | delete `.lnk` files in a folder whose target matches a regex and arguments a glob | `win_workman_shortcut_cleaner_path`, `_target_regex`, `_arguments_like` |
+| `start_process` | run an executable, check its exit code | `win_workman_exec_path`, `_args` (string or list), `_success_exit_codes` (default `[0]`), `_wait_tree` (default `true`: waits on the job object), `_timeout` → `win_workman_start_process_response` |
+| `run_as_system` | run an executable as SYSTEM through a temporary scheduled task, removed afterwards | `win_workman_system_task_exe`, `_name`, `_args`, `_timeout` (180) → `win_workman_run_as_system_result` |
+| `wait_installer` | wait until no MSI holds `Global\_MSIExecute`; warns and goes on at timeout | `win_workman_installer_wait_timeout` |
+| `remote_tmp` | give the remote temporary directories the ACL below | `win_workman_remote_tmp`, `ansible_remote_tmp` |
+
+`start_process` has no caller in the collection today. With `_wait_tree: true`,
+`Start-Process -Wait` waits for every descendant, which bootstrapper installers need
+and which hangs on a stray helper (Autodesk uninstallers leave their analytics client):
+see `CLAUDE.md`.
+
+## Variables
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `win_workman_storage_path` | `$HOME/win_workman_storage` | controller-side installer storage |
+| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | staging directory on the host |
+| `win_workman_portable_path` | `C:\PortableApps` | root of portable packages and of `path_dirs` |
+| `win_workman_portable_marker_name` | `.win_workman_source` | marker of a portable install ([providers](../../architecture.md#providers)) |
+| `win_workman_default_lang` | `en_US` | locale hint of multi-locale roles; `detect_lang` overwrites it |
+| `win_workman_restart` | `true` | roles may reboot (read by `wu` and `sfc`; `restart.yaml` does not check it) |
+| `win_workman_restart_timeout` | `600` | seconds `restart` waits for the host |
+| `win_workman_logoff_timeout_seconds` | `300` | seconds `logoff` waits for the sessions to end |
+| `win_workman_installer_wait_timeout` | `120` | seconds `wait_installer` waits; TiWorker is not waited for |
+| `win_workman_installer_retry_codes` | `[1601, 1618]` | `win_package` codes meaning "installer busy" |
+| `win_workman_installer_retries` / `_retry_delay` | `5` / `60` | retries and seconds between them |
+| `win_workman_cleanup_uninstaller_dir` | `true` | remove the install directory left with only `unins*` files |
+| `win_workman_usr_path`, `_usr_targets`, `_usr_timeout`, `_usr_apply_timeout` | | [per-user install](#variables-of-usr) |
+
+## Remote temporary directory
+
+`win_workman_remote_tmp` stages installers, archives and scripts, and in the lab
+inventories it is also `ansible_remote_tmp`. When missing, Ansible creates it readable
+by the connecting user alone (owner `ansible_user`, inheritance off), and whatever does
+not run as that user then fails there: `become_user: SYSTEM` (the optional updates of
+`wu`: `CompileAssemblyFromSource ... path not found`), a SYSTEM scheduled task
+(`run_as_system`), the Windows Installer service reading a staged file
+(`openssh-update`), another `ansible_user` later.
+
+`remote_tmp.yaml` sets on it, and on `ansible_remote_tmp` when that is another absolute
+path: SYSTEM and Administrators full control, inherited, no inheritance from
+`C:\Windows\Temp`, nothing else. Users get nothing: installers run as SYSTEM from there,
+so a user able to replace one would run code as SYSTEM. The `ansible-moduletmp-*`
+directories keep their own ACL, private to the connecting user. The dispatcher runs it
+once per run before the first task that connects to the host (a leading `wol` does not
+trigger it, so `wol,chrome` works on a powered-off PC); it reports a change only when
+the ACL differed. `win_iso` creates the directory with this ACL during Setup. Roles
+included without the dispatcher can include `tasks_from: remote_tmp` themselves.
 
 ## Per-user deferred install (`usr`)
 
-Some software ships only a per-user installer: it installs into the profile of
-whoever runs it (`%LOCALAPPDATA%\Programs`, `HKCU` uninstall key), even when run
-elevated. Run by Ansible it would land in the Ansible user's profile. The `usr`
-action installs it for other users instead, by deferring the install to their
-logon.
-
-### Install scopes
-
-A schema declares what it supports through its blocks:
-
-| Block | Scope | Actions |
-|---|---|---|
-| `package` | `sys` — machine-wide, now | `on`, `off`, `info`, `copy`, `shortcuts`, `is_present` |
-| `usr` | `usr` — per user, at logon | `usr-<verb>` |
-
-A schema may carry both. `download` works for either. `pkg_workflow` refuses
-`usr-*` on a schema without a `usr` block, and the machine-wide actions on a
-schema that has only a `usr` block, pointing to the right syntax. The MCP
-`get_role_info` tool reports the result as `install_scopes`.
-
-### Task syntax
+Some software ships only a per-user installer: run by Ansible it lands in the Ansible
+user's profile (`%LOCALAPPDATA%\Programs`, HKCU uninstall key), even elevated. The `usr`
+action defers the install to each target user's logon. A schema may carry both a
+`package` (machine-wide, now) and a `usr` block; `get_role_info` reports them as
+`install_scopes`.
 
 ```
 <schema>-usr-<verb>[-<target>[+<target>…]]
@@ -261,26 +229,18 @@ schema that has only a `usr` block, pointing to the right syntax. The MCP
 
 | Verb | Effect |
 |---|---|
-| `on` *(default)* | Download, stage the installer on the host, mark the targets `present` |
-| `off` | Mark the targets `absent`; without targets, every target of the policy |
-| `info` | Policy, and per profile (or per given target) installed version and last agent outcome |
-| `apply` | Run the agent now for the logged-on users and wait for it |
-| `purge` | Remove the policy and staged installer; takes no targets |
+| `on` *(default)* | download, stage the installer, mark the targets `present` |
+| `off` | mark the targets `absent`; without targets, every target of the policy |
+| `info` | policy, and per profile (or given target) installed version and last agent outcome |
+| `apply` | run the agent now in every interactive session and wait for it |
+| `purge` | remove the policy and the staged installer (installed copies stay); no targets; the last purge also removes task, agent and tree |
 
-Targets are account or group names, `DOMAIN\name`, or SIDs, joined by `+`.
-Everything after the verb is rejoined on `-` before splitting on `+`, so names
-containing dashes work: `zed-usr-on-student-alice+student-bob`. `+` cannot occur in a
-Windows or AD account name; `,` cannot be used because it separates tasks in the
-`todo` extra var. Without targets, `on` uses `win_workman_usr_targets`.
-
-`on` and `off` merge into the policy rather than replace it, so they compose:
-
-```
-zed-usr-on                 # every member of BUILTIN\Users
-zed-usr-off-student-bob    # …except student-bob, who uninstalls at next logon
-```
-
-### How it works
+Targets are account or group names, `DOMAIN\name` or SIDs, joined by `+`; everything
+after the verb is rejoined on `-` first, so `zed-usr-on-student-alice+student-bob`
+works (`+` cannot occur in an account name, `,` separates tasks in `todo`). Without
+targets `on` uses `win_workman_usr_targets`. `on` and `off` merge into the policy:
+`zed-usr-on` then `zed-usr-off-student-bob` means every member of `BUILTIN\Users` except
+student-bob, who uninstalls at next logon.
 
 ```
 C:\ProgramData\win_workman\usr\
@@ -289,99 +249,59 @@ C:\ProgramData\win_workman\usr\
 └── payload\<schema>\<version>\   # staged installer
 ```
 
-- **Logon task** `\win_workman\usr-agent`: principal `BUILTIN\Users`, trigger at
-  logon of any user, runs the agent through `conhost.exe --headless` in that
-  user's session, without elevation. No password is stored.
-  `usr-apply` starts the same task on demand: it runs in every interactive
-  session.
-- **The agent**, for each policy that applies to the user, reads the `HKCU`
-  uninstall key named by `uninstall_key` and then installs (missing or older),
-  does nothing (same or newer: it never downgrades, because packages such as
-  Zed update themselves), or uninstalls (`absent`, waiting for the key to go,
-  since Inno Setup and NSIS uninstallers return before they finish).
-  It verifies the installer's sha256 before running it and records the outcome
-  under `HKCU\Software\win_workman\usr\<schema>` (`State`, `Result`, `Changed`,
-  `Version`, `Message`, `Timestamp`), plus a log in
+- **Logon task** `\win_workman\usr-agent`: principal `BUILTIN\Users`, trigger at any
+  logon, runs the agent via `conhost.exe --headless` in the user's session, not
+  elevated, no stored password. `usr-apply` starts it on demand.
+- **Agent**: for each policy that applies, reads the HKCU uninstall key `uninstall_key`,
+  then installs (missing or older), does nothing (same or newer: never downgrades,
+  since Zed and the like update themselves) or uninstalls (`absent`, waiting for the
+  key to go, since Inno and NSIS uninstallers return early). It checks the sha256
+  first and records `State`, `Result`, `Changed`, `Version`, `Message`, `Timestamp`
+  under `HKCU\Software\win_workman\usr\<schema>`, log in
   `%LOCALAPPDATA%\win_workman\usr-agent.log`.
-- **Rule resolution**: targets are stored by SID, resolved on the host when the
-  policy is written, and matched against the user's token. An entry naming the
-  user wins over group entries; among group entries that disagree, `absent`
-  wins. A user matched by no entry is left alone. Each entry also records its
-  `kind` (`user`, `group`, `computer`, `unknown`, from `LookupAccountSid`): check it, because a
-  mistyped name can resolve to a group — on an Italian Windows `nessuno` is the
-  local group *None*. An unresolvable name fails the task.
-- **Access control**: the tree grants Users read and execute only. Every user
-  who logs on runs the agent and the payload, so write access for one user would
-  mean running code as all the others.
+- **Rules**: targets are resolved to SIDs on the host when the policy is written and
+  matched against the user's token; a user entry beats group entries, among groups
+  `absent` wins, an unmatched user is left alone. Each entry records its `kind`
+  (`user`, `group`, `computer`, `unknown`): check it, a typo can resolve to a group (on
+  an Italian Windows `nessuno` is the local group *None*). An unresolvable name fails.
+- **ACL**: Users get read and execute only; write access for one user would mean
+  running code as all the others.
 
-### Why a logon task
-
-Measured on Windows 11 25H2 before choosing it:
-
-- A task with an `S4U` principal (no password) for another user cannot be
-  registered: *Access denied* from the Ansible session, from SYSTEM, with the
-  batch logon right granted, and with the target in Administrators.
-- A `Password` principal works, creates the profile of a user who never logged
-  on, and runs at once, but needs every user's password and the
-  *Log on as a batch job* right, which standard users lack.
-- A group principal at logon needs neither, covers users created later and
-  domain users who never logged on, and can still be started on demand for the
-  users already logged on.
-
-The cost is that `usr-on` does not install anything by itself: `usr-info` tells
-who has what.
-
-### Schema block
+Why a logon task (measured on Windows 11 25H2): an `S4U` task for another user cannot
+be registered (*Access denied* from the Ansible session, from SYSTEM, with the batch
+logon right, with the target in Administrators); a `Password` principal works but needs
+every password and *Log on as a batch job*, which standard users lack; a group
+principal at logon needs neither and covers users created later and domain users who
+never logged on. The cost: `usr-on` installs nothing by itself, `usr-info` tells who has
+what.
 
 ```yaml
 win_workman_zed_schema:
   name: Zed
-  role: lineadicomando.win_workman.zed      # its last segment names the policy
+  role: lineadicomando.win_workman.zed      # last segment names the policy
   default_action: usr
   usr:
-    setup_file: Zed-x86_64-1.19.2.exe       # must match a files entry with a sha256
-    version: "1.19.2"
+    setup_file: Zed-x86_64-<version>.exe     # needs a files entry with a sha256
+    version: "<version>"
     uninstall_key: "{2DB0DA96-CA55-49BB-AF4F-64AF36A86712}_is1"   # under HKCU\…\Uninstall
     install_args: [/VERYSILENT, /SUPPRESSMSGBOXES, /NORESTART]
     uninstall_args: [/VERYSILENT, /SUPPRESSMSGBOXES, /NORESTART]
-    success_exit_codes: [0]                 # optional
-    timeout: 900                            # optional, seconds
+    success_exit_codes: [0]                  # optional
+    timeout: 900                             # optional, seconds
   files:
-    - filename: Zed-x86_64-1.19.2.exe
-      url: https://github.com/zed-industries/zed/releases/download/v1.19.2/Zed-x86_64.exe
-      checksum: sha256:dd8fd2b2…
+    - filename: Zed-x86_64-<version>.exe
+      url: https://…
+      checksum: sha256:…
 ```
 
-Bumping `version` and running `usr-on` again stages the new installer, removes
-the previous one, and upgrades each user at their next logon.
+Bumping `version` and running `usr-on` again stages the new installer, removes the old
+one, and upgrades each user at the next logon.
 
-### Variables
+### Variables of usr
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_usr_targets` | `[BUILTIN\Users]` | Targets of a bare `usr-on` |
-| `win_workman_usr_path` | `C:\ProgramData\win_workman\usr` | Root of policies, payloads and agent |
-| `win_workman_usr_timeout` | `900` | Seconds the agent allows an installer or uninstaller |
-| `win_workman_usr_apply_timeout` | `900` | Seconds `usr-apply` waits for the agent in every session |
-
----
-
-### Available actions list
-
-`pkg_utils` also exposes `win_workman_pkg_actions` (defined in `vars/main.yaml`)
-as the canonical list of valid action strings. Schema roles can use it for
-validation or branching.
-
----
-
-## Calling pkg_utils from a schema role
-
-```yaml
-# roles/myrole/tasks/main.yaml
-- name: Run package workflow
-  ansible.builtin.include_role:
-    name: lineadicomando.win_workman.pkg_utils
-    tasks_from: pkg_workflow
-  vars:
-    win_workman_schema: "{{ win_workman_myrole_schema }}"
-```
+| `win_workman_usr_targets` | `[BUILTIN\Users]` | targets of a bare `usr-on` (validated like inline ones) |
+| `win_workman_usr_path` | `C:\ProgramData\win_workman\usr` | root of agent, policies, payloads |
+| `win_workman_usr_timeout` | `900` | seconds the agent allows an installer or uninstaller |
+| `win_workman_usr_apply_timeout` | `900` | seconds `usr-apply` waits in every session |

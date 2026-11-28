@@ -1,99 +1,44 @@
-# Role: audacity
+# audacity — Audacity 4
 
-> **Work in progress** — preliminary draft.
-
-Manages Audacity, a free and open-source multi-track audio editor and recorder.
-Supports standard package operations: install, uninstall, download, and info
-queries.
-
----
+Installs Audacity 4.x from the upstream x86_64 MSI (upstream also publishes an arm64
+MSI, not covered), under `%ProgramFiles%\Audacity 4` (`bin\Audacity4.exe`), and
+removes older releases on the way.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Install or upgrade Audacity |
-| `off` | Uninstall Audacity |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that Audacity is installed |
-
----
-
-## Configuration
-
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `win_workman_audacity_superseded_searchnames` | list | `["Audacity 1*", "Audacity 2*", "Audacity 3*"]` | Registry `DisplayName` globs of the releases `on` uninstalls before installing |
-| `win_workman_audacity_superseded_uninstall_args` | list | `[/VERYSILENT, /NORESTART, /SUPPRESSMSGBOXES]` | Silent switches passed to the Inno Setup uninstaller of those releases |
-
-Otherwise Audacity is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - audacity
-  - audacity-off
-```
-
----
-
-## Schema details
-
-Software name: `Audacity`  
-Provider: `msi`  
-Installer: `audacity-win-4.0.2-x86_64.msi`  
-Homepage: https://www.audacityteam.org
-
----
+| `on` | Uninstalls every superseded release (1.x–3.x), then installs or upgrades 4.x |
 
 ## Notes
 
-Audacity 4.0 is the first release of the new major line and the first shipped as an
-MSI; 3.x and earlier are Inno Setup packages. Only the x86_64 package is covered —
-upstream also publishes an arm64 MSI.
-
-The MSI carries a WiX `MajorUpgrade`, so a newer 4.x build replaces the installed one
-in place and `uninstall_before_upgrade` is not needed.
-
-### Superseded releases
-
-`searchName` is scoped to `Audacity 4*`, because the registry `DisplayName` is the MSI
-`ProductName`, `Audacity 4.0`. The 4.x MSI also carries its own `UpgradeCode` and
-supersedes only itself, so an Audacity 3.x install would survive the upgrade and the
-two would sit side by side — the old one registered as `Audacity_is1` under
-`C:\Program Files\Audacity`, the new one under `C:\Program Files\Audacity 4`.
-
-`on` therefore removes them first: for every glob in
-`win_workman_audacity_superseded_searchnames` it runs `pkg_utils/pkg_act_off` with a
-throwaway schema, which detects the entry, reads its `UninstallString` and runs it
-with the Inno Setup silent switches. A glob that matches nothing is a no-op, so the
-action stays idempotent on a machine that only ever had 4.x.
-
-The Inno uninstaller only deletes what it registered, so anything added to the install
-tree afterwards survives it — bundled plug-ins carried over from an older release,
-`mod-script-pipe.dll`, language files — and `pkg_utils`' own leftovers pass refuses, by
-design, to remove a directory holding anything but `unins*`. The throwaway schema
-therefore lists `%ProgramFiles%\Audacity` and `%ProgramFiles(x86)%\Audacity` as
-`cleanup_paths`. That takes the whole directory: a Nyquist plug-in a teacher dropped in
-by hand goes with it and has to be put back under the 4.x install tree. The cleanup runs
-only when an uninstall actually happened, so a machine that never had a superseded
-release is untouched.
-
-When a 5.x line eventually supersedes this one, add `"Audacity 4*"` to that list.
-
-Note that `off` removes only what `searchName` matches, so it uninstalls 4.x and
-leaves an older release alone. Removing everything is a property of installing, not of
-uninstalling.
-
-The MSI creates the desktop and Start Menu shortcuts itself, so the schema declares
-none — but it ships without an `ALLUSERS` property, so on its own it puts them in the
-profile of whichever user runs the installer, which over SSH is the Ansible account and
-not the people using the machine. The role therefore passes `ALLUSERS=1`, which moves
-them to `%Public%\Desktop` and `%ProgramData%`. Verified on a lab VM: without the
-argument the only shortcuts created were under `C:\Users\maint`.
-
-The application lands in `%ProgramFiles%\Audacity 4\bin\Audacity4.exe`.
+- 4.0 is the first release shipped as an MSI; 3.x and earlier are Inno Setup
+  packages, registered as `Audacity_is1` with the version in the DisplayName
+  (`Audacity 3.7.9`) under `C:\Program Files\Audacity`. The MSI's DisplayName is its
+  ProductName (`Audacity 4.0`), so `searchName` is `Audacity 4*`.
+- The MSI carries a WiX `MajorUpgrade`: a newer 4.x build replaces the installed one
+  in place. Its `UpgradeCode` supersedes only the 4.x line, so a 3.x install would
+  survive and sit side by side. `on` therefore first runs `pkg_utils/pkg_act_off`
+  with a throwaway schema for each glob in `win_workman_audacity_superseded_searchnames`
+  (`Audacity 1*`, `2*`, `3*`), running the Inno uninstaller with
+  `win_workman_audacity_superseded_uninstall_args` (`/VERYSILENT /NORESTART
+  /SUPPRESSMSGBOXES`). A glob that matches nothing is a no-op. Both lists are in
+  `vars/main.yaml`; add `"Audacity 4*"` there when a 5.x line supersedes this one.
+- The Inno uninstaller deletes only what it registered: on a real lab workstation six
+  files survived (bundled Nyquist plug-ins carried over from older releases,
+  `mod-script-pipe.dll`, `lib-cloud-upload.dll`, `README.txt`), and pkg_utils'
+  leftovers pass by design removes a directory only when nothing but `unins*`
+  remains. The throwaway schema lists `%ProgramFiles%\Audacity` and
+  `%ProgramFiles(x86)%\Audacity` as `cleanup_paths`, run only when an uninstall
+  actually happened. That takes the whole directory: a Nyquist plug-in a teacher
+  dropped in by hand goes with it and has to be put back under the 4.x tree.
+- `off` removes only 4.x and leaves an older release alone: removing those is a
+  property of installing.
+- The MSI declares no `ALLUSERS`, so on its own it puts the desktop and Start Menu
+  shortcuts in the profile of whoever runs it, over SSH the Ansible account. The role
+  passes `ALLUSERS=1`, which moves them to `%Public%\Desktop` and `%ProgramData%`
+  (verified on a lab VM: without it the only shortcuts were in the Ansible account's
+  profile). The schema declares no shortcuts of its own.
+- Tested 2026-11-25 on a Windows test VM (4.0.2): download, copy, on, a no-op second
+  on, is_present, off and info passed; the install directory, shortcuts and uninstall
+  entry were gone after off.

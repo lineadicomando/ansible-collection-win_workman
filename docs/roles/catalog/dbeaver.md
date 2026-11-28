@@ -1,51 +1,9 @@
-# Role: dbeaver
+# dbeaver — DBeaver Community
 
-> **Work in progress** — preliminary draft.
-
-Manages DBeaver, a free and open-source universal database tool. Supports standard
-package operations: install, uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade DBeaver |
-| `off` | Uninstall DBeaver |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that DBeaver is installed |
-
----
-
-## Configuration
-
-No variables. DBeaver is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - dbeaver
-  - dbeaver-off
-```
-
----
-
-## Schema details
-
-Software name: `DBeaver`  
-Provider: `registry`  
-Installer: `dbeaver-ce-26.2.5.2-windows-x86_64.exe`  
-Homepage: https://dbeaver.io
-
----
+DBeaver Community, machine-wide from the NSIS installer (`/S /allusers`), `registry`
+provider; the schema adds `%Public%\Desktop\DBeaver.lnk`. No variables.
 
 ## Notes
 
-DBeaver supports over 80 database types including PostgreSQL, MySQL, SQLite,
-Oracle, SQL Server, and NoSQL databases. Community Edition (CE) is feature-rich
-and sufficient for most use cases.
+- `off` uninstalls through the NSIS helper (`uninstall_via_helper`, uninstall key
+  `DBeaver`).

@@ -1,50 +1,11 @@
-# Role: vlc
+# vlc — VLC media player
 
-> **Work in progress** — preliminary draft.
-
-Manages VLC Media Player, a free and open-source multimedia player. Supports
-standard package operations: install, uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade VLC |
-| `off` | Uninstall VLC |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that VLC is installed |
-
----
-
-## Configuration
-
-No variables. VLC is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - vlc
-  - vlc-off
-```
-
----
-
-## Schema details
-
-Software name: `VLC Media Player`  
-Provider: `registry`  
-Installer: `vlc-*.exe` (version varies)  
-Homepage: https://www.videolan.org/
-
----
+Installs VLC from the upstream NSIS installer (`/S`). Standard package actions only.
 
 ## Notes
 
-VLC supports a wide range of audio and video formats. Can also function as a
-streaming server and supports subtitles. Known for handling corrupted or incomplete media files.
+- `off` runs the registered uninstaller directly (`uninstall_via_helper`), as for
+  every NSIS installer in the collection.
+- The sha256 is the videolan.org sidecar, checked against the mirror download.
+- Tested 2026-11-17 on a real host: upgrade from 3.0.23, `info` then reported 3.0.24
+  with a single uninstall entry.

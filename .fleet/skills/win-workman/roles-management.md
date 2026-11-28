@@ -14,8 +14,8 @@ Notes: Removal-only role: "off" is the only supported action and must be spelled
 Variables:
 - `win_workman_autologon_user` str (default `{{ ansible_user }}`): Username for autologon; defaults to the Ansible connection user
 - `win_workman_autologon_password` str (default `{{ ansible_password }}`): Password for autologon; defaults to the Ansible connection password
-- `win_workman_autologon_restart` bool (default `False`): Restart the host after enabling autologon
-Notes: Credentials are written to the registry (Winlogon). Use vault-encrypted vars for the password.
+- `win_workman_autologon_restart` bool (default `False`): Restart the host after on/off, only when something changed
+Notes: The password is stored as the LSA secret DefaultPassword, decryptable by any administrator of the host. Use a dedicated account and a vaulted password.
 
 ### autoshutdown: Automatic Shutdown
 
@@ -122,8 +122,8 @@ Notes: Does not install software.
 
 ### ms_account: Microsoft Account (block/unblock)
 
-- `ms_account-on`: Allow Microsoft account logon (unblock)
-- `ms_account-off`: Block Microsoft account logon via local policy
+- `ms_account-on`: Default. Block Microsoft accounts (NoConnectedUser=3, MicrosoftAccount DisableUserAuth=1): local accounts only
+- `ms_account-off`: Allow Microsoft accounts again (removes both policy values)
 Notes: Does not install software; manages a registry/policy setting only.
 
 ### oobe: Windows OOBE
@@ -253,7 +253,7 @@ Variables:
 - `win_workman_wallpaper_set_style` str (default `10`): Wallpaper style: 0=center, 2=stretch, 6=fit, 10=fill, 22=span
 - `win_workman_wallpaper_set_tile` str (default `0`): Tiling: 0=off, 1=on
 - `win_workman_wallpaper_profiles_include_default` bool (default `True`): Apply wallpaper to the default user profile (new user template)
-- `win_workman_wallpaper_default_path` str (default `%SystemRoot%\Web\Wallpaper\Windows\img0.jpg`): Wallpaper restored by reset
+- `win_workman_wallpaper_default_path` str (default `{{ ansible_env.SystemRoot | default('C:\Windows') }}\Web\Wallpaper\Windows\img0.jpg`): Wallpaper restored by reset
 - `win_workman_wallpaper_default_style` str (default `10`): Style restored by reset
 - `win_workman_wallpaper_default_tile` str (default `0`): Tiling restored by reset
 
@@ -309,12 +309,12 @@ Notes: Requires MAC address in inventory. Use the dedicated 'wol' playbook for b
 - `wu-sync_ui`: Bring the Windows Update page of Settings in line with what is installed: an interactive Update Orchestrator scan in the logged-on user's session, then a wait for the new scan date. Fixes updates already installed by wu-run that Settings still offers ("Scarica e installa") or shows as failed. Skips hosts with nobody logged on. wu-run does it on its own after installing (win_workman_wu_sync_ui)
 - `wu-reset`: By hand only, for a host whose Windows Update state is stuck (reboot asked for at every logon, history entries left in progress with 0x80242014, a "versione di ripristino" of an older release): stops the update services, renames SoftwareDistribution, catroot2 and the Update Orchestrator store (kept as .wu-reset-<stamp>, earlier copies deleted), clears RebootRequired, starts the services, then refreshes Settings and lists what is offered. Loses the download cache and the history in Settings. Refuses while updates are installing (TiWorker running)
 - `wu-on`: Resume Windows Update (alias for resume)
-- `wu-off`: Pause Windows Update at max duration (alias for pause at max)
+- `wu-off`: Pause Windows Update for win_workman_wu_default_max_pause_days days (35), still bounded by FlightSettingsMaxPauseDays
 - `wu-pause`: Pause Windows Update. Bare wu-pause uses win_workman_wu_pause_months plus win_workman_wu_pause_days; wu-pause-<n>[-d|-w|-m] gives the duration in days, weeks or calendar months (end date computed on the host, e.g. wu-pause-1-m on 10 Nov ends on 10 Dec). A pause longer than FlightSettingsMaxPauseDays (default 35) is shortened to it; raise it with max_pause_days first
 - `wu-max_pause_days`: Read or set FlightSettingsMaxPauseDays: without args reports current value; with a duration (e.g. max_pause_days-35, max_pause_days-5-w, max_pause_days-6-m) sets the cap, in days (a month counts as 31). The cap only bounds wu-pause/wu-off of this role: on 25H2 and 26H2 the "Seleziona data" picker of Settings ignores it and stays at 35 days. The picker follows the SetMaxPauseDays policy instead, which accepts 1-35 and can only lower it. To pause beyond 35 days, raise the cap here, then wu-pause-<n>: Settings accepts and shows the longer pause
 - `wu-resume`: Resume Windows Update (clear pause)
 - `wu-is_paused`: Check if Windows Update is currently paused (sets win_workman_wu_is_paused fact)
-- `wu-policy_standard`: Apply standard Windows Update policy (quality + feature updates enabled)
+- `wu-policy_standard`: Restore the default Windows Update policy: WaaSMedicSvc manual with default recovery, automatic updates on, no WSUS; removes AUOptions, NoAutoRebootWithLoggedOnUsers and ExcludeWUDriversInQualityUpdate
 - `wu-policy_ansible_managed`: Removed; fails on purpose. Use pause/off, or policy_standard to restore the default policy
 Variables:
 - `win_workman_wu_pause_days` int (default `7`): Days of a bare 'pause', added to win_workman_wu_pause_months

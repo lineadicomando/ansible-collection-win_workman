@@ -1,69 +1,42 @@
-# Role: scoobe
+# scoobe — "Let's finish setting up your device"
 
-Suppresses SCOOBE ("Second Chance OOBE"), the full-screen page Windows 11 shows
-at logon after a cumulative or a feature update: "Let's finish setting up your
-device" (Italian: "La configurazione del PC è quasi completata"), with OneDrive,
-Outlook, Copilot and Phone Link promotions and the buttons *Continue* /
-*Remind me in 3 days*. Students have to dismiss it before using the PC.
-
-It is not the first-boot OOBE: that is the [`oobe`](system-tools.md#oobe) role.
-
----
+Suppresses SCOOBE ("Second Chance OOBE"), the full-screen page Windows 11 shows at
+logon after a cumulative or feature update ("Let's finish setting up your device",
+Italian "La configurazione del PC è quasi completata"), with OneDrive, Outlook,
+Copilot and Phone Link promotions that students must dismiss before using the PC. Not
+the first-boot OOBE: that is the [`oobe`](system-tools.md#oobe) role.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `info` *(default)* | Report the three values in every profile, read-only |
+| `info` (default) | Report the three values in every profile, read-only |
 | `off` | Write the values that suppress the page into every profile and the Default profile |
-| `on` | Remove those values, giving Windows back its default behaviour |
-
----
-
-## Registry values
-
-All per user (HKCU), because the machine-wide switch,
-`HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent\DisableWindowsConsumerFeatures`,
-is honoured on Enterprise and Education only.
-
-| Key under HKCU | Value | `off` writes | Settings equivalent |
-|---|---|---|---|
-| `Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement` | `ScoobeSystemSettingEnabled` | `0` | System → Notifications → *Suggest ways to finish setting up my device* |
-| `Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager` | `SubscribedContent-310093Enabled` | `0` | System → Notifications → *Show the Windows welcome experience after updates* |
-| `Software\Policies\Microsoft\Windows\CloudContent` | `DisableWindowsSpotlightWindowsWelcomeExperience` | `1` | User policy *Turn off the Windows Welcome Experience* |
-
-The list is `win_workman_scoobe_entries` in `vars/main.yaml`.
-
----
+| `on` | Remove those values: Windows' default behaviour |
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_scoobe_profiles_include_default` | `true` | Also write the Default profile, template for accounts created later |
+| `win_workman_scoobe_profiles_include_default` | `true` (inline default, no `defaults/`) | Also write the Default profile, template for accounts created later |
 
----
+## Notes
 
-## How profiles are reached
+- The values (`win_workman_scoobe_entries` in `vars/main.yaml`), all under HKCU:
 
-Every non-special local or domain profile (`Win32_UserProfile`, SID
-`S-1-5-21-*`) plus the Default profile. A hive already loaded under `HKU\<SID>`
-(the logged-on user, the SSH user) is written in place; the others are loaded
-from `NTUSER.DAT` under a temporary name and unloaded afterwards. No logoff and
-no reboot: Windows reads the values when it decides whether to show the page at
-the next logon. A hive held by another process is reported as `unavailable`.
+  | Key | Value | `off` writes | Settings equivalent |
+  |---|---|---|---|
+  | `Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement` | `ScoobeSystemSettingEnabled` | `0` | Notifications > Suggest ways to finish setting up my device |
+  | `Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager` | `SubscribedContent-310093Enabled` | `0` | Notifications > Show the Windows welcome experience after updates |
+  | `Software\Policies\Microsoft\Windows\CloudContent` | `DisableWindowsSpotlightWindowsWelcomeExperience` | `1` | User policy "Turn off the Windows Welcome Experience" |
 
-Domain users who have never logged on to the PC get the values from the Default
-profile when their profile is created.
-
----
-
-## Examples
-
-```bash
-# Suppress on the whole lab
-ansible-playbook lineadicomando.win_workman.win_workman -i <inventory> -l win_managed -e todo=scoobe-off
-
-# Check what each profile has
-ansible-playbook lineadicomando.win_workman.win_workman -i <inventory> -l student01 -e todo=scoobe-info
-```
+- Per user because the machine-wide `HKLM\...\CloudContent\DisableWindowsConsumerFeatures`
+  is honoured on Enterprise and Education only.
+- Profiles: every non-special `Win32_UserProfile` with SID `S-1-5-21-*` (local or
+  domain) plus Default. A hive already loaded (logged-on user, SSH user) is written in
+  place, the others loaded from `NTUSER.DAT` and unloaded. No logoff, no reboot:
+  Windows reads the values when deciding whether to show the page at the next logon.
+  A hive held by another process is reported `unavailable`.
+- Domain users who never logged on get the values from the Default profile.
+- Open: that `off` keeps the page away after a real cumulative update is not yet
+  confirmed on a lab PC, see [management](../../todo/management.md).

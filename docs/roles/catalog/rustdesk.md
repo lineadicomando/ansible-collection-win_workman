@@ -1,47 +1,9 @@
-# Role: rustdesk
+# rustdesk — RustDesk
 
-RustDesk open-source remote desktop software. Supports standard package operations:
-install, uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade RustDesk |
-| `off` | Uninstall RustDesk |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that RustDesk is installed |
-
----
-
-## Variables
-
-No role-specific variables.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - rustdesk
-  - rustdesk-off
-```
-
----
-
-## Schema details
-
-Software name: `RustDesk`
-Provider: `registry` (MSI)
-Installer: `rustdesk-1.5.3-x86_64.msi`
-Homepage: https://rustdesk.com
-
----
+RustDesk remote desktop client, x64 MSI (`registry` provider). No server, ID or
+password is configured.
 
 ## Notes
 
-No special configuration or behavior.
+- `version` (`1.5.3.29903684`) carries a build number the release tag lacks: at a
+  bump take it from the `DisplayVersion` of the uninstall entry, not from the tag.

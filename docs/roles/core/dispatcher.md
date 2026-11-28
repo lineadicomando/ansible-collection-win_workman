@@ -1,44 +1,38 @@
-# Role: dispatcher
+# dispatcher — Entry point of the collection
 
-> **Work in progress** — preliminary draft.
-
-Entry point of the collection. Parses `win_workman_tasks` and includes the
-matching schema role for each item.
-
----
-
-## Variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `win_workman_tasks` | `[]` | List of task strings to execute |
-
-## Variables set for each included role
-
-The dispatcher sets these variables in the scope of each schema role:
-
-| Variable | Source |
-|---|---|
-| `win_workman_action` | `argv[1]` of the task string, or `""` if omitted; each schema role resolves its own default via `win_workman_{role}_schema.default_action` |
-| `win_workman_task` | Full parsed task object |
-| `win_workman_task_argv` | List of tokens from the task string |
-| `win_workman_task_argc` | Number of tokens |
-
----
-
-## Usage
+Parses `win_workman_tasks` with the `parse_tasks` filter and includes, for each task
+string, the role named by its first token. The playbook
+`lineadicomando.win_workman.win_workman` wraps it for the CLI (`-e '{"todo": "…"}'`);
+the task syntax is in [architecture](../../architecture.md#task-strings).
 
 ```yaml
 - name: Manage workstations
-  hosts: lab_pcs
+  hosts: lab_a
   roles:
     - role: lineadicomando.win_workman.dispatcher
       vars:
-        win_workman_tasks:
-          - chrome-on
-          - vscode
-          - zoom-off
-          - veyon-config-student
+        win_workman_tasks: [chrome-on, vscode, zoom-off, veyon-config]
 ```
 
-For the task string syntax see [architecture.md](../architecture.md).
+## Variables
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `win_workman_tasks` | `[]` | task strings, run in order |
+
+Set in the scope of each included role:
+
+| Variable | Value |
+|---|---|
+| `win_workman_action` | `argv[1]`, `""` when omitted (the role falls back to its schema's `default_action`) |
+| `win_workman_task` | the parsed task: `{task, schema, act, argc, argv}` |
+| `win_workman_task_argv`, `win_workman_task_argc` | tokens and their count |
+
+## Notes
+
+- The filter fails on a task whose first token is not a role directory of the
+  collection, or is `dispatcher`/`pkg_utils`, naming the task.
+- Before the first task that connects to the host it includes `pkg_utils`
+  `remote_tmp` once per run ([pkg_utils](pkg_utils.md#remote-temporary-directory)).
+  Schemas listed in `_win_workman_controller_schemas` (`vars/main.yaml`: `wol`) run on
+  the controller and do not trigger it, so `wol,chrome` can wake a powered-off PC first.

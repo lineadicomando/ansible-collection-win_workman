@@ -1,42 +1,23 @@
-# Role: autologon
+# autologon — Windows automatic logon
 
-> **Work in progress** — preliminary draft.
-
-Configures or removes Windows automatic logon for a local account using the
-`win_auto_logon` module.
-
----
+Enables or removes automatic logon with `ansible.windows.win_auto_logon`.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Enable autologon for `win_workman_autologon_user` |
-| `off` | Disable autologon |
-
----
+| `on` (default) | Enable autologon for `win_workman_autologon_user`; fails if the user is empty |
+| `off` | Disable autologon and remove the stored credentials |
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_autologon_user` | `{{ ansible_user \| default('') }}` | Username for automatic logon |
-| `win_workman_autologon_password` | `{{ ansible_password \| default('') }}` | Password for the autologon account |
+| `win_workman_autologon_user` | `{{ ansible_user \| default('') }}` | Account to log on |
+| `win_workman_autologon_password` | `{{ ansible_password \| default('') }}` | Its password (vault it) |
+| `win_workman_autologon_restart` | `false` | Restart (`pkg_utils` `restart`) after `on`/`off`, only when something changed |
 
-`on` asserts that `win_workman_autologon_user` is not empty before proceeding.
+## Notes
 
----
-
-## Usage
-
-```yaml
-# Enable autologon for a dedicated local account
-win_workman_tasks:
-  - autologon-on
-win_workman_autologon_user: labuser
-win_workman_autologon_password: "{{ vault_labuser_password }}"
-```
-
-> The autologon password is stored in plain text in the registry
-> (`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon`).
-> Use a dedicated low-privilege account and vault the password.
+- The password is kept as the LSA secret `DefaultPassword`: encrypted, but any
+  administrator of the host can decrypt it. Use a dedicated low-privilege account.

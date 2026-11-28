@@ -1,51 +1,10 @@
-# Role: windirstat
+# windirstat — WinDirStat
 
-> **Work in progress** — preliminary draft.
-
-Manages WinDirStat, a free tool to analyze disk usage by scanning directories and
-visualizing space usage. Supports standard package operations: install, uninstall,
-download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade WinDirStat |
-| `off` | Uninstall WinDirStat |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that WinDirStat is installed |
-
----
-
-## Configuration
-
-No variables. WinDirStat is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - windirstat
-  - windirstat-off
-```
-
----
-
-## Schema details
-
-Software name: `WinDirStat`  
-Provider: `msi`  
-Installer: `WinDirStat-<version>-x64.msi` (upstream asset `WinDirStat-x64.msi`)  
-Homepage: https://windirstat.net/
-
----
+WinDirStat disk usage analyser, x64 MSI (`msi` provider).
 
 ## Notes
 
-WinDirStat visualizes disk usage with a graphical treemap to quickly identify
-large folders and files consuming disk space.
+- 2.2.2 registered as `WinDirStat`, 2.9.3 as `WinDirStat 2.9.3`: `searchName` is
+  `WinDirStat*` to match both.
+- Upstream names the asset `WinDirStat-x64.msi` in every release; the stored filename
+  carries the version so two releases never share one file in storage.

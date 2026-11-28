@@ -1,29 +1,28 @@
-# Role: visual_effects
+# visual_effects — Visual effects presets
 
-Sets the Windows visual effects — **System Properties > Advanced > Performance >
-Settings > Visual Effects** — across all local user profiles, including offline
-(not-yet-logged-in) profiles and the Default profile used for new users.
-
-The point is speed on old hardware: on an older PC with integrated graphics
-and little RAM, turning the effects off gives a clearly more responsive
-desktop. Shadows, fades and animations all go through the Desktop
-Window Manager, which competes with applications for the same GPU and memory.
-
----
+Sets the Visual Effects of System Properties > Advanced > Performance in every local
+profile, including users who never logged on and the Default profile, by writing each
+profile hive. Takes effect at the next logon, no reboot. The point is speed on old
+PCs with integrated graphics and little RAM: shadows, fades and animations go through
+the Desktop Window Manager, which competes with applications for GPU and memory.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `set` | Apply a preset to every profile *(default action)* |
-| `reset` | Restore the effects of a fresh Windows 11 profile (same as `set-default`) |
-| `on` | Alias for `set` — applies `win_workman_visual_effects_preset` |
-| `off` | Alias for `reset` |
-| `info` | Report the preset of every profile, without changing anything |
+| `set[-<preset>]` (default) | Apply the preset (argument, else `win_workman_visual_effects_preset`) to every profile; an unknown preset fails before the registry is touched |
+| `reset` | Same as `set-default` |
+| `on` | Alias of `set` (no argument: uses the variable) |
+| `off` | Alias of `reset` |
+| `info` | Report the preset each profile matches; changes nothing, no logoff |
 
-The preset is passed as the task argument: `visual_effects-set-balanced`. When
-no argument is given, `win_workman_visual_effects_preset` is used. An unknown
-preset fails the play before touching the registry.
+`set` and `reset` force a logoff first (`pkg_utils` `logoff`); profiles still loaded
+are skipped with a warning. `info` reads loaded hives in place, loads offline ones
+with `reg load` (`unavailable` if it cannot), and reports a preset name, `custom`
+(matches none, e.g. boxes changed by hand) or `unset` (neither `UserPreferencesMask`
+nor `VisualFXSetting` exists: never customised, Windows writes its defaults at first
+logon). A missing `VisualFXSetting` counts as `0`, so an untouched profile reports
+`default`.
 
 ## Presets
 
@@ -46,118 +45,38 @@ preset fails the play before touching the registry.
 | Show translucent selection rectangle | off | **on** | on | on |
 | Use drop shadows for icon labels on the desktop | off | **on** | on | on |
 | Smooth edges of screen fonts | **on** | **on** | on | on |
-| Radio button shown in the dialog | Custom | Custom | Best appearance | Let Windows choose |
+| Radio button (`VisualFXSetting`) | Custom (3) | Custom (3) | Best appearance (1) | Let Windows choose (0) |
 
-- `minimal` — the lightest setting that keeps text readable. Windows' own
-  "Adjust for best performance" also turns font smoothing off, which makes text
-  visibly worse for no measurable gain, so the role does not offer it.
-- `balanced` — no motion and no shadows, but keeps the effects that cost little
-  and help everyday use: thumbnails in Explorer, window contents while
-  dragging (an outline alone confuses users who are not used to it), the
-  selection rectangle and readable icon labels on any wallpaper.
-- `full` — "Adjust for best appearance".
-- `default` — what a fresh Windows 11 profile has.
-
-`info` reports the name of the preset a profile matches, or:
-
-| Value | Meaning |
-|---|---|
-| `custom` | matches no preset, e.g. boxes changed by hand |
-| `unset` | neither `UserPreferencesMask` nor `VisualFXSetting` exists: the profile was never customised, Windows writes its defaults at first logon |
-
-A missing `VisualFXSetting` counts as `0` (let Windows choose), so an untouched
-profile reports `default`.
-
----
+- `minimal`: Windows' own "Adjust for best performance" also turns font smoothing
+  off, which makes text visibly worse for no measurable gain, so it is not offered.
+- `balanced`: no motion, no shadows, but keeps the cheap effects that help everyday
+  use; window contents while dragging stays because an outline alone confuses users.
+- `full` is "Adjust for best appearance"; `default` is a fresh Windows 11 profile.
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_visual_effects_preset` | `minimal` | Preset applied when the task string carries no argument |
-| `win_workman_visual_effects_profiles_include_default` | `true` | Also apply to the Default profile (used for new users) |
-
----
-
-## Registry values
-
-All per-user, written into each profile hive. `...` is
-`Software\Microsoft\Windows\CurrentVersion`.
-
-| Key (under `HKCU`) | Value | Type | `minimal` | `balanced` | `full` | `default` |
-|---|---|---|---|---|---|---|
-| `...\Explorer\VisualEffects` | `VisualFXSetting` | dword | `3` | `3` | `1` | `0` |
-| `Control Panel\Desktop` | `UserPreferencesMask` | binary | `90 00 03 80 10 00 00 00` | `90 00 03 80 10 00 00 00` | `9e 2c 07 80 12 00 00 00` | `9e 1e 07 80 12 00 00 00` |
-| `Control Panel\Desktop` | `DragFullWindows` | string | `0` | `1` | `1` | `1` |
-| `Control Panel\Desktop` | `FontSmoothing` | string | `2` | `2` | `2` | `2` |
-| `Control Panel\Desktop\WindowMetrics` | `MinAnimate` | string | `0` | `0` | `1` | `1` |
-| `...\Explorer\Advanced` | `TaskbarAnimations` | dword | `0` | `0` | `1` | `1` |
-| `...\Explorer\Advanced` | `ListviewAlphaSelect` | dword | `0` | `1` | `1` | `1` |
-| `...\Explorer\Advanced` | `ListviewShadow` | dword | `0` | `1` | `1` | `1` |
-| `...\Explorer\Advanced` | `IconsOnly` | dword | `1` | `0` | `0` | `0` |
-| `Software\Microsoft\Windows\DWM` | `EnableAeroPeek` | dword | `0` | `0` | `1` | `1` |
-| `Software\Microsoft\Windows\DWM` | `AlwaysHibernateThumbnails` | dword | `0` | `0` | `1` | `0` |
-
-`UserPreferencesMask` holds most of the boxes as one bit each. Every mask in the
-table is the one Windows itself writes, never computed bit by bit: `minimal`,
-`balanced` and `full` were read back after setting the same boxes in the
-dialog, `default` from a fresh Windows 11 profile. `full` and `default` have
-different masks even though every box stored in the mask is ticked in both:
-the second byte also carries bits the dialog does not show, which is why the
-role copies Windows' masks instead of building them.
-
-`reset` writes every value rather than just `VisualFXSetting=0`: Windows turns
-the radio button into individual settings only when the dialog is confirmed,
-never at logon, so the value alone would change nothing.
-
-Transparency effects (**Settings > Personalisation > Colours**,
-`Themes\Personalize\EnableTransparency`) are not part of this dialog and are
-left alone.
-
----
-
-## How profile targeting works
-
-Same as [`display_scale`](display_scale.md): the role collects every local
-profile through `pkg_utils/profiles`, skips those with an active interactive
-session, and loops `win_regedit` over the rest. `set` and `reset` force a
-logoff first, so in practice no profile is skipped.
-
-The new effects take effect at the **next logon**. No reboot is required.
-
-`info` does not force a logoff: it reads loaded hives in place and mounts the
-offline ones, reporting `unavailable` for any hive it cannot open.
-
----
-
-## Usage
-
-```yaml
-# Old lab PCs: lightest preset for every user, present and future
-win_workman_tasks:
-  - visual_effects-set-minimal
-
-# Lab default declared once, applied on every run
-win_workman_visual_effects_preset: balanced
-win_workman_tasks:
-  - visual_effects
-
-# Back to the Windows defaults
-win_workman_tasks:
-  - visual_effects-reset
-
-# Check before changing anything
-win_workman_tasks:
-  - visual_effects-info
-```
-
----
+| `win_workman_visual_effects_preset` | `minimal` | Preset when the task string carries none: `minimal`, `balanced`, `full`, `default` |
+| `win_workman_visual_effects_profiles_include_default` | `true` | Include the Default profile |
 
 ## Notes
 
-- Users can still change the boxes from the dialog: there is no policy for
-  them. Re-running `visual_effects` puts the preset back; `info` shows who
-  changed them (`custom`).
-- The role does not apply the change to an open session: that would take
-  `SystemParametersInfo` calls from inside the user's session, which an SSH
-  connection cannot reach. Hence the logoff.
+- Values written (data per preset in `vars/main.yaml`): `Control Panel\Desktop`
+  `UserPreferencesMask`, `DragFullWindows`, `FontSmoothing`, `WindowMetrics\MinAnimate`;
+  `Explorer\Advanced` `TaskbarAnimations`, `ListviewAlphaSelect`, `ListviewShadow`,
+  `IconsOnly`; `DWM` `EnableAeroPeek`, `AlwaysHibernateThumbnails`;
+  `Explorer\VisualEffects\VisualFXSetting`.
+- Every `UserPreferencesMask` is the one Windows writes itself, never computed bit by
+  bit: `minimal`, `balanced`, `full` read back after setting the same boxes in the
+  dialog, `default` from a fresh profile. `full` and `default` differ although every
+  box in the mask is ticked in both: the second byte carries bits the dialog does not
+  show.
+- `reset` writes every value, not just `VisualFXSetting=0`: Windows turns the radio
+  button into settings only when the dialog is confirmed, never at logon.
+- Transparency (Settings > Personalisation > Colours, `EnableTransparency`) is not
+  part of the dialog and is left alone.
+- There is no policy for these boxes: users can change them; re-running the role puts
+  the preset back, `info` shows who changed them (`custom`).
+- An open session is not updated: that needs `SystemParametersInfo` from inside the
+  user's session, which SSH cannot reach. Hence the logoff.

@@ -1,122 +1,69 @@
-# Role: autocadlt2026
+# autocadlt2026 — AutoCAD LT 2026
 
-Installs and removes AutoCAD LT 2026, Autodesk's 2D CAD application. The locale
-is auto-detected from the Windows host, so there is a **single** role for all
-supported languages — not one role per language.
-
----
+Installs and removes AutoCAD LT 2026 (ODIS bundle from `edutrial.autodesk.com`, pinned
+sha256; a licence entitlement is still required). One role for all locales: `en`,
+`it`.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Install AutoCAD LT 2026 (default action) |
-| `off` | Uninstall AutoCAD LT 2026 |
-| `download` | Download the installer to storage |
-| `copy` | Copy the installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that AutoCAD LT 2026 is installed |
+| `on[-<lang>]` | Install (default action); no-op if the locale is already registered |
+| `off` | Uninstall the installed locale, keeping the shared Autodesk stack |
+| `off-full` | Uninstall and purge the shared Autodesk stack |
 
-`on` and `off` are reimplemented by the role; the remaining actions go through
-the standard `pkg_utils` package workflow.
-
-```yaml
-win_workman_tasks:
-  - autocadlt2026           # install, locale from the host
-  - autocadlt2026-on-it     # force the Italian bundle
-  - autocadlt2026-off       # uninstall, keeping shared Autodesk components
-  - autocadlt2026-off-full  # uninstall and purge all shared Autodesk components
-```
-
----
+`on` and `off` are reimplemented; the other standard actions go through pkg_utils.
 
 ## Locales
 
-Supported: `en`, `it`. The locale is resolved in this order:
+Resolved in this order: an explicit code in the task (`autocadlt2026-on-it`); the host
+locale from `pkg_utils/detect_lang` (`it-IT` → `it`); `en`. Each locale is a separate
+ODIS bundle with its own GUID, and the two cannot coexist: `on` fails if the other one
+is installed (remove it with `autocadlt2026-off` first). `off` detects the installed
+locale by wildcard and aligns to it.
 
-1. an explicit code in the task argv — `autocadlt2026-on-it`;
-2. the host locale, read by `pkg_utils/detect_lang` (`it-IT` → `it`);
-3. `en` as a fallback.
-
-Each locale is a **separate ODIS bundle with its own GUID**, and the two cannot
-coexist on the same host. If a different locale is already installed, `on` fails
-with an explicit message instead of installing on top; remove the other one with
-`autocadlt2026-off` first.
-
-Detection keys on the product entry (`AutoCAD LT 2026 - Italiano (Italian)`),
-not on the ODIS bundle entry (`Autodesk AutoCAD LT 2026 - ...`): the Italian
-bundle does not register the latter in the Windows uninstall hive.
-
----
+Detection keys on the product entry (`AutoCAD LT 2026 - Italiano (Italian)`), not on
+the ODIS bundle entry (`Autodesk AutoCAD LT 2026 - ...`), which the Italian bundle does
+not register in the uninstall hive.
 
 ## Install
 
-The download is two files per locale, roughly **2.7 GB in total** — an SFX
-bootstrapper plus its `.7z` payload — copied to every target host. Budget the
-time accordingly on a full lab.
-
-The install is skipped when the requested locale is already registered, so the
-task is safe to re-run. Presence is decided from the registry only: if
-`acadlt.exe` is on disk but the product is not registered, the install runs
-again to repair it.
-
-The ODIS SFX spawns `db-bootstrap.exe`, which writes the ODIS metadata the
-uninstaller later needs but can block for hours on network calls. The role
-therefore launches the SFX without waiting, polls until **both** the registry
-entry and `bundleManifest.xml` are present (up to 1800 s), then stops
-`db-bootstrap.exe` so the SFX can exit cleanly. After the install it reboots
-only if Windows reports a pending restart, then registers the educational
-licence through `AdskLicensingInstHelper` running as SYSTEM.
-
----
+- Two files per locale, about 2.7 GB in total (SFX bootstrapper plus `.7z` payload),
+  copied to every host: budget the time on a full lab.
+- Presence is decided by the registry alone: with `acadlt.exe` on disk but no
+  registration, the install runs again (and re-extracts the `.pit` the licence helper
+  needs).
+- The SFX spawns `db-bootstrap.exe`, which writes the ODIS metadata the uninstaller
+  needs but can block for hours on network calls. The role starts the SFX without
+  waiting, polls until both the registry entry and `bundleManifest.xml` exist (up to
+  1800 s), then stops `db-bootstrap.exe` so the SFX exits.
+- Then it reboots only if a restart is pending, and registers the educational licence
+  with `AdskLicensingInstHelper register` run as SYSTEM.
 
 ## Uninstall
 
-`off` detects the installed locale with a wildcard, aligns the uninstall to it,
-and runs the ODIS uninstaller against the bundle manifest. Exit code `1604`
-(suspended, reboot needed) counts as success.
-
-The uninstall waits on the uninstaller process alone, not on `Start-Process
--Wait`: the latter waits for the whole job object, and Autodesk's uninstaller
-ends by spawning `ADPClientService.exe` (desktop analytics) which outlives it,
-hanging the task for minutes after the removal has already succeeded.
-`win_workman_autocadlt2026_uninstall_timeout` (default 1800 s) is the ceiling.
-
-Adding `full` — `autocadlt2026-off-full` — also removes the shared Autodesk
-stack: Autodesk Access, Genuine Service, Identity Manager, "Open in Desktop",
-"Save to Web & Mobile", and finally `C:\Program Files\Autodesk` and
-`C:\ProgramData\Autodesk` wholesale. **Use it only when no other Autodesk
-product remains on the host** — it will take the others down with it. In
-particular, do not use it to tidy up before an install: it would wipe healthy,
-up-to-date components that the install has to put back.
-
-Those components are matched by display-name pattern and their GUIDs resolved at
-run time (`tasks/find_products.yaml`). Autodesk component GUIDs change with every
-release, so a pinned `product_id` that no longer matches makes `win_package` a
-silent no-op and the component survives the purge. Patterns are wildcarded to
-stay locale-independent (`Salva su Autodesk Web & Mobile` in Italian, `Save to
-Autodesk Web & Mobile` in English). Autodesk Access is not MSI: its package
-manifest is derived from the id detected for it, and the uninstall runs only if
-that manifest is really on disk.
-
----
+- The ODIS uninstaller runs against the bundle manifest found by the known bundle GUID;
+  exit codes `0` and `1604` (suspended, reboot needed) count as success. It waits on
+  the uninstaller process alone, up to `win_workman_autocadlt2026_uninstall_timeout`
+  (1800 s): `Start-Process -Wait` waits for the job object, which `ADPClientService.exe`
+  keeps open for minutes after the removal.
+- `off-full` also removes Autodesk Access, Genuine Service, Identity Manager, "Open in
+  Desktop", "Save to Web & Mobile", and finally `C:\Program Files\Autodesk` and
+  `C:\ProgramData\Autodesk` wholesale. Use it only when no other Autodesk product
+  remains; never to tidy up before an install, since it wipes healthy components the
+  install has to put back.
+- The shared components are matched by display-name pattern, wildcarded to stay
+  locale-independent (`Salva su Autodesk Web & Mobile` / `Save to Autodesk Web &
+  Mobile`), and their GUIDs resolved at run time (`tasks/find_products.yaml`): pinned
+  GUIDs went stale and `win_package` silently skipped them. Autodesk Access is not an
+  MSI: its package manifest is derived from the id detected for it, and its uninstall
+  runs only if that manifest is on disk.
 
 ## Notes
 
-- Autodesk releases install side by side. Running this role on a host that
-  already has an older release leaves both installed; use
-  [`autocadlt2023`](autocadlt2023.md) first to get a replacement rather than an
-  addition.
-- The installers come from `edutrial.autodesk.com` with pinned sha256 checksums;
-  a licence entitlement is still required for lawful use.
-- The role depends on `ansible_remote_tmp` nowhere: the installer is read from
-  `win_workman_remote_tmp`, where `pkg_utils/win_copy` puts it.
-
----
-
-## Schema details
-
-Software name: `Autocad LT 2026 EN` / `Autocad LT 2026 IT`
-Registry `searchName`: `AutoCAD LT 2026 - English` / `AutoCAD LT 2026 - Italiano (Italian)`
-Installer: `ACDLT_2026_<locale>_win_db_001_002.exe` + `..._002_002.7z`
-Homepage: https://www.autodesk.com/products/autocad-lt/
+- Releases install side by side: run [autocadlt2023](autocadlt2023.md)`-off` first to
+  replace rather than add.
+- The installer is read from `win_workman_remote_tmp` (where `pkg_utils/win_copy`
+  puts it), not from `ansible_remote_tmp`.
+- Locale data, GUIDs, product key and timeout are in `vars/main.yaml` (role vars, not
+  overridable from the inventory).

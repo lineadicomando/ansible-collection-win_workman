@@ -16,7 +16,11 @@ custom_actions:
       and clears browsing data on exit. 'off' removes those policies. Does not
       delete existing profile data.
   - name: rm
-    description: Remove the Edge profile directory for a specific user
+    description: >-
+      Requires the 'profile' argument (edge-rm-profile). Force-closes Edge,
+      then deletes AppData\Local\Microsoft\Edge for every local user profile
+      on the host and removes every Edge shortcut from their desktops.
+      Affects all local users, not a single one.
 defaults:
   - var: win_workman_edge_shortcuts
     type: bool
@@ -29,7 +33,9 @@ defaults:
   - var: win_workman_edge_shortcut_no_first_run
     type: bool
     default: true
-    description: Pass --no-first-run flags to shortcut
+    description: >-
+      Pass --disable-search-engine-choice-screen --no-default-browser-check
+      --no-first-run to the shortcut
   - var: win_workman_edge_extension_allowlist
     type: list
     default: []

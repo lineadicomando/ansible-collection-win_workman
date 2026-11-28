@@ -25,16 +25,12 @@ builds one with `test_vm_openssh_msi`), then one lab PC, then the lab.
 
 ## Remove the `secure_ssh` alias
 
-**Priority:** P3 — at the next release of the collection, not before  
-**Status:** alias in place since `70adfb1` (2026-11-15)
+**Priority:** P3 — at the next `minor` release (a removal changes behaviour)  
+**Status:** alias in place since `70adfb1` (2026-11-15, released in v0.7.0); still there at v0.9.2 (checked 2026-11-28)
 
 `roles/secure_ssh/` prints a deprecation notice and runs `openssh-harden` or
 `openssh-unharden`; `roles/openssh/defaults/main.yaml` falls back on the
-`win_workman_secure_ssh_*` variables. Remove both together, and the *secure_ssh
-(deprecated)* section of `docs/roles/management/openssh.md`, the `secure_ssh` row in
-`docs/architecture.md` and the mention in `README.md` and `docs/index.md`.
-
-Hosts hardened by `secure_ssh` before `70adfb1` need one `openssh-harden`: the old role
-never restarted sshd (so `PasswordAuthentication no` waited for the next reboot) and
-appended `AllowUsers` inside `Match Group administrators` (non-admins not restricted).
-Say so in the release notes.
+`win_workman_secure_ssh_*` variables. Remove both together, with the *secure_ssh*
+section of `docs/roles/management/openssh.md`, its mention in `docs/index.md`, and
+`roles/secure_ssh/meta/mcp.yaml` (then `tools/fleet_skills.py`). The upgrade note for
+hosts hardened by the old role is in `CHANGELOG.md`: repeat it in the release commit.

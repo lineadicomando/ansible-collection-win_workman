@@ -1,174 +1,130 @@
-# Role: win_iso
+# win_iso — Unattended Windows installation ISO
 
-Builds, on the controller, a Windows installation ISO ready for Ansible from a
-Microsoft ISO kept in the storage. Setup then runs unattended, creates the local
-administrator Ansible uses for the target host, and the PC answers on SSH from
-its first boot, before anyone logs on.
+Builds on the controller, from a Microsoft ISO in the storage, an ISO whose Setup runs
+unattended, creates the local administrator Ansible uses for the target host, and leaves
+the PC answering on SSH from its first boot, before anyone logs on. The Microsoft ISO is
+downloaded by hand: the download page hands out a 24-hour link no script can obtain, and
+building the release from Windows Update packages would need DISM to integrate them.
 
-The Microsoft ISO is downloaded by hand: the Microsoft download page hands out a
-link valid for 24 hours that cannot be obtained by a script, and building the
-same release from Windows Update packages needs DISM to integrate the updates.
+What the output adds to the Microsoft ISO:
 
-What the output ISO adds to the Microsoft one:
-
-- **only the chosen editions** (by default Home, Pro, Education and Pro
-  Education), so a PC with a key in the firmware installs its own edition and the
-  edition menu stays short;
-- **an answer file** (`autounattend.xml`): language, time zone, no Microsoft
-  account or network in OOBE, the TPM, Secure Boot and RAM checks lifted, no
-  automatic BitLocker encryption, the local administrator;
-- **OpenSSH Server**, with PowerShell as its shell, port 22 open on every
-  profile and the controller's key in `administrators_authorized_keys`, set up
-  by a script that runs as SYSTEM in the specialize pass;
-- **the remote temporary directory** (`win_workman_remote_tmp`, and
-  `ansible_remote_tmp` when different) already there with the ACL the dispatcher
-  expects, SYSTEM and Administrators only: Ansible would otherwise create it on
-  the first run readable by `ansible_user` alone (see `pkg_utils`, *Remote
-  temporary directory*);
-- **no leftover OOBE account**: OOBE works as `defaultuser0`, a local
-  administrator without password that Windows deletes only at the first
-  interactive logon, which a PC managed over SSH may never see. The setup
-  script registers a SYSTEM task that, at boot and every 5 minutes, waits for
-  OOBE to end, removes the account and its profile, then removes itself.
-
----
+- **only the chosen editions** (default Home, Pro, Education, Pro Education): a PC with a
+  key in the firmware installs its own edition, and the menu stays short;
+- **`autounattend.xml`**: language, time zone, no Microsoft account or network in OOBE,
+  TPM/Secure Boot/RAM checks lifted, no automatic BitLocker, the local administrator;
+- **OpenSSH Server**, PowerShell as its shell, port 22 open on every profile, the
+  controller's key in `administrators_authorized_keys` (ACL by SID: group names are
+  localised), set up by a script running as SYSTEM in the specialize pass;
+- **the remote temporary directory** (`win_workman_remote_tmp`, and `ansible_remote_tmp`
+  when different) with the ACL the dispatcher expects, SYSTEM and Administrators only
+  ([pkg_utils](../core/pkg_utils.md#remote-temporary-directory));
+- **hibernation off**, so fast startup does not turn a shutdown into hibernation, which
+  makes Wake-on-LAN and disk maintenance less reliable;
+- **no leftover OOBE account**: OOBE works as `defaultuser0`, a passwordless local
+  administrator Windows deletes only at the first interactive logon, which a PC managed
+  over SSH may never see. A SYSTEM task (at boot and every 5 minutes) removes the account
+  and its profile, clears the Winlogon automatic sign-in OOBE left for it (otherwise
+  every boot shows "Nome utente o password non corretta"), then removes itself. It acts
+  only after OOBE has signed `defaultuser0` in and out again (profile present, unloaded,
+  no process), on two runs in a row: `OOBEInProgress`, `SystemSetupInProgress` and
+  `ImageState` reach their final values while OOBE still runs, and deleting the account
+  then stops OOBE with "Si è verificato un errore - REBOOT". Log
+  `C:\Windows\Temp\win_workman-defaultuser0.log`.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `build` | Build the ISO *(default action)* |
-| `info` | List the ISOs in the root, or the editions of the source and those `build` keeps. Changes nothing |
-| `on` | Alias for `build` |
+| `build[-msi\|dism\|none]` *(default)* | build the ISO; the argument (wins over `win_workman_win_iso_ssh`) picks how OpenSSH gets there |
+| `on` | alias for `build` |
+| `info` | without a source, list the ISOs in the root; with one, its editions and those `build` keeps; changes nothing |
 
-`build` takes an argument choosing how OpenSSH Server gets on the PCs, which
-wins over `win_workman_win_iso_ssh`:
-
-| Task | OpenSSH Server |
+| SSH mode | OpenSSH Server |
 |---|---|
-| `win_iso-build-msi` *(default)* | The Win32-OpenSSH MSI, carried on the ISO and installed during Setup. Nothing but the controller is involved; Windows Update does not update it afterwards, `openssh-update` does. The release is the one of the `openssh` role (`roles/openssh/vars/main/msi.yaml`) |
-| `win_iso-build-dism` | The Windows capability, added to every edition of the image by DISM on the target host. Windows Update keeps it updated like any other component |
-| `win_iso-build-none` | No SSH: the answer file and the other settings only |
-
----
+| `msi` *(default)* | the Win32-OpenSSH MSI of the `openssh` role (`roles/openssh/vars/main/msi.yaml`), downloaded into the storage, verified, carried on the ISO and installed during Setup. Only the controller is involved; Windows Update never updates it, `openssh-update` does |
+| `dism` | the Windows capability, added to every edition by DISM on the target host; Windows Update keeps it updated |
+| `none` | no SSH: the answer file and the other settings only |
 
 ## How it runs
 
-Everything happens on the controller (`delegate_to: localhost`), except DISM.
-A run targets **exactly one host**, which plays two parts:
-
-- its `ansible_user` and `ansible_password` become the account created by
-  Setup, so running it against a host of another inventory makes the ISO of
-  that lab;
-- with `dism` it is the Windows PC that runs DISM. With `msi` or `none` nothing
-  connects to it (the playbook has `gather_facts: false`), so it may be off.
+Everything runs on the controller except DISM. A run targets **exactly one host**
+(checked): its `ansible_user`/`ansible_password` become the account Setup creates, so
+the ISO belongs to that host's lab; with `dism` it is also the PC running DISM. With
+`msi` or `none` nothing connects to it, so it may be off.
 
 ```bash
-# MSI, credentials of the lab of student01
-ansible-playbook lineadicomando.win_workman.win_workman -l student01 \
+ansible-playbook lineadicomando.win_workman.win_workman -l PC01 \
   -e '{"todo": "win_iso-build", "win_workman_win_iso_source": "Win11_25H2_Italian_x64.iso"}'
 
-# Capability integrated by DISM on a Windows host
-ansible-playbook lineadicomando.win_workman.win_workman -l teacher \
+ansible-playbook lineadicomando.win_workman.win_workman -l PC01 \
   -e '{"todo": "win_iso-build-dism",
        "win_workman_win_iso_source": "Win11_25H2_Italian_x64.iso",
        "win_workman_win_iso_fod_source": "26100.1.240331-1435.ge_release_amd64fre_CLIENT_LOF_PACKAGES_OEM.iso"}'
 ```
 
-Steps of `build`:
+1. extract the source into a private directory under `win_workman_win_iso_work_dir`
+   (default: the folder of the output);
+2. keep the chosen editions with `wimlib-imagex export` (an `install.esd` becomes a
+   recompressed `install.wim`: slow);
+3. `dism`: copy `install.wim` and the package to the host; per edition, as a separate
+   async task, `/Mount-Image`, `/Add-Package`, `/Unmount-Image /Commit`; fetch it back;
+4. write answer file and setup script, add the MSI (`msi`) and the key;
+5. pack with `genisoimage` (UDF, BIOS and UEFI boot) and move into place, mode `0600`.
 
-1. extract the source ISO into a private directory in the work directory
-   (`win_workman_win_iso_work_dir`, by default the folder of the output);
-2. keep the chosen editions with `wimlib-imagex export` (an `install.esd` is
-   converted to `install.wim` here, recompressed, which is slow);
-3. with `dism`: copy `install.wim` and the OpenSSH Server package to the host,
-   then for each edition `/Mount-Image`, `/Add-Package`, `/Unmount-Image
-   /Commit`, and fetch `install.wim` back;
-4. write the answer file and the setup script, add the MSI (`msi`) and the key;
-5. pack the ISO with `genisoimage` (UDF, BIOS and UEFI boot) and move it in
-   place, mode `0600`.
+The private directory holds the password in clear and is removed at the end whatever
+happens; with `dism` the host's working folder too, after discarding any mounted image.
+A run killed outright (SIGKILL, power loss) cannot remove it: if the output folder is
+shared or collected as is, point `win_workman_win_iso_work_dir` to a private folder on
+the same file system, so the output is only renamed into place.
 
-The private directory, which holds the password in clear, is removed at the end
-whatever happens; with `dism` the working folder on the host is removed too,
-after discarding any image left mounted. A run killed outright (SIGKILL, power
-loss) cannot remove it: if the folder of the output is shared or collected as it
-is, set `win_workman_win_iso_work_dir` to a private folder on the same file
-system, so that the output is only renamed into place.
-
----
-
-## The DISM variant
-
-The OpenSSH Server package (`OpenSSH-Server-Package~31bf3856ad364e35~amd64~~.cab`)
-comes from the **Languages and Optional Features ISO**, downloaded by hand like
-the Windows ISO and named by `win_workman_win_iso_fod_source`. It must belong to
-the servicing branch of the image: 24H2, 25H2 and 26H2 are all branch 26100
-(their packages are `10.0.26100.x`), so the 26100 Features ISO serves all three.
-Until the first cumulative update, `sshd` stays at the version of that ISO.
-
-Only the package goes into the image. The service start type, the default
-shell, the firewall rule and the key are set by the same setup script as with
-the MSI, minus `msiexec`.
-
-The host needs about 40 GB free on the drive of `win_workman_win_iso_dism_dir`:
-`install.wim` (6–8 GB) plus the space to mount an edition. The role checks it
-before copying. DISM services an image best from the same build or a newer one;
-when the host is older than the image the role warns and goes on.
-
-`install.wim` travels to the host and back over SSH, and each edition takes a
-few minutes: fewer editions mean a shorter run. Each edition is a separate
-async task, so the SSH session does not have to stay busy for the whole job.
-
----
+**DISM variant.** `OpenSSH-Server-Package~31bf3856ad364e35~amd64~~.cab` comes from the
+**Languages and Optional Features ISO** (downloaded by hand, `win_workman_win_iso_fod_source`)
+of the image's servicing branch: 24H2, 25H2 and 26H2 are all 26100 (`10.0.26100.x`), so
+one Features ISO serves the three. Until the first cumulative, `sshd` stays at that ISO's
+version. Only the package goes into the image; start type, shell, firewall and key come
+from the same setup script, minus `msiexec`. The host needs free space for `install.wim`
+(6–8 GB) plus `win_workman_win_iso_dism_min_free_gib` (about 40 GB in all), checked before
+copying. When the host's build is older than the image the role warns and goes on. The
+WIM travels over SSH both ways and each edition takes minutes: fewer editions, shorter
+run.
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_win_iso_root` | `{{ win_workman_storage_path }}/win_iso` | Controller folder of the ISOs |
-| `win_workman_win_iso_source` | `""` | The Microsoft ISO, relative to the root or absolute. Required by `build` |
-| `win_workman_win_iso_output` | `""` | Output ISO, relative to the root or absolute. Empty: `<source>-unattended.iso` |
-| `win_workman_win_iso_work_dir` | `""` | Absolute controller folder for the private build directory (about twice the ISO, password in clear, removed at the end). Empty: the folder of the output |
-| `win_workman_win_iso_ssh` | `msi` | `msi`, `dism` or `none`; a task argument wins |
-| `win_workman_win_iso_fod_source` | `""` | `dism`: the Languages and Optional Features ISO, relative to the root or absolute |
-| `win_workman_win_iso_dism_dir` | `C:\win_iso` | `dism`: working folder on the host, removed at the end |
-| `win_workman_win_iso_dism_min_free_gib` | `30` | `dism`: free space needed beyond the size of `install.wim` |
-| `win_workman_win_iso_dism_timeout` | `3600` | `dism`: seconds allowed to each edition |
-| `win_workman_win_iso_editions` | `[Core, Professional, Education, ProfessionalEducation]` | Editions kept, by edition ID, name or index of the source. Empty keeps all |
-| `win_workman_win_iso_image` | `""` | Edition installed without asking: index in the output, name or edition ID. Empty: Setup asks, or uses the edition of the key in the firmware |
-| `win_workman_win_iso_product_key` | `""` | Product key, for PCs without one in the firmware |
-| `win_workman_win_iso_wipe_disk` | `false` | Erase disk 0 without asking |
-| `win_workman_win_iso_bypass_requirements` | `true` | Lift the TPM, Secure Boot and RAM checks |
-| `win_workman_win_iso_prevent_bitlocker` | `true` | No automatic device encryption |
-| `win_workman_win_iso_computer_name` | `*` | Computer name; `*` is random |
-| `win_workman_win_iso_setup_language` | `""` | Language of Setup and of the UI. Empty: the one of the ISO |
-| `win_workman_win_iso_locale` | `it-IT` | System and user locale |
-| `win_workman_win_iso_input_locale` | `0410:00000410` | Keyboard |
-| `win_workman_win_iso_timezone` | `W. Europe Standard Time` | Time zone |
-| `win_workman_win_iso_organization` | `win_workman` | Registered organisation |
-| `win_workman_win_iso_user` | `{{ ansible_user }}` | Local administrator created by Setup |
-| `win_workman_win_iso_password` | `{{ ansible_password }}` | Its password |
-| `win_workman_win_iso_authorized_key_file` | `{{ ansible_ssh_pub_key_path }}` | Public key for `administrators_authorized_keys`, when the file exists |
+| `win_workman_win_iso_root` | `{{ win_workman_storage_path }}/win_iso` | controller folder of the ISOs |
+| `win_workman_win_iso_source` | `""` | Microsoft ISO, relative to the root or absolute; required by `build` |
+| `win_workman_win_iso_output` | `""` | output ISO; empty: `<source>-unattended.iso` |
+| `win_workman_win_iso_work_dir` | `""` | absolute folder of the private build directory (about twice the ISO); empty: the output's folder |
+| `win_workman_win_iso_ssh` | `msi` | `msi`, `dism`, `none`; a task argument wins |
+| `win_workman_win_iso_fod_source` | `""` | `dism`: the Features ISO, relative to the root or absolute |
+| `win_workman_win_iso_dism_dir` | `C:\win_iso` | `dism`: working folder on the host |
+| `win_workman_win_iso_dism_min_free_gib` | `30` | `dism`: free GiB needed beyond `install.wim` |
+| `win_workman_win_iso_dism_timeout` | `3600` | `dism`: seconds per edition |
+| `win_workman_win_iso_editions` | `[Core, Professional, Education, ProfessionalEducation]` | editions kept (edition ID, name or index); empty keeps all |
+| `win_workman_win_iso_image` | `""` | edition installed without asking (index in the output, name or ID); empty: Setup asks or uses the firmware key's |
+| `win_workman_win_iso_product_key` | `""` | key for PCs without one in the firmware |
+| `win_workman_win_iso_wipe_disk` | `false` | erase disk 0 without asking |
+| `win_workman_win_iso_bypass_requirements` | `true` | lift the TPM, Secure Boot and RAM checks |
+| `win_workman_win_iso_prevent_bitlocker` | `true` | no automatic device encryption |
+| `win_workman_win_iso_computer_name` | `*` | `*` is random |
+| `win_workman_win_iso_setup_language` | `""` | Setup and UI language; empty: the ISO's |
+| `win_workman_win_iso_locale` / `_input_locale` / `_timezone` | `it-IT` / `0410:00000410` / `W. Europe Standard Time` | locale, keyboard, time zone |
+| `win_workman_win_iso_organization` | `win_workman` | registered organisation |
+| `win_workman_win_iso_user` / `_password` | `{{ ansible_user }}` / `{{ ansible_password }}` | local administrator created by Setup |
+| `win_workman_win_iso_authorized_key_file` | `{{ ansible_ssh_pub_key_path \| default('') }}` | public key installed when the file exists |
 
----
+## Notes
 
-## Requirements and cautions
-
-- Controller: `7z`, `genisoimage`, `wimlib-imagex` (Fedora: `dnf install 7zip
-  genisoimage wimlib-utils`; Debian: `apt install 7zip genisoimage wimtools`),
-  and twice the size of the ISO free in the work directory. With `msi`, network
-  access to GitHub the first time: the MSI is downloaded into the storage by
-  `pkg_utils/download` and verified against its sha256.
-- The ISO holds the account password in clear in `autounattend.xml`: it is
-  written readable by its owner only. Keep it, and the USB sticks made from it,
-  out of reach of students.
-- `win_workman_win_iso_wipe_disk: true` also means that a PC booting from a
-  forgotten stick reinstalls itself.
-- Write the ISO to a stick with Rufus leaving its customisations unticked (they
-  would replace the answer file), or copy it to a Ventoy stick.
-- On the installed PC the setup script logs to
-  `C:\Windows\Temp\win_workman-setup.log` and leaves `win_workman-setup.done`
-  or `.failed` next to it. A failure does not stop Setup: it shows as no SSH.
-- SSH answers while OOBE is still running (about 7 minutes after Setup starts
-  in a VM): wait for the logon screen before restarting the PC or running long
-  tasks, or OOBE is interrupted.
+- Controller: `7z`, `genisoimage`, `wimlib-imagex` (Fedora `dnf install 7zip genisoimage
+  wimlib-utils`; Debian `apt install 7zip genisoimage wimtools`), twice the ISO free in
+  the work directory; with `msi`, GitHub reachable the first time.
+- The ISO holds the password in clear in `autounattend.xml`: keep it and the sticks made
+  from it away from students. `wipe_disk: true` also means a PC booting from a forgotten
+  stick reinstalls itself.
+- Rufus: leave its customisations unticked (they replace the answer file); Ventoy works.
+- On the PC the setup script logs to `C:\Windows\Temp\win_workman-setup.log` (MSI log
+  `win_workman-setup-msi.log`) and leaves `win_workman-setup.done` or `.failed`. A failure
+  does not stop Setup: it shows as no SSH.
+- SSH answers while OOBE still runs (about 7 minutes after Setup starts in a VM): wait for
+  the logon screen before restarting the PC or running long tasks, or OOBE is interrupted.

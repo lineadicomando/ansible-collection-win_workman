@@ -3,48 +3,27 @@
 [![GitHub tag](https://img.shields.io/github/v/tag/lineadicomando/ansible-collection-win_workman?label=version)](https://github.com/lineadicomando/ansible-collection-win_workman/tags)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-blue)](./LICENSE)
 [![CI](https://github.com/lineadicomando/ansible-collection-win_workman/actions/workflows/lint.yml/badge.svg)](https://github.com/lineadicomando/ansible-collection-win_workman/actions/workflows/lint.yml)
-[![GitHub issues](https://img.shields.io/github/issues/lineadicomando/ansible-collection-win_workman)](https://github.com/lineadicomando/ansible-collection-win_workman/issues)
 
+**Schema-driven management of Windows 11 workstations with Ansible**, built for school
+labs: software deployment, system policy and maintenance through one interface.
 
-> **Work in progress** — This README is a preliminary draft. Role-level documentation,
-> variable references, and usage examples are incomplete and subject to change.
+- **Deploy**: install, upgrade and remove a catalog of software (browsers, dev tools,
+  CAD, office, runtimes) from checksummed installers kept on the controller. No
+  Chocolatey, no external feed.
+- **Govern**: Windows Update, maintenance lock, autologon, OpenSSH hardening, domain
+  membership, wallpaper and display settings across every profile, classroom tools
+  (Veyon, Galène, Safe Exam Browser).
+- **Maintain**: chkdsk, sfc, DISM component store, volume optimisation, scheduled
+  shutdown, Wake-on-LAN.
 
-**Schema-driven Windows workstation management for Ansible —
-software deployment, system governance, and maintenance from a single interface.**
-
-`win_workman` manages Windows 11 workstations across three dimensions:
-
-- **Deploy** — install, upgrade, and uninstall a growing catalog of software packages
-  (browsers, dev tools, CAD, office, runtimes) using a schema-based approach with
-  checksum verification and offline-friendly installer storage. No Chocolatey, no
-  external feed, no rate limits.
-
-- **Govern** — enforce system-level policy: Windows Update control, OS hardening,
-  user session management, automatic logon, SSH configuration, and classroom
-  infrastructure (Veyon monitoring, Safe Exam Browser).
-
-- **Maintain** — run recurring maintenance operations: disk check, system file repair,
-  DISM store cleanup, volume optimisation, and targeted patch removal.
-
-All operations share the same dispatcher interface: a list of dash-separated task
-strings dispatched to schema roles, keeping playbooks declarative and readable
-regardless of what the task actually does.
-
----
+Everything is a dash-separated **task string**, `<role>[-<action>[-<arg>…]]`:
+`chrome`, `chrome-off`, `wu-pause-14`, `veyon-on-master`.
 
 ## Requirements
 
-| Dependency | Version |
-|---|---|
-| `ansible.windows` | >= 2.0.0 |
-| `community.windows` | >= 2.0.0 |
-| `community.general` | >= 8.0.0 |
-
-Target hosts must run Windows 11. WinRM or SSH connectivity is required.
-The `galene` role builds its Windows binary on the controller and needs Go there
-(any version from 1.21; the pinned toolchain is downloaded by Go itself).
-
----
+Windows 11 targets reachable over WinRM or SSH; on the controller `ansible.windows`,
+`community.windows` ≥ 2.0.0 and `community.general` ≥ 8.0.0. The `galene` role builds
+its Windows binary on the controller and needs Go ≥ 1.21 there.
 
 ## Installation
 
@@ -53,18 +32,15 @@ The `galene` role builds its Windows binary on the controller and needs Go there
 collections:
   - name: git+https://github.com/lineadicomando/ansible-collection-win_workman
     type: git
-    version: main
+    version: vX.Y.Z   # a release tag (see the badge); main follows every commit
 ```
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
 ```
 
-`main` follows every commit. To choose when an update reaches your hosts, pin a
-release tag instead (`version: v0.7.0`): package versions change often, and each
-batch of them is released as a patch version.
-
----
+Package versions change often and each batch is released as a patch version: pin a
+tag to choose when an update reaches your hosts.
 
 ## Quick start
 
@@ -74,276 +50,30 @@ batch of them is released as a patch version.
   roles:
     - role: lineadicomando.win_workman.dispatcher
       vars:
-        win_workman_storage_path: /mnt/software
+        win_workman_storage_path: /srv/software
         win_workman_tasks:
           - chrome
           - vscode
           - python312
+          - wu-pause-14
 ```
 
-Tasks are dash-separated strings: `<schema>[-<action>[-<arg>...]]`.
-When the action token is omitted, each role uses its own default
-(`win_workman_{role}_schema.default_action`); most package roles default to
-`on` (install), `wu` defaults to `run`, `wim` to `check`.
-See [Architecture](#architecture) for the full syntax.
+Or from the command line:
 
----
-
-## Software catalog
-
-All catalog roles support the standard package actions: `on` (install), `off` (uninstall),
-`download`, `copy`, `info`, `is_present`. Additional role-specific actions are listed in the
-**Extra actions** column.
-
-### Browsers
-
-| Role | Software | Extra actions |
-|---|---|---|
-| `chrome` | Google Chrome (Enterprise MSI) | `rm`, `privacy` |
-| `firefox` | Mozilla Firefox (locale-aware) | `rm`, `privacy` |
-| `edge` | Microsoft Edge (uninstall not supported) | `rm`, `privacy` |
-| `brave` | Brave Browser | — |
-| `opera` | Opera Browser | — |
-| `vivaldi` | Vivaldi | — |
-| `seb` | Safe Exam Browser 3.x | `deploy`, `undeploy`, `config_key` |
-
-### Developer tools
-
-| Role | Software | Extra actions |
-|---|---|---|
-| `vscode` | Visual Studio Code | — |
-| `git` | Git | — |
-| `embarcadero_devcpp` | Embarcadero Dev-C++ | — |
-| `orwell_devcpp` | Orwell Dev-C++ | — |
-| `laragon` | Laragon | — |
-| `mysql_server` | MySQL Server | — |
-| `mysql_workbench` | MySQL Workbench | — |
-| `dbeaver` | DBeaver | — |
-| `postman` | Postman | — |
-| `netbeans` | Apache NetBeans | — |
-| `python310` | Python 3.10 | — |
-| `python311` | Python 3.11 | — |
-| `python312` | Python 3.12 | — |
-| `python313` | Python 3.13 | — |
-| `python314` | Python 3.14 | — |
-| `python315` | Python 3.15 | — |
-
-### Graphics, CAD & Multimedia
-
-| Role | Software | Extra actions |
-|---|---|---|
-| `gimp` | GIMP | — |
-| `inkscape` | Inkscape | — |
-| `blender` | Blender | — |
-| `sketchup2026` | SketchUp 2026 | — |
-| `autocadlt2026` | AutoCAD LT 2026 (locale auto-detected) | `off-full` (purge shared Autodesk stack) |
-| `autocadlt2023` | AutoCAD LT 2023 — removal only | `off` (only action), `off-full` |
-| `tinycad` | TinyCAD | — |
-| `vlc` | VLC media player | — |
-| `puredata` | Pure Data | — |
-| `audacity` | Audacity | — |
-
-### Education & Productivity
-
-| Role | Software | Extra actions |
-|---|---|---|
-| `geogebra` | GeoGebra Calculator Suite | — |
-| `geogebra5` | GeoGebra Classic 5 | — |
-| `goldendict` | GoldenDict-ng | — |
-| `libreoffice` | LibreOffice | `rm_data` |
-| `zoom` | Zoom | — |
-| `googledrive` | Google Drive | — |
-| `gcpw` | Google Credential Provider for Windows | — |
-
-### Documents & Editors
-
-| Role | Software | Extra actions |
-|---|---|---|
-| `adobe_reader_dc` | Adobe Acrobat Reader DC | — |
-| `foxit_pdf_reader` | Foxit PDF Reader | — |
-| `notepadpp` | Notepad++ | — |
-| `winmerge` | WinMerge | — |
-
-### Utilities & Runtimes
-
-| Role | Software | Extra actions |
-|---|---|---|
-| `p7zip` | 7-Zip | — |
-| `peazip` | PeaZip | — |
-| `winrar` | WinRAR | — |
-| `filezilla` | FileZilla Client | — |
-| `winscp` | WinSCP | — |
-| `putty` | PuTTY | — |
-| `powertoys` | Microsoft PowerToys | — |
-| `rustdesk` | RustDesk | — |
-| `windirstat` | WinDirStat | — |
-| `ntop` | NTop | — |
-| `winfsp` | WinFsp | — |
-| `vcredist14` | Visual C++ Redistributable 14 | — |
-| `virtiogt` | VirtIO Win Guest Tools | — |
-| `nircmd` | NirCmd | — |
-| `patchcleaner` | PatchCleaner | — |
-| `driver_reviver` | Driver Reviver | — |
-
-> Contributions to the catalog are welcome. See [how schema roles work](#schema-roles).
-
----
-
-## Workstation management
-
-Additional roles for system-level operations, all accessible through the same
-dispatcher interface.
-
-### System & OS
-
-| Role | Actions | Description |
-|---|---|---|
-| `optimize` | `on` | Volume optimisation and TRIM / defrag |
-| `wu` | `run` *(default)*, `scan`, `sync_ui`, `reset`, `on`, `off`, `pause`, `resume`, `max_pause_days`, `is_paused`, `policy_standard` | Windows Update control |
-| `wim` | `check` *(default)*, `scan`, `repair`, `on` *(alias for `check`)* | DISM component store health |
-| `sfc` | `on` | System File Checker |
-| `chkdsk` | `on` | Check Disk |
-| `oobe` | `on`, `off` | Suppress Out-of-Box Experience prompts |
-| `scoobe` | `info` *(default)*, `off`, `on` | Suppress the "finish setting up your device" page after updates, in every profile |
-| `widgets` | `on`, `off` | Windows 11 Widgets panel (news and interests) |
-| `wallpaper` | `on` *(default)*, `off`, `set`, `reset`, `lock`, `unlock`, `clear_history` | Wallpaper across all user profiles |
-
-### Session & Access
-
-| Role | Actions | Description |
-|---|---|---|
-| `autologon` | `on`, `off` | Automatic logon for a local account |
-| `lock` | `on`, `off` | Maintenance mode: login banner + logon restrictions |
-| `ms_account` | `on`, `off` | Block or allow Microsoft account sign-in |
-| `logoff` | `on` | Force logoff all interactive sessions |
-| `restart` | `on`, `if-pending` | Controlled system restart |
-| `shutdown` | `on`, `wait` | Controlled system shutdown |
-| `autoshutdown` | `on`, `off`, `info` | Scheduled task that shuts the host down at fixed times |
-
-### Network & Security
-
-| Role | Actions | Description |
-|---|---|---|
-| `domain` | `status` *(default)*, `join`, `leave`, `on`, `off` | Active Directory domain membership |
-| `openssh` | `info` *(default)*, `update`, `harden`, `unharden`, `on`, `off` | OpenSSH Server: installation info, MSI upgrade and hardening (`secure_ssh` is a deprecated alias) |
-| `veyon` | `on`, `off`, `config` | Veyon classroom agent (install + key/network config) |
-| `galene` | `on`, `off`, `info`, `build` | Galène server on the teacher PC (service + firewall) and shortcuts to it on the students |
-| `ping` | `on` | Connectivity test |
-| `wol` | `on` | Send Wake-on-LAN magic packets |
-
-### Files
-
-| Role | Actions | Description |
-|---|---|---|
-| `file_copy` | `push` *(default)*, `pull`, `status`, `remove`, `on`, `off` | Copy files and folders to and from the hosts, into a user's Desktop or Documents too |
-
----
-
-## MCP integration
-
-The collection includes an optional MCP (Model Context Protocol) server that
-lets AI assistants (Claude Desktop, Claude Code) query role information and
-execute tasks directly.
-
-```json
-{
-  "mcpServers": {
-    "win-workman": {
-      "command": "python",
-      "args": ["/path/to/ansible-collection-win_workman/mcp/server.py"],
-      "env": { "ANSIBLE_PROJECT_ROOT": "/path/to/your/ansible-project" }
-    }
-  }
-}
+```bash
+ansible-playbook lineadicomando.win_workman.win_workman -i inventory -l lab_pcs \
+  -e '{"todo": "chrome,vlc-off"}'
 ```
 
-See [`docs/mcp.md`](docs/mcp.md) for setup instructions, tool reference, and
-the `meta/mcp.yaml` role manifest format.
+## Documentation
 
----
-
-## Architecture
-
-The collection is built around a **dispatcher + schema** pattern:
-
-```
-win_workman_tasks (list of strings)
-        │
-        ▼  parse_tasks filter (Jinja2)
-        │
-        ▼
-  dispatcher role
-        │  include_role: lineadicomando.win_workman.<schema>
-        ▼
-  schema role  (e.g. chrome, vscode, veyon …)
-        │  include_role: pkg_utils  tasks_from: pkg_workflow
-        ▼
-  pkg_utils — download / install / uninstall / info / …
-```
-
-### Task string syntax
-
-```
-<schema>[-<action>[-<arg1>[-<arg2>…]]]
-```
-
-| Task string | Schema | Action | Args |
-|---|---|---|---|
-| `chrome` | `chrome` | *(default: `on`)* | — |
-| `chrome-off` | `chrome` | `off` | — |
-| `veyon-config-student` | `veyon` | `config` | `student` |
-| `chrome-on-32bit` | `chrome` | `on` | `32bit` |
-| `wu` | `wu` | *(default: `run`)* | — |
-| `wu-pause-14` | `wu` | `pause` | `14` |
-
-### Schema roles
-
-Each software role exposes a `win_workman_<schema>_schema` variable in
-`vars/main.yaml` describing the package:
-
-```yaml
-win_workman_vscode_schema:
-  name: Visual Studio Code
-  default_action: !!str on      # action used when task string has no action token
-  package:
-    setup_file: VSCodeSetup-x64-1.121.0.exe
-    searchName: "Microsoft Visual Studio Code"
-    version: "1.121.0"
-    provider: registry          # registry | portable
-    install_args: [/VERYSILENT]
-    uninstall_args: [/VERYSILENT]
-  files:
-    - filename: VSCodeSetup-x64-1.121.0.exe
-      url: https://…
-      checksum: sha256:…
-```
-
-`pkg_utils` reads this schema and handles download, detection, install,
-uninstall, and shortcut management. To add a new software role to the catalog,
-define the schema variable and call `pkg_utils tasks_from: pkg_workflow`.
-
----
-
-## Key variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `win_workman_tasks` | `[]` | List of task strings for the dispatcher |
-| `win_workman_storage_path` | `~/win_workman_storage` | Controller-side path for installer storage |
-| `win_workman_remote_tmp` | `C:\Windows\Temp\ansible` | Staging directory on the Windows target; the dispatcher gives it an ACL SYSTEM can use (`docs/roles/core/pkg_utils.md`) |
-| `win_workman_portable_path` | `C:\PortableApps` | Root directory for portable applications |
-| `win_workman_restart_timeout` | `600` | Seconds to wait after a reboot |
-| `win_workman_restart` | `true` | Allow roles to trigger a reboot when needed |
-
-Role-specific variables follow the pattern `win_workman_<schema>_*`.
-See [`docs/`](docs/index.md) for full per-role documentation.
-
----
+| Read | For |
+|---|---|
+| [docs/index.md](docs/index.md) | the catalog: every role, one line each, linked to its page |
+| [docs/architecture.md](docs/architecture.md) | task strings, standard actions, package schema, global variables |
+| [docs/roles/core/pkg_utils.md](docs/roles/core/pkg_utils.md) | schema fields and the shared task toolbox |
+| [docs/mcp.md](docs/mcp.md) | the MCP server for AI assistants (`get_role_info`, `run_tasks`) |
 
 ## License
 
-GPL-3.0-or-later
-
-## Author
-
-Alessandro Gagliano — [lineadicomando.it](https://lineadicomando.it)
+GPL-3.0-or-later. Author: Alessandro Gagliano — [lineadicomando.it](https://lineadicomando.it)

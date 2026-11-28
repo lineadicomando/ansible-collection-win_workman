@@ -1,60 +1,25 @@
-# Role: foxit_pdf_reader
+# foxit_pdf_reader — Foxit PDF Reader
 
-> **Work in progress** — preliminary draft.
-
-Manages Foxit PDF Reader, the lightweight PDF viewer from Foxit Software. Supports
-standard package operations: install, uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade Foxit PDF Reader |
-| `off` | Uninstall Foxit PDF Reader |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that Foxit PDF Reader is installed |
-
----
-
-## Configuration
-
-No user-configurable variables. The installer runs silently with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - foxit_pdf_reader
-  - foxit_pdf_reader-off
-```
-
----
-
-## Schema details
-
-Software name: `Foxit PDF Reader`
-Provider: `registry`
-Installer: `FoxitPDFReader202611_L10N_Setup_Prom_x64.exe` (64-bit, multilingual)
-Homepage: https://www.foxit.com/pdf-reader/
-
----
+Installs Foxit PDF Reader from the 64-bit multilingual (L10N) installer (`/quiet`),
+a per-machine WiX Burn bundle wrapping an MSI. Standard package actions only, with a
+custom uninstall.
 
 ## Notes
 
-The installer is the official L10N promotional EXE from the Foxit CDN. Silent
-installation uses the `/S` flag (NSIS). Before uninstalling, the role kills any
-running `FoxitPDFReader.exe` processes via a PowerShell hook.
-
-The checksum in `vars/main.yaml` must be verified before production use:
-
-```bash
-sha256sum FoxitPDFReader202611_L10N_Setup_Prom_x64.exe
-```
-
-Verify that `searchName` matches the `DisplayName` in the Windows Uninstall registry
-(`"Foxit PDF Reader"`) before deploying to a new OS version.
+- Both the bundle and the MSI register as `Foxit PDF Reader`. Removing the MSI alone
+  left the bundle entry behind, so `info` and `is_present` kept reporting Foxit
+  installed after `off`, and a later `on` never reinstalled it. `off` therefore runs a
+  `before_uninstall_ps_script` (in `vars/main.yaml`) that kills `FoxitPDFReader`, then
+  runs the bundle's `QuietUninstallString` (its copy under `ProgramData\Package
+  Cache`): Burn removes the MSI, its own registration and the cache. With no bundle
+  entry (an MSI installed on its own) it runs `msiexec /x` on the MSI. pkg_utils'
+  own uninstall step then finds nothing left; `cleanup_paths` drops the install
+  directory.
+- The script waits on the uninstaller process only (10 minutes at most), not with
+  `Start-Process -Wait`, which waits for the whole job object and can hang on a
+  leftover child.
+- Foxit publishes no digest: the checksum is computed on the downloaded installer;
+  `version` is its ProductVersion.
+- Tested 2026-11-25 on a Windows test VM (2026.2.1.39815): download, copy, on, a no-op
+  second on, info, is_present, off and info passed; after off no uninstall entry,
+  directory, Package Cache copy, service, scheduled task or shortcut was left.

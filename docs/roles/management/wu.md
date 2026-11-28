@@ -1,221 +1,64 @@
-# Role: wu (Windows Update)
+# wu — Windows Update
 
-Manages Windows Update behaviour: run pending updates, pause/resume the update schedule,
-and inspect or adjust the maximum allowed pause duration.
-
----
+Installs updates through `win_updates` (or the Windows Update Agent for optional
+updates), pauses and resumes the update schedule, refreshes the Settings page and
+resets a stuck Windows Update state.
 
 ## Actions
 
-> **Default action: `run`** — bare `wu` (no action token) runs pending updates with the default profile (`security`).
-
-| Action | Description |
+| Action | Does |
 |---|---|
-| `run` | Install the updates selected by a profile or a category list (see below), rebooting and searching again until none is left, then report the outcome |
-| `scan` | Read-only: list what Windows Update offers, both the updates `run` installs and the optional ones |
-| `sync_ui` | Bring the Windows Update page of Settings in line with what is installed (see below); `run` does it on its own after installing |
-| `reset` | By hand only: reset the Windows Update state of a stuck host (see below) |
-| `on` | Resume Windows Update (alias for `resume`) |
-| `off` | Pause Windows Update at maximum duration (alias for `pause` at max days) |
-| `pause` | Pause quality and feature updates for `win_workman_wu_pause_months` months plus `win_workman_wu_pause_days` days, or for the duration in the task (`wu-pause-14`, `wu-pause-3-w`, `wu-pause-2-m`) |
-| `resume` | Remove the update pause (resume immediately) |
-| `max_pause_days` | Read or set `FlightSettingsMaxPauseDays`; without args reports the current value, with a duration sets the cap of `pause`/`off`. It no longer lifts the 35-day limit of the Settings date picker (see below) |
-| `is_paused` | Report whether updates are paused and, if so, the expiry timestamp |
-| `policy_standard` | Restore standard Windows Update Group Policy (reverts Ansible-managed policy) |
-| `policy_ansible_managed` | *(removed)* Raises an error; use `pause` or `off` instead |
+| `run` *(default)* | install the updates of a profile or category list in rounds, rebooting between them, then report: [below](#run) |
+| `scan` | install nothing; list what Windows Update offers, regular and optional, with classifications (fact `win_workman_wu_scan`: `build`, `pending`, `optional`; an optional driver can show in both) |
+| `sync_ui` | refresh the Windows Update page of Settings: [below](#sync_ui) |
+| `reset` | by hand only: reset a stuck Windows Update state: [below](#reset) |
+| `pause[-<n>[-d\|w\|m]]` | pause quality and feature updates; bare: `win_workman_wu_pause_months` + `win_workman_wu_pause_days` |
+| `off` | `pause` for `win_workman_wu_default_max_pause_days` days |
+| `resume`, `on` | remove the pause (UX timestamps, policy pause status and dates) |
+| `max_pause_days[-<n>[-d\|w\|m]]` | without args report `FlightSettingsMaxPauseDays`; with a duration set it (the cap of `pause`/`off`); `0` restores `win_workman_wu_default_max_pause_days` |
+| `is_paused` | report whether `PausedQualityStatus` is 1 and the expiry (facts `win_workman_wu_is_paused`, `win_workman_wu_pause_expiry`) |
+| `policy_standard` | restore the default policy the removed `ansible_managed` profile changed: WaaSMedicSvc manual with default recovery actions, AU `NoAutoUpdate=0`, `NoAUShutdownOption=0`, `AutoInstallMinorUpdates=1`, `UseWUServer=0`; removes `AUOptions`, `NoAutoRebootWithLoggedOnUsers` and every `ExcludeWUDriversInQualityUpdate` |
+| `policy_ansible_managed` | removed: fails, pointing to `pause`/`off` and `policy_standard` |
 
-### `run` selection
+### run
 
 | Task | Installs |
 |---|---|
-| `wu-run`, `wu` | the `win_workman_wu_default_profile` profile (`security`) |
-| `wu-run-security` | security, critical, rollups, definitions; optional (BrowseOnly) updates skipped |
-| `wu-run-full` | `security` plus updates, drivers, featurepacks, servicepacks, tools, BrowseOnly updates included (not the preview cumulatives, see below) |
-| `wu-run-upgrades` | feature updates only (e.g. 25H2 -> 26H2), when Windows Update offers them as a regular install |
-| `wu-run-cat-<a>[+<b>...]` | exactly the listed categories, BrowseOnly updates included |
-| `wu-run-optional-<a>[+<b>...]` | the listed categories among the updates offered as optional: preview cumulatives, optional feature updates and drivers (see below) |
+| `wu-run`, `wu` | profile `win_workman_wu_default_profile` (`security`) |
+| `wu-run-security` | security, critical, rollups, definitions; BrowseOnly updates skipped |
+| `wu-run-full` | `security` plus updates, drivers, featurepacks, servicepacks, tools, BrowseOnly included |
+| `wu-run-upgrades` | feature updates, when offered as a regular install |
+| `wu-run-<profile>` | any profile of `win_workman_wu_profiles` (`categories` as aliases, `skip_optional`) |
+| `wu-run-cat-<a>[+<b>…]` | exactly these categories, BrowseOnly included |
+| `wu-run-optional-<a>[+<b>…]` | these categories among the updates offered as optional: [below](#optional-updates) |
 
-Feature updates are left out of `full` on purpose: an upgrade takes an hour and
-several reboots, and fails outright on hosts that do not meet the requirements
-(legacy BIOS/MBR, no TPM). They run only when asked for by name.
+Precedence: a `cat-` selector, then `win_workman_wu_categories`, then the profile.
+Feature updates are out of `full` on purpose: an hour and several reboots, and they fail
+outright on hosts that do not meet the requirements (legacy BIOS/MBR, no TPM).
 
-Category aliases, since task strings cannot carry spaces:
+Category aliases (task strings cannot carry spaces): `security` (Security Updates, the
+monthly cumulative), `critical`, `rollups` (Update Rollups), `definitions` (Defender),
+`updates` (non-security fixes; the preview cumulatives carry it too but only
+`wu-run-optional-updates` reaches them), `drivers`, `featurepacks`, `servicepacks`,
+`tools`, `upgrades` (feature updates), `application`, `connectors`, `devkits`,
+`guidance`.
 
-| Alias | Windows Update classification |
-|---|---|
-| `security` | Security Updates (the monthly cumulative on Windows 11) |
-| `critical` | Critical Updates |
-| `rollups` | Update Rollups |
-| `definitions` | Definition Updates (Microsoft Defender) |
-| `updates` | Updates (non-security fixes; the preview cumulatives carry it too, but only `wu-run-optional-updates` reaches them, see below) |
-| `drivers` | Drivers |
-| `featurepacks`, `servicepacks`, `tools` | Feature Packs, Service Packs, Tools |
-| `upgrades` | Upgrades (feature updates) |
-| `application`, `connectors`, `devkits`, `guidance` | the remaining WUA classifications |
+**Rounds and reboots.** `run` first reboots if a reboot is already pending
+(`pkg_utils` `pending_restart`: servicing Windows staged on its own). Each round installs
+with `reboot: false`, then the `pkg_utils` restart follows when Windows asks for one and
+a new round searches again, so updates that appear once another is in place (servicing
+stack, then cumulative) go in the same run. A round that needs no restart ends the run
+(WUA offers some updates, such as the Windows Security platform, at every search);
+`win_workman_wu_max_rounds` caps them. The restart is not left to `win_updates`: its
+reboot is over at the logon screen, but after a cumulative Windows may reboot again on
+its own (TrustedInstaller, twice in 13 minutes on a test VM) while `win_updates` is
+already searching, and the host drops as unreachable with the report lost. The
+`pkg_utils` restart waits for servicing to be idle and rides out that reboot, for up to
+`win_workman_wu_reboot_timeout`. With `win_workman_restart: false` nothing reboots, one
+round runs, and the report says whether a reboot is still required.
 
-Precedence: a `cat-` selector in the task string, then `win_workman_wu_categories`,
-then the profile. Profiles are data in `win_workman_wu_profiles`, so an
-inventory can add its own (`categories` as aliases, `skip_optional` as bool)
-and call it as `wu-run-<name>`.
-
-### Optional updates: `wu-run-optional-<category>`
-
-Windows Update publishes some updates with `DeploymentAction` =
-`OptionalInstallation`. Settings shows them as a banner that waits for the user:
-
-```
-2026-09 Aggiornamento della versione di anteprima (KB5124010) (26200.9550) è disponibile.   Scarica e installa
-```
-
-Three kinds have been seen in the labs:
-
-- the monthly **non-security preview** cumulative (the "D week" release, fourth
-  week of the month), in the `Updates` classification;
-- **feature updates**: on 2026-10-02 "Windows 11, version 26H2" was offered to
-  every 25H2 host of a production lab as optional, in `Upgrades`;
-- optional **drivers**.
-
-No profile and no `wu-run-cat-...` reaches them. win_updates searches with the
-fixed query `IsInstalled = 0`, and a WUA query that does not name a
-`DeploymentAction` implies `DeploymentAction='Installation'`: the optional
-updates are not returned at all, so they show up neither among the found updates
-nor under "Filtered out", and `wu-run-upgrades` reports `0 found`. No option of
-win_updates changes the query. `skip_optional` is not involved either: it drops
-`BrowseOnly` updates, and these are not `BrowseOnly`.
-
-`wu-run-optional-<category>[+<category>...]` installs them. It searches with
-`DeploymentAction='OptionalInstallation'`, keeps the updates in the listed
-classifications (the same aliases as `cat-`), then downloads and installs
-through the Windows Update Agent as SYSTEM, since the agent refuses both from a
-network logon. Rounds, restarts and the report are those of every `run`; the
-optional updates left out by the categories are listed under "Filtered out".
-
-| Task | Installs |
-|---|---|
-| `wu-run-optional-upgrades` | the optional feature update |
-| `wu-run-optional-updates` | the preview cumulative |
-| `wu-run-optional-drivers` | optional drivers |
-| `wu-run-optional-upgrades+updates` | feature update, then the preview cumulative of the new release in the following round |
-
-A category is required: a bare `wu-run-optional` is rejected, because the
-optional set mixes feature updates with drivers. `wu-run-optional-upgrades`
-alone stops at the feature update, keeping the revision the host had
-(26200.9457 became 26300.9457 on a production lab); chain `wu-run` after it for the
-cumulative of the new release.
-
-Leaving the preview out is harmless, and is what Microsoft intends for devices
-without an update policy: the **Enable optional updates** policy
-(`AllowOptionalContent` under
-`HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate`) is not configured by
-default, and the preview content ships in the following month's security
-cumulative, which a plain `run` installs.
-
-Setting the `TargetReleaseVersion` policy does not bring a feature update in
-reach of `wu-run-upgrades`: set to `26H2` on a 25H2 host, with or without
-`ProductVersion`, it hid the update from both searches until the policy was
-removed.
-
-The install task runs with `ansible_remote_tmp` moved to `C:\Windows\Temp`.
-Ansible creates the inventory's remote tmp (`C:\Windows\Temp\ansible`) with
-access for the connecting user only, and the become wrapper, running as SYSTEM,
-fails there with `CompileAssemblyFromSource ... path not found` before the
-script starts.
-
-### `scan`
-
-`wu-scan` installs nothing and prints, per host, the two lists the Windows
-Update Agent keeps apart, each update with its classification:
-
-```
-Build: 25H2 26200.9457
-Pending (wu-run): 1
-[Definition Updates] Aggiornamento dell'intelligence sulla sicurezza per Microsoft Defender Antivirus ...
-Optional (wu-run-optional-<category>): 1
-[Upgrades] Windows 11, version 26H2
-```
-
-The same data is left in the `win_workman_wu_scan` fact (`build`, `pending`,
-`optional`). An optional driver can show in both lists.
-
-### `sync_ui`
-
-Settings does not read the Windows Update Agent, which `run` installs through,
-but the store of the Update Orchestrator (`C:\ProgramData\USOPrivate\UpdateStore`),
-refreshed only by an orchestrator scan. After a `run` the Windows Update page
-keeps the result of the last scan Windows ran on its own: an update already
-installed still shows as available (*Scarica e installa*), or as failed
-(*Aggiornamenti non riusciti*, "no updates published for this edition") once the
-orchestrator tries to install it. Seen on 27 PCs after `wu-run-optional-updates`
-installed the monthly preview.
-
-`wu-sync_ui` starts an interactive scan (`UsoClient StartInteractiveScan`) in the
-session of the logged-on user, through a temporary scheduled task, and waits up
-to `win_workman_wu_sync_ui_timeout` seconds for a newer
-`LastSearchSuccessDate`. Only that form works: `UsoClient StartScan` from the
-SSH session, the same as SYSTEM, and the *UpdateOrchestrator\Schedule Scan* task
-all end without error and record no scan. A host with nobody logged on is
-skipped: there is no page to look at, and the next automatic scan refreshes
-it. The result is left in `win_workman_wu_sync_ui` (`user`, `before`, `after`,
-`synced`, `skipped`, `message`); the stand-alone action fails when no new scan
-shows up in time.
-
-`run` does the same at the end when it installed at least one update, unless
-`win_workman_wu_sync_ui` is `false`; there a refresh that goes wrong is only
-reported, and the run is judged on the updates.
-
-### `reset`
-
-For a Windows Update state that is wrong in itself, where `sync_ui` is not
-enough. Seen after a cumulative installed by hand with DISM: history entries
-left in progress with `0x80242014`, the `RebootRequired` flag set, a reboot asked
-for at every logon that changes nothing, a "versione di ripristino" of an older
-release offered.
-
-`wu-reset` refuses to start while updates are installing (`TiWorker`
-running). Otherwise it:
-
-1. closes Settings and stops `wuauserv`, `bits`, `cryptsvc` and `usosvc`, again
-   before each rename since `wuauserv` and `usosvc` start on demand;
-2. renames `C:\Windows\SoftwareDistribution`, `C:\Windows\System32\catroot2`
-   and `C:\ProgramData\USOPrivate\UpdateStore` with a `.wu-reset-<stamp>` suffix,
-   which Windows rebuilds empty; the copies are kept as a way back, and those of
-   an earlier reset are deleted;
-3. deletes the `RebootRequired` key;
-4. starts the services, whatever happened before;
-5. runs `sync_ui` (reported, not fatal) and `scan`.
-
-The result is left in `win_workman_wu_reset` (`stamp`, `renamed`,
-`removed_backups`, `reboot_required_cleared`, `services`). It throws away the
-download cache and the update history shown in Settings, so `run` never calls
-it.
-
-### `run` reboots
-
-`run` first finishes any servicing already pending on the host (updates Windows
-staged on its own) with the `pkg_utils` restart. Then it installs in rounds:
-win_updates installs with `reboot: false`, the `pkg_utils` restart follows when
-Windows asks for one, and a new round searches again, so updates that only show
-up once another is in place (servicing stack, then cumulative) go in the same
-run. A round that needs no restart ends the run (WUA offers some updates, such
-as the Windows Security platform, again at every search), and
-`win_workman_wu_max_rounds` caps the rounds.
-
-The restart is not left to win_updates on purpose. Its reboot is over as soon as
-the logon screen is up, but after a cumulative update Windows may reboot again on
-its own right after (TrustedInstaller, twice in 13 minutes on a test VM), while
-win_updates is already searching: the host drops as unreachable and the report
-is lost. The `pkg_utils` restart waits until component servicing is idle and
-rides out a reboot that happens meanwhile, for up to
-`win_workman_wu_reboot_timeout` in `run`, longer than the default
-`win_workman_restart_timeout`. With `win_workman_restart: false` nothing
-reboots, a single round runs and the report says whether a reboot is still
-required.
-
-### `run` report
-
-win_updates reports `ok` both when nothing was found and when a reboot finished
-installing updates Windows had staged on its own, so the recap alone cannot say
-what happened. At the end of `run` each host prints:
+**Report.** `win_updates` reports `ok` both when nothing was found and when a reboot
+finished installing updates Windows had staged, so each host prints:
 
 ```
 Selection: profile security (Security Updates, Critical Updates, Update Rollups, Definition Updates), optional updates skipped
@@ -226,160 +69,138 @@ Updates: 2 found, 1 installed, 1 failed
 Pause had expired before the run: Windows may have installed updates on its own
 ```
 
-The same data is left in the `win_workman_wu_report` fact (`build_before`,
-`build_after`, `found`, `installed`, `failed`, `reboot_required`, `reboots`, `rounds`,
-`rounds_exhausted`, `updates`,
-`filtered`). The report is printed even when the install task fails, and the host
-is marked failed when single updates fail although win_updates itself succeeded.
+Fact `win_workman_wu_report`: `build_before`, `build_after`, `found`, `installed`,
+`failed`, `reboot_required`, `reboots`, `rounds`, `rounds_exhausted`, `updates`,
+`filtered`. It is printed even when the install fails, and the host fails when single
+updates fail although `win_updates` succeeded. After a `run` that installed something,
+`sync_ui` runs (unless `win_workman_wu_sync_ui: false`); a failed refresh there is only
+reported.
 
-### Duration syntax of `pause` and `max_pause_days`
+### Optional updates
 
-An optional unit suffix controls how the numeric argument is interpreted:
+Windows Update publishes some updates with `DeploymentAction=OptionalInstallation`;
+Settings shows them as a banner waiting for the user (`2026-09 Aggiornamento della
+versione di anteprima (KB5124010) (26200.9550) è disponibile. Scarica e installa`). Seen
+in the labs: the monthly non-security **preview** cumulative ("D week", `Updates`);
+**feature updates** (on 2026-10-02 26H2 was offered as optional to every 25H2 host of a
+lab, `Upgrades`); optional **drivers**.
+
+No profile or `cat-` reaches them: `win_updates` searches with the fixed query
+`IsInstalled = 0`, which implies `DeploymentAction='Installation'`, so they show neither
+as found nor as filtered out, and `wu-run-upgrades` reports `0 found`. No option of
+`win_updates` changes the query; `skip_optional` is about `BrowseOnly`, which these are
+not.
+
+`wu-run-optional-<category>` searches with `DeploymentAction='OptionalInstallation'`,
+keeps the listed classifications, and downloads and installs through the Windows Update
+Agent as SYSTEM (become, async up to `win_workman_wu_optional_timeout`): the agent
+refuses both from a network logon. Rounds, restarts and report as above; the optional
+updates left out are listed under "Filtered out". A category is required (the set mixes
+feature updates and drivers). `wu-run-optional-upgrades` stops at the feature update,
+keeping the revision (26200.9457 became 26300.9457 on a lab): chain `wu-run` for the
+cumulative of the new release, or use `wu-run-optional-upgrades+updates` (feature update,
+then the new release's preview in the next round).
+
+SYSTEM runs the become wrapper in `ansible_remote_tmp`: with the ACL Ansible creates it
+with, the wrapper failed with `CompileAssemblyFromSource ... path not found`; the
+dispatcher now fixes the ACL ([pkg_utils](../core/pkg_utils.md#remote-temporary-directory)).
+
+Leaving the preview out is harmless and what Microsoft intends without an update
+policy: *Enable optional updates* (`AllowOptionalContent`) is not configured by default,
+and the preview content ships in the next month's security cumulative. Setting
+`TargetReleaseVersion` to `26H2` on a 25H2 host (with or without `ProductVersion`) does
+not bring the feature update to `wu-run-upgrades`: it hid it from both searches until the
+policy was removed.
+
+### sync_ui
+
+Settings reads the Update Orchestrator store (`C:\ProgramData\USOPrivate\UpdateStore`),
+not the Windows Update Agent `run` installs through, and that store changes only with an
+orchestrator scan. After a `run` the page keeps Windows' last own scan: an installed
+update still offered (*Scarica e installa*), or failed (*Aggiornamenti non riusciti*, "no
+updates published for this edition") once the orchestrator tries it. Seen on 27 PCs on
+2026-11-02 after `wu-run-optional-updates`.
+
+`wu-sync_ui` runs `UsoClient StartInteractiveScan` in the logged-on user's session
+through a temporary scheduled task and waits up to `win_workman_wu_sync_ui_timeout` for
+a newer `LastSearchSuccessDate`. Only that works: `UsoClient StartScan` from SSH, the
+same as SYSTEM, and the *UpdateOrchestrator\Schedule Scan* task end without error and
+record no scan (22 hosts). With nobody logged on the host is skipped (the next automatic
+scan fixes the store). Fact `win_workman_wu_sync_ui`: `user`, `before`, `after`,
+`synced`, `skipped`, `message`; the stand-alone action fails when no new scan shows up.
+
+### reset
+
+For a state wrong in itself, not a lagging page. Seen on two hosts on 2026-10-21 after a
+cumulative installed by hand with DISM: history entries left in progress with
+`0x80242014`, `RebootRequired` set, a reboot asked at every logon that changes nothing, a
+"versione di ripristino" of an older release offered.
+
+It refuses while `TiWorker` runs (`Microsoft.Update.Installer.IsBusy` cannot be read
+from a network logon: `E_ACCESSDENIED`). Otherwise it closes Settings (it holds the
+store open), stops `wuauserv`, `bits`, `cryptsvc`, `usosvc` (again before each rename:
+`wuauserv` and `usosvc` are trigger-started), renames `SoftwareDistribution`,
+`System32\catroot2` and `USOPrivate\UpdateStore` with `.wu-reset-<stamp>` (kept as a way
+back; copies of an earlier reset deleted), deletes `RebootRequired` (read first:
+`wuauserv` drops it when it stops), starts the services whatever happened, then runs
+`sync_ui` (not fatal) and `scan`. Fact `win_workman_wu_reset`: `stamp`, `renamed`,
+`removed_backups`, `reboot_required_cleared`, `services`. It loses the download cache
+and the history in Settings, so `run` never calls it.
+
+### Pause durations and the 35-day limit
 
 | Suffix | `pause` | `max_pause_days` |
 |---|---|---|
-| *(omitted)* or `d` / `day` / `days` | days | days |
-| `w` / `week` / `weeks` | weeks (× 7) | weeks (× 7) |
-| `m` / `month` / `months` | calendar months | months × 31 days |
+| none, `d`, `day`, `days` | days | days |
+| `w`, `week`, `weeks` | weeks | weeks × 7 |
+| `m`, `month`, `months` | calendar months | months × 31 days |
 
-`pause` computes the end date on the host, in its local time: `wu-pause-1-m` run on
-10 November pauses until 10 December, and one run on 31 January until the last day
-of February, as the date picker of Settings would. The pause starts now and ends at
-the same time of day.
+`pause` computes the end on the host in local time, from now to the same time of day:
+`wu-pause-1-m` on 10 November ends on 10 December, on 31 January at the end of February,
+as the Settings date picker would. A pause longer than `FlightSettingsMaxPauseDays`
+(absent: `win_workman_wu_default_max_pause_days`) is shortened to it, with a message. A
+month counts 31 days in the cap, so `max_pause_days-6-m` never shortens a later
+`pause-6-m`. Up to v0.5.2 a month counted 28 days for both (`wu-pause-3-m` now pauses 89
+to 92 days, not 84).
 
-`FlightSettingsMaxPauseDays` holds a number of days, so `max_pause_days` counts a
-month as 31 days: a cap set with `max_pause_days-6-m` never shortens a later
-`pause-6-m`, whatever its start date.
-
-When the pause is longer than the cap, `pause` shortens it to the cap and says so in
-its output. Passing `0` to `max_pause_days` resets the cap to the role default
-(`win_workman_wu_default_max_pause_days`).
-
-Up to v0.5.2 a month counted as 28 days for both actions, after the week selector
-of older Windows 11 Settings: `wu-pause-3-m` now pauses for 89 to 92 days, not 84.
-
-### Pause limit on 25H2 and 26H2
-
-`FlightSettingsMaxPauseDays` used to lift the limit of the pause control in Settings.
-On Windows 11 25H2 (26200) and 26H2 (26300), Settings has a date picker instead
-("Sospendi aggiornamenti → Seleziona data"). The picker ignores that value and stops
-35 days from today even with `max_pause_days-6-m`, after reopening Settings and
-restarting `UsoSvc`.
-
-The picker follows the `SetMaxPauseDays` policy
-(`HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate`, DWORD; Policy CSP
-`Update/SetMaxPauseDays`). The policy accepts 1–35, so it can only shorten the limit:
-14 cuts the picker to 14 days, and 168 is discarded in favour of the 35-day default.
-
-A pause written to the registry is still accepted beyond 35 days. `max_pause_days`
-now matters only as the cap of `pause` and `off` in this role. To pause for six months:
+On 25H2 (26200) and 26H2 (26300) Settings has a date picker ("Sospendi aggiornamenti →
+Seleziona data") that ignores `FlightSettingsMaxPauseDays` and stops at 35 days, even
+with `max_pause_days-6-m`, Settings reopened and `UsoSvc` restarted. The picker follows
+the `SetMaxPauseDays` policy (`HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate`,
+CSP `Update/SetMaxPauseDays`), which accepts 1–35 and can only shorten it (14 cuts it to
+14; 168 is discarded for 35). A pause written to the registry is still accepted beyond
+35 days, so `max_pause_days` now only caps this role's `pause`/`off`:
 
 ```yaml
 win_workman_tasks:
-  - wu-max_pause_days-6-m   # cap of wu-pause: 186 days
-  - wu-pause-6-m            # pause until the same day, six months from today
+  - wu-max_pause_days-6-m   # cap: 186 days
+  - wu-pause-6-m            # until the same day, six months from today
 ```
 
-Settings then shows "Gli aggiornamenti sono stati sospesi fino al …" with the date
-written by the role, and "Riprendi aggiornamenti" works. The picker still offers only
-dates within 35 days, so a longer pause can be extended again only through the role.
-Microsoft does not document pauses written this way, and nobody has checked that one
-holds for its full length.
-
----
+Settings then shows "Gli aggiornamenti sono stati sospesi fino al …" with that date and
+"Riprendi aggiornamenti" works; the picker still offers only 35 days, so only the role
+can extend it. Microsoft does not document such pauses, and nobody has checked one holds
+for its full length.
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_wu_pause_days` | `7` | Days of a bare `pause` (added to `win_workman_wu_pause_months`) |
-| `win_workman_wu_pause_months` | `0` | Calendar months of a bare `pause` |
-| `win_workman_wu_default_max_pause_days` | `35` | Maximum pause cap; used by `off` and as reset target for `max_pause_days 0` |
-| `win_workman_wu_default_profile` | `security` | Profile used by a bare `wu-run` |
-| `win_workman_wu_profiles` | `security`, `full`, `upgrades` | Profiles for `wu-run-<name>`: `categories` (aliases) and `skip_optional` |
-| `win_workman_wu_categories` | `[]` | When set, replaces the categories of the chosen profile |
-| `win_workman_restart` | `true` | Allow reboot when `run` requires it |
-| `win_workman_wu_reboot_timeout` | `1800` | Seconds `run` waits after each restart for the host to be back with servicing idle |
-| `win_workman_wu_max_rounds` | `5` | Install rounds in one `run`, each followed by a restart when needed |
-| `win_workman_wu_optional_timeout` | `7200` | Seconds `wu-run-optional-...` may take to download and install in one round |
-| `win_workman_wu_sync_ui` | `true` | After a `run` that installed something, refresh the Windows Update page of Settings |
-| `win_workman_wu_sync_ui_timeout` | `300` | Seconds `sync_ui` waits for the Update Orchestrator to record the new scan |
-| `win_workman_wu_unpause` | `false` | Resume updates before running `run` (useful when updates are kept paused between runs) |
+| `win_workman_wu_pause_days` / `_pause_months` | `7` / `0` | duration of a bare `pause` |
+| `win_workman_wu_default_max_pause_days` | `35` | duration of `off`; cap when `FlightSettingsMaxPauseDays` is absent; target of `max_pause_days-0` |
+| `win_workman_wu_default_profile` | `security` | profile of a bare `run` |
+| `win_workman_wu_profiles` | `security`, `full`, `upgrades` | profiles: `categories` (aliases), `skip_optional` |
+| `win_workman_wu_categories` | `[]` | replaces the profile's categories |
+| `win_workman_restart` | `true` | `run` may reboot |
+| `win_workman_wu_reboot_timeout` | `1800` | seconds `run` waits after each restart |
+| `win_workman_wu_max_rounds` | `5` | install rounds per `run` |
+| `win_workman_wu_optional_timeout` | `7200` | seconds one round of `run-optional-…` may take |
+| `win_workman_wu_sync_ui` | `true` | `sync_ui` after a `run` that installed something |
+| `win_workman_wu_sync_ui_timeout` | `300` | seconds `sync_ui` waits for the new scan |
+| `win_workman_wu_unpause` | `false` | `resume` before `run`; the host stays unpaused afterwards |
 
----
+## Notes
 
-## Usage
-
-```yaml
-# Install security updates, rebooting if needed
-win_workman_tasks:
-  - wu-run
-
-# Install everything except feature updates
-win_workman_tasks:
-  - wu-run-full
-
-# Upgrade to the next Windows release
-win_workman_tasks:
-  - wu-run-upgrades
-
-# Upgrade when the feature update is offered as optional, then its cumulative
-win_workman_tasks:
-  - wu-run-optional-upgrades
-  - wu-run
-
-# Install the monthly preview cumulative
-win_workman_tasks:
-  - wu-run-optional-updates
-
-# List what Windows Update offers, installing nothing
-win_workman_tasks:
-  - wu-scan
-
-# Only drivers and Defender definitions
-win_workman_tasks:
-  - wu-run-cat-drivers+definitions
-
-# Refresh the Settings page after updates installed by hand or by an older run
-win_workman_tasks:
-  - wu-sync_ui
-
-# Reset a host stuck on a reboot that does nothing, then install again
-win_workman_tasks:
-  - wu-reset
-  - wu-run
-
-# Install updates even when updates are kept paused
-win_workman_tasks:
-  - wu-run
-win_workman_wu_unpause: true
-
-# Pause updates for 14 days
-win_workman_tasks:
-  - wu-pause-14
-
-# Pause updates for 3 weeks (inline duration)
-win_workman_tasks:
-  - wu-pause-3-w
-
-# Pause updates for one calendar month (within the default 35-day cap)
-win_workman_tasks:
-  - wu-pause-1-m
-
-# Resume paused updates
-win_workman_tasks:
-  - wu-resume
-
-# Read the current FlightSettingsMaxPauseDays cap
-win_workman_tasks:
-  - wu-max_pause_days
-
-# Pause for 90 days: raise the role cap first (Settings still offers only 35 days)
-win_workman_tasks:
-  - wu-max_pause_days-90
-  - wu-pause-90
-
-# Check whether updates are currently paused
-win_workman_tasks:
-  - wu-is_paused
-```
+- The report lines "Paused before the run" / "Pause had expired before the run" read
+  the pause state as of after the run (`build_info` runs again at the end and overwrites
+  it): after `win_workman_wu_unpause` they do not show.

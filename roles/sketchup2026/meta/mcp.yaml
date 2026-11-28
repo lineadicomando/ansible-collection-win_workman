@@ -27,6 +27,10 @@ defaults:
     type: str
     default: 'C:\ProgramData\SketchUp\SketchUp 2026'
     description: Directory SketchUp reads activation_info.txt from
+  - var: win_workman_sketchup2026_process_names
+    type: list
+    default: [SketchUp, LayOut, Style Builder]
+    description: Processes whose presence blocks 'license' and 'unlicense' when a change is due
   - var: win_workman_sketchup2026_force_close
     type: bool
     default: false

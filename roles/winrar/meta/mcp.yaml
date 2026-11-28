@@ -9,3 +9,7 @@ defaults:
     type: bool
     default: true
     description: Create a Start Menu shortcut
+notes: >-
+  Accepts a WinRAR language code as task argument (winrar-on-it, d, fr, sc, br; en
+  for English); without one, the language comes from the host locale. No licence
+  key is deployed: WinRAR runs as the evaluation version.

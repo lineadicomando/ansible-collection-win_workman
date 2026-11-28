@@ -1,2 +1,3 @@
 ---
 display_name: "WinFsp"
+notes: "Meant for KVM/QEMU guests: 'on' installs virtiogt first and starts the VirtioFsSvc service."

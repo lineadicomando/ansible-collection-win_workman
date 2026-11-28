@@ -1,43 +1,27 @@
-# Role: optimize
+# optimize — Disk optimisation
 
-> **Work in progress** — preliminary draft.
-
-Runs `Optimize-Volume` (the PowerShell equivalent of `defrag /O`) on one or
-more drives. Windows picks the operation by media type: retrim on SSDs,
-analysis and defragmentation on HDDs, which can take long. The task prints what
-`Optimize-Volume` reports for each drive.
-
----
+Runs `Optimize-Volume` (the PowerShell `defrag /O`) on each listed drive and prints
+what it reports. Windows picks the operation by media type: retrim on SSDs, analysis
+and defragmentation on HDDs, which can take long. There is no `off`.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Optimise all volumes listed in `win_workman_optimize_volumes` |
-
----
+| `on` (default) | Optimise every drive in `win_workman_optimize_volumes` |
 
 ## Variables
 
-| Variable | Default | Description |
+| Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_optimize_volumes` | `["C"]` | List of drive letters to optimise (single letters, no colon) |
-| `win_workman_optimize_defrag` | `false` | Pass `-Defrag` to `Optimize-Volume`: forces defragmentation whatever the media type, SSDs included (not recommended) |
+| `win_workman_optimize_volumes` | `["C"]` | Drive letters, no colon |
+| `win_workman_optimize_defrag` | `false` | Pass `-Defrag`: defragment whatever the media type, SSDs included (not recommended) |
 
----
+## Notes
 
-## Usage
-
-```yaml
-# Optimise C: and D: with the default operation for each media type
-win_workman_tasks:
-  - optimize-on
-win_workman_optimize_volumes:
-  - C
-  - D
-
-# Force defragmentation
-win_workman_tasks:
-  - optimize-on
-win_workman_optimize_defrag: true
-```
+- `Optimize-Volume` reports only on the verbose stream, with hundreds of progress
+  lines (`<step>:  33% ...`): the task captures the stream and drops them.
+- Always reports `changed`.
+- Planned, not built: an `analyze` action (`Optimize-Volume -Analyze`) that reports
+  fragmentation without defragmenting HDDs, see
+  [management](../../todo/management.md).

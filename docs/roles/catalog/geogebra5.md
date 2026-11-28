@@ -1,51 +1,13 @@
-# Role: geogebra5
+# geogebra5 — GeoGebra Classic 5
 
-> **Work in progress** — preliminary draft.
-
-Manages GeoGebra Classic 5, a dynamic mathematics software for geometry, algebra,
-calculus, and statistics education. Supports standard package operations: install,
-uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade GeoGebra Classic 5 |
-| `off` | Uninstall GeoGebra Classic 5 |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that GeoGebra Classic 5 is installed |
-
----
-
-## Configuration
-
-No variables. GeoGebra Classic 5 is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - geogebra5
-  - geogebra5-off
-```
-
----
-
-## Schema details
-
-Software name: `GeoGebra Classic 5`  
-Provider: `registry`  
-Installer: `GeoGebra-Windows-Installer-5-*.msi` (version varies)  
-Homepage: https://www.geogebra.org/
-
----
+Installs the legacy GeoGebra Classic 5 machine-wide from the upstream MSI
+(`ALLUSERS=2 /qn`); detected as `GeoGebra 5`. Standard package actions only. For
+GeoGebra 6 see [geogebra](geogebra.md).
 
 ## Notes
 
-GeoGebra Classic 5 is the stable legacy version of GeoGebra. Suitable for all
-educational levels from primary to university mathematics instruction.
+- The build is the one `download.geogebra.org/package/win-msi` redirects to.
+  GeoGebra publishes no digest: the checksum is computed on the downloaded MSI.
+- Tested 2026-11-25 on a Windows test VM (5.4.937.0): download, copy, on, a no-op
+  second on, info, is_present, off and info passed, with nothing left on disk, in the
+  shortcuts or in the uninstall entries.

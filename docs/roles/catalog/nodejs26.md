@@ -1,128 +1,68 @@
-# Role: nodejs26
+# nodejs26 — Node.js 26 LTS
 
-> **Work in progress** — preliminary draft.
-
-Manages Node.js 26 LTS ("Lithium") with npm, machine-wide, from the official MSI.
-One role per LTS major line: when a new line becomes LTS, a new role is added
-(`nodejs27`, …) and this one stays until its end of life, 2029-04-30.
-
----
+Node.js 26 LTS ("Lithium") with npm, machine-wide from the official MSI, in
+`%ProgramFiles%\nodejs` on the system PATH. One role per LTS major line: a new line
+gets a new role (`nodejs27`, …) and this one stays until its end of life, 2029-04-30.
 
 ## Actions
 
-| Action | Description |
+| Action | Does |
 |---|---|
-| `on` | Make Node.js 26 the version on the host: remove any other Node.js, install or upgrade 26, set the PowerShell execution policy, and the firewall rule if `win_workman_nodejs26_firewall` is true |
-| `on-nodep` | Same, without touching the execution policy |
-| `off` | Uninstall Node.js 26 and remove its firewall rule; another major line, if present, is left alone |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state of Node.js 26 |
-| `is_present` | Assert that Node.js 26 is installed |
+| `on` | Make 26 the line on the host: run `ps_policy-on`, remove any other Node.js, install or upgrade 26, then the firewall rule if `win_workman_nodejs26_firewall` |
+| `on-nodep` | Same, without `ps_policy-on` |
+| `off` | Uninstall 26 only and always remove its firewall rule; another major line is left alone |
 
----
-
-## One major line per host
-
-Every Node.js MSI has `DisplayName` "Node.js" and the same `UpgradeCode`, so two
-major lines cannot be installed together. The schema sets
-`version_like: "26.*"` and `exclusive: true` (see
-[pkg_utils](../core/pkg_utils.md#one-role-per-major-line-version_like-exclusive)):
-`nodejs26-on` removes a Node.js 24 or 27 first, and `nodejs26-off` removes only 26.
-Moving a lab from one line to the next is changing the role name in its task
-list; moving back works the same way. Never list two `nodejs*` roles for the same
-hosts: they would replace each other at every run.
-
----
-
-## Configuration
-
-- **Features** (`ADDLOCAL`): `NodeRuntime`, `npm`, `EnvironmentPath`,
-  `EnvironmentPathNode`. Left out:
-  - `EnvironmentPathNpmModules`, which adds `%APPDATA%\npm` to the PATH of the
-    account running the install only: global npm packages (`npm i -g`) are not
-    on the users' PATH; `npx` works.
-  - `DocumentationShortcuts`.
-- **PATH**: `%ProgramFiles%\nodejs` in the system PATH.
-- **Execution policy**: `on` runs [`ps_policy-on`](../management/ps_policy.md)
-  first. npm and npx come with `.ps1` shims, which PowerShell prefers to the
-  `.cmd` ones and the Windows client default `Restricted` refuses to run
-  ("running scripts is disabled on this system"). `off` does not reset the
-  policy, which other tools may rely on.
-- Corepack is no longer shipped from Node.js 25 on.
-
-`ps_policy`'s own variables apply.
-
----
-
-## Windows Firewall
-
-The first time `node.exe` listens on a port, Windows shows "Windows Defender
-Firewall has blocked some features of this app" and turns the answer into inbound
-rules named `TCP Query User{GUID}…\node.exe` and `UDP Query User{…}`:
-
-- dismissed by a student without admin rights, they **block**, and a block rule
-  wins over any allow rule. A dev server started in class is then unreachable
-  from the other PCs, and the prompt never shows again;
-- accepted by an admin, they allow from **any** address, on the current profile
-  only.
+## Variables
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `win_workman_nodejs26_firewall` | `false` | Manage the firewall rule on `on` |
+| `win_workman_nodejs26_firewall` | `false` | On `on`, add the inbound rule for `node.exe` and remove the prompt and block rules |
 | `win_workman_nodejs26_firewall_profiles` | `[domain, private, public]` | Profiles the rule applies to |
 | `win_workman_nodejs26_firewall_remoteip` | `LocalSubnet` | Allowed sources: `LocalSubnet`, `Any`, or a list of addresses/ranges |
 
-With the variable true, `on`:
-
-- adds the inbound rule "Node.js 26 (win_workman)" for
-  `%ProgramFiles%\nodejs\node.exe`, any protocol and port, from the allowed
-  sources only;
-- removes from the local store the inbound rules on `node.exe` left by the
-  prompt, block or allow, and any other inbound block rule on it. Allow rules
-  added by hand under another name stay; rules pushed by a GPO are not touched.
-
-It runs at every `on`, outside the package workflow, so re-running `nodejs26-on`
-also applies it to hosts that already have Node.js 26. With the variable false,
-`on` leaves the firewall alone. `off` always removes the rule.
-
-The rule names the program, not ports: any port a student's project opens is
-reachable, but only from the local subnet by default. A domain GPO that sets
-"Apply local firewall rules: No" makes Windows ignore the rule. Node.js installed
-elsewhere (nvm, portable) is not covered.
-
-```yaml
-# group_vars/all/vars.yaml
-win_workman_nodejs26_firewall: true
-```
-
----
-
-## Changing major line
-
-A new major breaks the native modules (`.node` files) that projects compiled for
-the previous one: `require()` fails with "was compiled against a different
-Node.js version using NODE_MODULE_VERSION". Modules built on Node-API are not
-affected. The remedy is `npm rebuild`, or deleting `node_modules` and running
-`npm install`; it works when the package publishes prebuilt binaries for the new
-major, since the hosts have no C++ build tools. Change line between school years,
-and tell the teachers.
-
----
-
-## Schema details
-
-Software name: `Node.js 26`  
-Provider: MSI (`registry` detection)  
-Installer: `node-v26.13.1-x64.msi`  
-Homepage: https://nodejs.org/
-
----
+`ps_policy`'s own variables apply.
 
 ## Notes
 
-- Installation location: `%ProgramFiles%\nodejs`, removed by `off`
-- Start menu: "Node.js", "Node.js command prompt", "Install Additional Tools for
-  Node.js" (needs an administrator), "Uninstall Node.js"
-- Release schedule: https://github.com/nodejs/Release — from Node.js 27 every
-  major becomes LTS each October
+- **One major line per host.** Every Node.js MSI has `DisplayName` "Node.js" and the
+  same `UpgradeCode`, so two lines cannot coexist. The schema sets
+  `version_like: "26.*"` and `exclusive: true`
+  ([pkg_utils](../core/pkg_utils.md#one-role-per-major-line-version_like-exclusive)).
+  Moving a lab to another line, in either direction, is changing the role name in its
+  task list. Never list two `nodejs*` roles for the same hosts: they replace each
+  other at every run.
+- **Features** (`ADDLOCAL=NodeRuntime,npm,EnvironmentPath,EnvironmentPathNode`).
+  Left out: `DocumentationShortcuts`, and `EnvironmentPathNpmModules`, which adds
+  `%APPDATA%\npm` to the PATH of the installing account only: global npm packages
+  (`npm i -g`) are not on the users' PATH; `npx` works. Corepack is not shipped from
+  Node.js 25 on.
+- **Execution policy.** npm and npx come with `.ps1` shims, which PowerShell prefers to
+  the `.cmd` ones and the Windows client default `Restricted` refuses ("running
+  scripts is disabled on this system"), hence [`ps_policy-on`](../management/ps_policy.md)
+  (RemoteSigned, LocalMachine). `off` does not reset the policy, which other tools may
+  rely on.
+- **Firewall.** The first time `node.exe` listens, Windows turns the "has blocked some
+  features of this app" prompt into inbound rules `TCP/UDP Query User{GUID}…\node.exe`.
+  Dismissed by a student without admin rights they **block**, and a block rule wins
+  over any allow: a dev server is then unreachable from the other PCs and the prompt
+  never returns. Accepted by an admin they allow from **any** address, current profile
+  only. With the variable true, `on` adds "Node.js 26 (win_workman)" (program
+  `%ProgramFiles%\nodejs\node.exe`, any protocol and port, from the allowed sources) and
+  removes from the local store the prompt rules on `node.exe`, block or allow, and any
+  other inbound block rule on it. Allow rules added by hand under another name stay;
+  GPO rules are not touched.
+- The firewall step runs outside the package workflow, whose after-install hook fires
+  only on install or upgrade: re-running `nodejs26-on` applies it to hosts that already
+  have 26. A GPO with "Apply local firewall rules: No" makes Windows ignore the rule;
+  Node.js installed elsewhere (nvm, portable) is not covered.
+- **Changing major line** breaks native modules (`.node`) compiled for the previous
+  one ("compiled against a different Node.js version using NODE_MODULE_VERSION");
+  Node-API modules are fine. Remedy: `npm rebuild`, or delete `node_modules` and
+  `npm install`; it works only when the package publishes prebuilt binaries, since
+  the hosts have no C++ build tools. Change line between school years and tell the
+  teachers.
+- `off` also removes `%ProgramFiles%\nodejs` (`cleanup_paths`).
+- Start Menu: "Node.js", "Node.js command prompt", "Install Additional Tools for
+  Node.js" (needs an administrator), "Uninstall Node.js".
+- From Node.js 27 every major becomes LTS each October
+  ([schedule](https://github.com/nodejs/Release)).

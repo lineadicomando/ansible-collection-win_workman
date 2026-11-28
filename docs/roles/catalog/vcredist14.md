@@ -1,51 +1,17 @@
-# Role: vcredist14
+# vcredist14 — Visual C++ Redistributable 2015-2022 (x64)
 
-Manages Visual C++ Redistributable Runtime Libraries, required by many
-applications compiled with Visual C++. Supports standard package operations:
-install, uninstall, download, and info queries.
-
----
-
-## Actions
-
-| Action | Description |
-|---|---|
-| `on` | Install or upgrade Visual C++ Redistributable |
-| `off` | Uninstall Visual C++ Redistributable |
-| `download` | Download installer to storage |
-| `copy` | Copy installer to remote temp (no install) |
-| `info` | Report installation state |
-| `is_present` | Assert that Visual C++ Redistributable is installed |
-
----
-
-## Configuration
-
-No variables. Visual C++ Redistributable is installed with default settings.
-
-Example:
-
-```yaml
-# group_vars/lab_pcs.yml
-win_workman_tasks:
-  - vcredist14
-  - vcredist14-off
-```
-
----
-
-## Schema details
-
-Software name: `Visual C++ Redistributable`  
-Provider: `registry`  
-Installer: `vc_redist.x64.exe`  
-Homepage: https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
-
----
+Microsoft Visual C++ v14 Redistributable, x64 only (`registry` provider,
+`/quiet /norestart`). Pulled in by the `on` of `goldendict`, `mysql_server`,
+`mysql_workbench`, `ntop`, `seb` and `sketchup2026`.
 
 ## Notes
 
-Visual C++ Redistributable libraries are dependencies for many Windows applications.
-Installing this ensures compatibility with applications built using Visual C++ toolchain.
-This role is automatically included as a dependency by the `seb` role when installing
-Safe Exam Browser.
+- Pinned to a versioned download instead of the evergreen
+  `aka.ms/vc14/vc_redist.x64.exe`: with no version the install ran at every play, and
+  again for every role depending on this one. To bump, follow the aka.ms redirect and
+  read `ProductVersion` from the installer (it is also the `DisplayVersion` of the
+  bundle's entry); the permalink path carries the file's sha256.
+- `searchName` is `Microsoft Visual C++*Redistributable (x64)*`, x64 only: the x86
+  redistributable matched a looser pattern and, picked when its version was higher,
+  hid a missing or older x64 one. The pattern also matches the 2012 and 2013 x64
+  redistributables, so on a host that has one of those and no v14, `off` removes it.
